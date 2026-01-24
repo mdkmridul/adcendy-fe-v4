@@ -78,7 +78,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="px-4 py-4 border-t border-border space-y-3">
           <div className="text-xs text-muted-foreground px-2">
-            <p className="font-semibold">{user?.name}</p>
+            <p className="font-semibold">{user?.email}</p>
             <p className="text-xs">{user?.role}</p>
           </div>
           <Button
@@ -138,7 +138,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </nav>
                 <div className="absolute bottom-0 left-0 right-0 px-4 py-4 border-t border-border space-y-3">
                   <div className="text-xs text-muted-foreground px-2">
-                    <p className="font-semibold">{user?.name}</p>
+                    <p className="font-semibold">{user?.email}</p>
                     <p className="text-xs">{user?.role}</p>
                   </div>
                   <Button

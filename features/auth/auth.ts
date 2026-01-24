@@ -32,6 +32,8 @@ export function getToken(): string | null {
 export function setToken(token: string): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(TOKEN_KEY, token);
+  // Notify components of auth change
+  window.dispatchEvent(new Event('auth-change'));
 }
 
 /**
@@ -40,6 +42,8 @@ export function setToken(token: string): void {
 export function clearToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(TOKEN_KEY);
+  // Notify components of auth change
+  window.dispatchEvent(new Event('auth-change'));
 }
 
 /**
@@ -64,6 +68,8 @@ export function getUser(): AuthUser | null {
 export function setUser(user: AuthUser): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  // Notify components of auth change
+  window.dispatchEvent(new Event('auth-change'));
 }
 
 /**
@@ -72,6 +78,8 @@ export function setUser(user: AuthUser): void {
 export function clearUser(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(USER_KEY);
+  // Notify components of auth change
+  window.dispatchEvent(new Event('auth-change'));
 }
 
 /**

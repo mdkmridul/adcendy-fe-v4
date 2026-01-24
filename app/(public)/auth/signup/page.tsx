@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { setToken, setUser } from '@/features/auth/auth';
+import { authRepository } from '@/shared/api/repositories';
 
 function SignupContent() {
   const router = useRouter();
@@ -19,11 +20,11 @@ function SignupContent() {
   const redirectTarget = incomingNext || '/app';
   const loginQuery = incomingNext ? `?next=${encodeURIComponent(incomingNext)}` : '';
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -31,31 +32,37 @@ function SignupContent() {
       ...prev,
       [name]: value,
     }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
-  const handleMockSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    // Mock user creation with CLIENT role
-    const mockToken = `mock.CLIENT.${Date.now()}`;
-    const mockUser = {
-      id: `user-${Date.now()}`,
-      email: formData.email,
-      name: formData.name,
-      role: 'CLIENT' as const,
-    };
+    try {
+      // Call auth repository (automatically uses mock or real API based on env)
+      const response = await authRepository.signup({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    setToken(mockToken);
-    setUser(mockUser);
+      // Store token and user
+      setToken(response.accessToken);
+      setUser(response.user);
 
-    if (planParam) {
-      localStorage.setItem('adcendy_plan', planParam);
+      // Store plan preference if provided
+      if (planParam) {
+        localStorage.setItem('adcendy_plan', planParam);
+      }
+
+      // Redirect to target
+      router.push(redirectTarget);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create account. Please try again.');
+      setIsLoading(false);
     }
-
-    // Small delay for UX
-    await new Promise(resolve => setTimeout(resolve, 300));
-    router.push(redirectTarget);
   };
 
   return (
@@ -66,19 +73,12 @@ function SignupContent() {
           <p className="text-sm text-muted-foreground">Join AdCendy today</p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleMockSignup}>
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              placeholder="John Doe"
-              value={formData.name}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
+        <form className="space-y-4" onSubmit={handleSignup}>
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-md">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>

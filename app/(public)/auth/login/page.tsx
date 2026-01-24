@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { setToken, setUser } from '@/features/auth/auth';
 import type { Role } from '@/features/auth/types';
+import { authRepository } from '@/shared/api/repositories';
 import Loading from './loading';
 
 function LoginContent() {
@@ -18,17 +19,53 @@ function LoginContent() {
   const redirectTarget = nextParam || '/app';
   const signupQuery = nextParam ? `?next=${encodeURIComponent(nextParam)}` : '';
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError(null);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Call auth repository (automatically uses mock or real API based on env)
+      const response = await authRepository.login({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      // Store token and user
+      setToken(response.accessToken);
+      setUser(response.user);
+
+      // Redirect to target
+      router.push(redirectTarget);
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password');
+      setIsLoading(false);
+    }
+  };
 
   const handleMockLogin = async (role: Role) => {
     setIsLoading(true);
+    setError(null);
     
     // Mock token generation
     const mockToken = `mock.${role}.${Date.now()}`;
     const mockUser = {
       id: `user-${Date.now()}`,
       email: `${role.toLowerCase()}@adcendy.com`,
-      name: role === 'CLIENT' ? 'Demo User' : role === 'REVIEWER' ? 'Reviewer' : 'Administrator',
       role,
+      createdAt: new Date().toISOString(),
     };
 
     setToken(mockToken);
@@ -48,29 +85,48 @@ function LoginContent() {
 
       <form
         className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleMockLogin('CLIENT');
-        }}
+        onSubmit={handleLogin}
       >
+        {error && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-md">
+            {error}
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="your@email.com" required />
+          <Input 
+            id="email" 
+            name="email"
+            type="email" 
+            placeholder="your@email.com" 
+            value={formData.email}
+            onChange={handleInputChange}
+            required 
+          />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" placeholder="••••••••" required />
+          <Input 
+            id="password" 
+            name="password"
+            type="password" 
+            placeholder="••••••••" 
+            value={formData.password}
+            onChange={handleInputChange}
+            required 
+          />
         </div>
 
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Signing in...' : 'Sign In as Client'}
+          {isLoading ? 'Signing in...' : 'Sign In'}
         </Button>
       </form>
 
       <div className="space-y-2 border-t border-border pt-4">
         <p className="text-xs text-muted-foreground text-center font-semibold">
-          Quick access for testing:
+          Quick access for testing (Mock Mode):
         </p>
         <Button
           type="button"

@@ -1,3 +1,4 @@
+export { authRepository } from './auth.repo';
 export { campaignsRepository } from './campaigns.repo';
 export { wizardRepository } from './wizard.repo';
 export { strategyRepository } from './strategy.repo';

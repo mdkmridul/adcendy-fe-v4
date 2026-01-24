@@ -76,7 +76,7 @@ function MarketingNavContent() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="px-3">
-                    {user?.name ?? user?.email ?? 'Account'}
+                    {user?.email ?? 'Account'}
                   </Button>
                 </DropdownMenuTrigger>
 
