@@ -1,0 +1,17 @@
+import type { Campaign, CreateCampaignPayload, UpdateCampaignPayload } from '@/shared/types/campaign';
+import type { ID } from '@/shared/types/common';
+import { campaignsMockAdapter } from '../mock/campaigns.mock';
+import { campaignsRealAdapter } from '../real/campaigns.real';
+import ENV from '@/lib/env';
+
+const adapter = ENV.API.isMock ? campaignsMockAdapter : campaignsRealAdapter;
+
+export const campaignsRepository = {
+  listCampaigns: async (): Promise<Campaign[]> => adapter.listCampaigns(),
+  getCampaign: async (id: ID): Promise<Campaign> => adapter.getCampaign(id),
+  createCampaign: async (payload: CreateCampaignPayload): Promise<Campaign> =>
+    adapter.createCampaign(payload),
+  updateCampaign: async (id: ID, payload: UpdateCampaignPayload): Promise<Campaign> =>
+    adapter.updateCampaign(id, payload),
+  deleteCampaign: async (id: ID): Promise<void> => adapter.deleteCampaign(id),
+};
