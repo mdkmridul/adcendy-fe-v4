@@ -1,11 +1,17 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import { MicroDemoCard } from '@/components/interactive/micro-demo-card';
 import { Starfield } from '@/components/interactive/starfield';
+import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 
 export function StarfieldHero() {
+  const { status } = useMarketingAuth();
+  const isAuthed = status === 'authed';
+  const generatePlanHref = isAuthed ? '/app/wizard' : '/auth/signup?next=/app/wizard';
+
   return (
     <section className="relative w-full min-h-screen bg-gradient-to-b from-background via-background to-background overflow-hidden">
       {/* Starfield canvas */}
@@ -37,22 +43,26 @@ export function StarfieldHero() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-            >
-              Generate plan
-              <ChevronRight className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-3 border border-border text-foreground font-semibold rounded-lg hover:bg-card/50 transition-colors flex items-center justify-center gap-2"
-            >
-              View sample report
-              <ChevronRight className="w-4 h-4" />
-            </motion.button>
+            <Link href={generatePlanHref}>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                Generate plan
+                <ChevronRight className="w-4 h-4" />
+              </motion.div>
+            </Link>
+            <Link href="/sample-report">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-8 py-3 border border-border text-foreground font-semibold rounded-lg hover:bg-card/50 transition-colors flex items-center justify-center gap-2"
+              >
+                View sample report
+                <ChevronRight className="w-4 h-4" />
+              </motion.div>
+            </Link>
           </div>
 
           {/* Trust row */}

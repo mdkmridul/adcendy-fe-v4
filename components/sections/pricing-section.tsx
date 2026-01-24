@@ -1,7 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { Check } from 'lucide-react';
+import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 
 const PLANS = [
   {
@@ -16,6 +18,7 @@ const PLANS = [
       '60-day validity',
     ],
     cta: 'Get Started',
+    slug: 'starter',
   },
   {
     name: 'Professional',
@@ -32,6 +35,7 @@ const PLANS = [
     ],
     highlighted: true,
     cta: 'Start Growing',
+    slug: 'pro',
   },
   {
     name: 'Enterprise',
@@ -47,12 +51,17 @@ const PLANS = [
       'Multi-market analysis',
     ],
     cta: 'Contact Sales',
+    slug: 'enterprise',
   },
 ];
 
 export function Pricing() {
+  const { status } = useMarketingAuth();
+  const isAuthed = status === 'authed';
+  const nextParam = encodeURIComponent('/app/wizard');
+
   return (
-    <section className="bg-background py-20 sm:py-32 px-4 sm:px-6 lg:px-8">
+    <section id="pricing" className="bg-background py-20 sm:py-32 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -101,13 +110,22 @@ export function Pricing() {
                   <p className="text-xs text-muted-foreground">one-time investment</p>
                 </div>
 
-                <button className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-                  plan.highlighted
-                    ? 'bg-primary text-white hover:bg-blue-700'
-                    : 'border border-primary text-primary hover:bg-primary/10'
-                }`}>
+                <Link
+                  href={
+                    plan.slug === 'enterprise'
+                      ? '/contact'
+                      : isAuthed
+                        ? '/app/wizard'
+                        : `/auth/signup?plan=${plan.slug ?? 'starter'}&next=${nextParam}`
+                  }
+                  className={`inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all ${
+                    plan.highlighted
+                      ? 'bg-primary text-white hover:bg-blue-700'
+                      : 'border border-primary text-primary hover:bg-primary/10'
+                  }`}
+                >
                   {plan.cta}
-                </button>
+                </Link>
 
                 <div className="space-y-3 border-t border-border pt-8">
                   {plan.features.map((feature, fidx) => (

@@ -9,12 +9,16 @@ import './globals.css'
 const _spaceGrotesk = Space_Grotesk({ 
   subsets: ["latin"],
   variable: '--font-space-grotesk',
-  weight: ['400', '500', '600', '700']
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  preload: true
 });
 const _inter = Inter({ 
   subsets: ["latin"],
   variable: '--font-inter',
-  weight: ['400', '500', '600', '700']
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  preload: true
 });
 
 export const metadata: Metadata = {

@@ -7,6 +7,23 @@ export function Starfield() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const isVisibleRef = useRef(true);
+  const isInViewportRef = useRef(true);
+
+  // Intersection Observer to pause when out of viewport
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isInViewportRef.current = entry.isIntersecting;
+      },
+      { threshold: 0 }
+    );
+
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
 
   // Check for prefers-reduced-motion
   useEffect(() => {
@@ -97,7 +114,8 @@ export function Starfield() {
     const connectionDistance = 150;
 
     const animate = () => {
-      if (!isVisibleRef.current) {
+      // Skip animation if tab is hidden or component is out of viewport
+      if (!isVisibleRef.current || !isInViewportRef.current) {
         animationFrameId = requestAnimationFrame(animate);
         return;
       }

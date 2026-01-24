@@ -14,7 +14,9 @@ import Loading from './loading';
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = searchParams.get('returnTo') || '/app/campaigns';
+  const nextParam = searchParams.get('next');
+  const redirectTarget = nextParam || '/app';
+  const signupQuery = nextParam ? `?next=${encodeURIComponent(nextParam)}` : '';
   const [isLoading, setIsLoading] = useState(false);
 
   const handleMockLogin = async (role: Role) => {
@@ -34,7 +36,7 @@ function LoginContent() {
     
     // Small delay for UX
     await new Promise(resolve => setTimeout(resolve, 300));
-    router.push(returnTo);
+    router.push(redirectTarget);
   };
 
   return (
@@ -92,7 +94,7 @@ function LoginContent() {
 
       <div className="text-center text-sm text-muted-foreground">
         Don't have an account?{' '}
-        <Link href="/auth/signup" className="text-primary hover:underline">
+        <Link href={`/auth/signup${signupQuery}`} className="text-primary hover:underline">
           Sign up
         </Link>
       </div>

@@ -1,23 +1,46 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 
 export function StickyFooterCTA() {
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const { status } = useMarketingAuth();
+  const ctaHref = status === 'authed' ? '/app/wizard' : '/auth/signup?next=/app/wizard';
 
   useEffect(() => {
     if (isDismissed) return;
 
     const handleScroll = () => {
       const scrollPercentage = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
-      setIsVisible(scrollPercentage > 60 || window.scrollY > 2000);
+      const shouldBeVisible = scrollPercentage > 60 || window.scrollY > 2000;
+      
+      // Only update state if visibility actually changes
+      setIsVisible(prev => prev === shouldBeVisible ? prev : shouldBeVisible);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Throttle scroll events to reduce excessive re-renders
+    let rafId: number | null = null;
+    const throttledScroll = () => {
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          handleScroll();
+          rafId = null;
+        });
+      }
+    };
+
+    window.addEventListener('scroll', throttledScroll, { passive: true });
+    handleScroll(); // Check initial state
+    
+    return () => {
+      window.removeEventListener('scroll', throttledScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [isDismissed]);
 
   return (
@@ -47,9 +70,12 @@ export function StickyFooterCTA() {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto">
-                <button className="flex-1 sm:flex-none px-6 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition-all text-sm">
+                <Link
+                  href={ctaHref}
+                  className="flex-1 sm:flex-none px-6 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition-all text-sm text-center"
+                >
                   Get Started
-                </button>
+                </Link>
                 <button
                   onClick={() => setIsDismissed(true)}
                   className="px-3 py-2.5 border border-border hover:bg-card/50 rounded-lg transition-all"

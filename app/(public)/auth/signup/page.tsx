@@ -1,8 +1,8 @@
 'use client';
 
-import React from "react"
+import React, { Suspense } from "react"
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { setToken, setUser } from '@/features/auth/auth';
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const incomingNext = searchParams.get('next');
+  const planParam = searchParams.get('plan');
+  const redirectTarget = incomingNext || '/app';
+  const loginQuery = incomingNext ? `?next=${encodeURIComponent(incomingNext)}` : '';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,9 +49,13 @@ export default function SignupPage() {
     setToken(mockToken);
     setUser(mockUser);
 
+    if (planParam) {
+      localStorage.setItem('adcendy_plan', planParam);
+    }
+
     // Small delay for UX
     await new Promise(resolve => setTimeout(resolve, 300));
-    router.push('/app/campaigns');
+    router.push(redirectTarget);
   };
 
   return (
@@ -104,11 +113,23 @@ export default function SignupPage() {
 
         <div className="text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/auth/login" className="text-primary hover:underline">
+          <Link href={`/auth/login${loginQuery}`} className="text-primary hover:underline">
             Sign in
           </Link>
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   );
 }

@@ -119,7 +119,29 @@
   * {
     @apply border-border outline-ring/50;
   }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+  
   body {
     @apply bg-background text-foreground;
+    /* Improve scrolling performance */
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+  }
+  
+  /* Performance hints for animated elements */
+  canvas,
+  [data-animated],
+  .sticky,
+  .fixed {
+    will-change: transform;
   }
 }
