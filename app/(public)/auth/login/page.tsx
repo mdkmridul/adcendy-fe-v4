@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { setToken, setUser } from '@/features/auth/auth';
 import type { Role } from '@/features/auth/types';
-import { authRepository } from '@/shared/api/repositories';
+import { authApi } from '@/src/lib/api/auth';
+import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
+import { X } from 'lucide-react';
 import Loading from './loading';
 
 function LoginContent() {
@@ -37,18 +39,25 @@ function LoginContent() {
     setError(null);
 
     try {
-      // Call auth repository (automatically uses mock or real API based on env)
-      const response = await authRepository.login({
+      // Call auth API with OpenAPI types
+      const result = await authApi.login({
         email: formData.email,
         password: formData.password,
       });
 
       // Store token and user
-      setToken(response.accessToken);
-      setUser(response.user);
+      setToken(result.accessToken);
+      setUser(result.user);
 
-      // Redirect to target
-      router.push(redirectTarget);
+      // Calculate redirect URL
+      const redirectUrl = getAuthRedirectUrl(nextParam);
+      console.log('Login successful, redirecting to:', redirectUrl);
+      
+      // Dispatch auth-change event for reactive components
+      window.dispatchEvent(new Event('auth-change'));
+      
+      // Use replace to avoid back button issues
+      router.replace(redirectUrl);
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
       setIsLoading(false);
@@ -71,13 +80,29 @@ function LoginContent() {
     setToken(mockToken);
     setUser(mockUser);
     
-    // Small delay for UX
+    // Calculate redirect URL
+    const redirectUrl = getAuthRedirectUrl(nextParam);
+    console.log('Mock login successful, redirecting to:', redirectUrl);
+    
+    // Dispatch auth-change event for reactive components
+    window.dispatchEvent(new Event('auth-change'));
+    
+    // Brief UX delay to show loading state
     await new Promise(resolve => setTimeout(resolve, 300));
-    router.push(redirectTarget);
+    router.replace(redirectUrl);
   };
 
   return (
-    <Card className="w-full max-w-md p-8 space-y-6 border border-border bg-card">
+    <Card className="w-full max-w-md p-8 space-y-6 border border-border bg-card relative">
+      {/* Close button to go back to landing page */}
+      <Link 
+        href="/"
+        className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Back to home"
+      >
+        <X className="w-5 h-5" />
+      </Link>
+
       <div className="text-center space-y-2">
         <h1 className="font-space-grotesk text-2xl font-bold">Welcome to AdCendy</h1>
         <p className="text-sm text-muted-foreground">Sign in to your account</p>
@@ -107,7 +132,15 @@ function LoginContent() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link 
+              href="/auth/forgot-password" 
+              className="text-xs text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Input 
             id="password" 
             name="password"

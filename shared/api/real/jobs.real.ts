@@ -1,13 +1,19 @@
 import { http } from '../index';
-import type { JobRun, JobRunDetail, ListJobRunsParams } from '@/shared/types/jobs';
-import type { ID } from '@/shared/types/common';
+import type { components } from '@/src/generated/openapi';
+import type { ApiResponse } from '../types';
+
+type JobRunDto = components['schemas']['JobRunDto'];
+type JobRunListResponseDto = components['schemas']['JobRunListResponseDto'];
+type JobRunDetailDto = components['schemas']['JobRunDetailDto'];
 
 export const jobsRealAdapter = {
-  async listJobRuns(params?: ListJobRunsParams): Promise<JobRun[]> {
-    return http<JobRun[]>('/admin/jobs', { query: params as Record<string, any> });
+  async listJobRuns(params?: { entityType?: string; entityId?: string; status?: string }): Promise<JobRunDto[]> {
+    const response = await http<ApiResponse<JobRunListResponseDto>>('/v1/v1/admin/jobs/runs', { query: params });
+    return response.data.runs;
   },
 
-  async getJobRunDetail(jobRunId: ID): Promise<JobRunDetail> {
-    return http<JobRunDetail>(`/admin/jobs/${jobRunId}`);
+  async getJobRunDetail(jobRunId: string): Promise<JobRunDetailDto> {
+    const response = await http<ApiResponse<JobRunDetailDto>>(`/v1/v1/admin/jobs/runs/${jobRunId}`);
+    return response.data;
   },
 };

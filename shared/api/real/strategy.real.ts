@@ -1,32 +1,37 @@
 import { http } from '../index';
-import type { StrategyRun, StrategyVersion, SubmitStrategyFeedbackPayload } from '@/shared/types/strategy';
-import type { ID } from '@/shared/types/common';
+import type { components } from '@/src/generated/openapi';
+import type { ApiResponse } from '../types';
+
+type StrategyRunDto = components['schemas']['StrategyRunDto'];
+type StrategyRunResponseDto = components['schemas']['StrategyRunResponseDto'];
+type StrategyRunListResponseDto = components['schemas']['StrategyRunListResponseDto'];
+type SubmitFeedbackDto = components['schemas']['SubmitFeedbackDto'];
 
 export const strategyRealAdapter = {
-  async startRun(campaignId: ID): Promise<{ strategyRunId: ID }> {
-    return http<{ strategyRunId: ID }>(`/campaigns/${campaignId}/strategy/start`, {
+  async startRun(campaignId: string): Promise<StrategyRunResponseDto> {
+    const response = await http<ApiResponse<StrategyRunResponseDto>>(`/v1/campaigns/${campaignId}/strategy/generate`, {
       method: 'POST',
     });
+    return response.data;
   },
 
-  async getRun(id: ID): Promise<StrategyRun> {
-    return http<StrategyRun>(`/strategy-runs/${id}`);
+  async getRun(campaignId: string, runId: string): Promise<StrategyRunDto> {
+    const response = await http<ApiResponse<StrategyRunDto>>(`/v1/campaigns/${campaignId}/strategy/runs/${runId}`);
+    return response.data;
   },
 
-  async listVersions(campaignId: ID): Promise<StrategyVersion[]> {
-    return http<StrategyVersion[]>(`/campaigns/${campaignId}/strategy/versions`);
+  async listRuns(campaignId: string): Promise<StrategyRunDto[]> {
+    const response = await http<ApiResponse<StrategyRunListResponseDto>>(`/v1/campaigns/${campaignId}/strategy/runs`);
+    return response.data.runs;
   },
 
-  async getLatest(campaignId: ID): Promise<StrategyVersion> {
-    return http<StrategyVersion>(`/campaigns/${campaignId}/strategy/latest`);
+  async getLatest(campaignId: string): Promise<StrategyRunDto> {
+    const response = await http<ApiResponse<StrategyRunDto>>(`/v1/campaigns/${campaignId}/strategy/latest`);
+    return response.data;
   },
 
-  async getVersion(strategyVersionId: ID): Promise<StrategyVersion> {
-    return http<StrategyVersion>(`/strategy-versions/${strategyVersionId}`);
-  },
-
-  async submitFeedback(strategyVersionId: ID, payload: SubmitStrategyFeedbackPayload): Promise<void> {
-    await http(`/strategy-versions/${strategyVersionId}/feedback`, {
+  async submitFeedback(campaignId: string, runId: string, payload: SubmitFeedbackDto): Promise<void> {
+    await http(`/v1/campaigns/${campaignId}/strategy/runs/${runId}/feedback`, {
       method: 'POST',
       body: payload,
     });

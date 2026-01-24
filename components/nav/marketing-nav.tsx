@@ -32,7 +32,11 @@ function MarketingNavContent() {
 
   const queryString = mounted ? searchParams?.toString() : '';
   const currentPath = `${pathname}${queryString ? `?${queryString}` : ''}`;
-  const nextParam = encodeURIComponent(currentPath || '/');
+  
+  // Don't redirect back to public pages after auth - go to app instead
+  const isPublicPage = pathname === '/' || pathname?.startsWith('/auth') || pathname === '/sample-report' || pathname === '/contact';
+  const redirectAfterAuth = isPublicPage ? '/app' : currentPath;
+  const nextParam = encodeURIComponent(redirectAfterAuth);
 
   const loginHref = `/auth/login?next=${nextParam}`;
   const signupHref = `/auth/signup?next=${nextParam}`;

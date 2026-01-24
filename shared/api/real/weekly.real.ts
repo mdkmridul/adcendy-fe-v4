@@ -1,71 +1,97 @@
 import { http } from '../index';
-import type { WeeklySubmission, WeeklyProcessingRun, DerivedMetricsSummary, Anomaly, TweakRun, TweakItem, UpsertWeeklySubmissionPayload, UpdateTweakStatusPayload } from '@/shared/types/weekly';
-import type { ID } from '@/shared/types/common';
+import type { components } from '@/src/generated/openapi';
+import type { ApiResponse } from '../types';
+
+type WeeklySubmissionDto = components['schemas']['WeeklySubmissionDto'];
+type WeeklySubmissionResponseDto = components['schemas']['WeeklySubmissionResponseDto'];
+type WeeklyListResponseDto = components['schemas']['WeeklyListResponseDto'];
+type AnomalyDto = components['schemas']['AnomalyDto'];
+type AnomalyListResponseDto = components['schemas']['AnomalyListResponseDto'];
+type TweakRunDto = components['schemas']['TweakRunDto'];
+type TweakRunResponseDto = components['schemas']['TweakRunResponseDto'];
+type UpsertWeeklySubmissionDto = components['schemas']['UpsertWeeklySubmissionDto'];
 
 export const weeklyRealAdapter = {
   async upsertSubmission(
-    campaignId: ID,
+    campaignId: string,
     weekStart: string,
-    payload: UpsertWeeklySubmissionPayload
-  ): Promise<{ weeklySubmission: WeeklySubmission; processingRunId: ID }> {
-    return http<{ weeklySubmission: WeeklySubmission; processingRunId: ID }>(`/campaigns/${campaignId}/weekly/${weekStart}`, {
+    payload: UpsertWeeklySubmissionDto
+  ): Promise<WeeklySubmissionResponseDto> {
+    const response = await http<ApiResponse<WeeklySubmissionResponseDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}`, {
       method: 'POST',
       body: payload,
     });
+    return response.data;
   },
 
-  async listSubmissions(campaignId: ID): Promise<WeeklySubmission[]> {
-    return http<WeeklySubmission[]>(`/campaigns/${campaignId}/weekly`);
+  async listSubmissions(campaignId: string): Promise<WeeklySubmissionDto[]> {
+    const response = await http<ApiResponse<WeeklyListResponseDto>>(`/v1/campaigns/${campaignId}/weekly`);
+    return response.data.submissions;
   },
 
-  async getWeeklySubmission(campaignId: ID, weekStart: string): Promise<WeeklySubmission | null> {
+  async getWeeklySubmission(campaignId: string, weekStart: string): Promise<WeeklySubmissionDto | null> {
     try {
-      return await http<WeeklySubmission>(`/campaigns/${campaignId}/weekly/${weekStart}`);
+      const response = await http<ApiResponse<WeeklySubmissionDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}`);
+      return response.data;
     } catch {
       return null;
     }
   },
 
-  async getProcessingRun(processingRunId: ID): Promise<WeeklyProcessingRun> {
-    return http<WeeklyProcessingRun>(`/processing-runs/${processingRunId}`);
-  },
-
-  async getDerivedSummary(campaignId: ID, weekStart: string): Promise<DerivedMetricsSummary> {
-    return http<DerivedMetricsSummary>(`/campaigns/${campaignId}/weekly/${weekStart}/derived`);
-  },
-
-  async listAnomalies(campaignId: ID, weekStart?: string): Promise<Anomaly[]> {
-    const query = weekStart ? { weekStart } : undefined;
-    return http<Anomaly[]>(`/campaigns/${campaignId}/anomalies`, { query });
-  },
-
-  async startTweakRun(campaignId: ID, weekStart: string): Promise<{ tweakRunId: ID }> {
-    return http<{ tweakRunId: ID }>(`/campaigns/${campaignId}/weekly/${weekStart}/tweaks`, {
+  async finalizeWeek(campaignId: string, weekStart: string): Promise<void> {
+    await http(`/v1/campaigns/${campaignId}/weekly/${weekStart}/finalize`, {
       method: 'POST',
     });
   },
 
-  async getTweakRun(campaignId: ID, weekStart: string): Promise<TweakRun | null> {
+  async listAnomalies(campaignId: string): Promise<AnomalyDto[]> {
+    const response = await http<ApiResponse<AnomalyListResponseDto>>(`/v1/campaigns/${campaignId}/anomalies`);
+    return response.data.anomalies;
+  },
+
+  async getAnomaly(campaignId: string, anomalyId: string): Promise<AnomalyDto> {
+    const response = await http<ApiResponse<AnomalyDto>>(`/v1/campaigns/${campaignId}/anomalies/${anomalyId}`);
+    return response.data;
+  },
+
+  async refreshAnomalies(campaignId: string): Promise<void> {
+    await http(`/v1/campaigns/${campaignId}/anomalies/refresh`, {
+      method: 'POST',
+    });
+  },
+
+  async acknowledgeAnomaly(campaignId: string, anomalyId: string): Promise<AnomalyDto> {
+    const response = await http<ApiResponse<AnomalyDto>>(`/v1/campaigns/${campaignId}/anomalies/${anomalyId}/ack`, {
+      method: 'POST',
+    });
+    return response.data;
+  },
+
+  async resolveAnomaly(campaignId: string, anomalyId: string): Promise<AnomalyDto> {
+    const response = await http<ApiResponse<AnomalyDto>>(`/v1/campaigns/${campaignId}/anomalies/${anomalyId}/resolve`, {
+      method: 'POST',
+    });
+    return response.data;
+  },
+
+  async generateTweaks(campaignId: string, weekStart: string): Promise<TweakRunResponseDto> {
+    const response = await http<ApiResponse<TweakRunResponseDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks/generate`, {
+      method: 'POST',
+    });
+    return response.data;
+  },
+
+  async getTweakRun(campaignId: string, weekStart: string): Promise<TweakRunDto | null> {
     try {
-      return await http<TweakRun>(`/campaigns/${campaignId}/weekly/${weekStart}/tweaks`);
+      const response = await http<ApiResponse<TweakRunDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks/latest`);
+      return response.data;
     } catch {
       return null;
     }
   },
 
-  async getTweakRunById(tweakRunId: ID): Promise<TweakRun> {
-    return http<TweakRun>(`/tweak-runs/${tweakRunId}`);
-  },
-
-  async listTweaks(tweakRunId: ID, visibility?: 'ALL' | 'APPROVED_ONLY'): Promise<TweakItem[]> {
-    const query = visibility ? { visibility } : undefined;
-    return http<TweakItem[]>(`/tweak-runs/${tweakRunId}/items`, { query });
-  },
-
-  async updateTweakStatus(tweakItemId: ID, payload: UpdateTweakStatusPayload): Promise<TweakItem> {
-    return http<TweakItem>(`/tweak-items/${tweakItemId}`, {
-      method: 'PATCH',
-      body: payload,
-    });
+  async listTweaks(campaignId: string, weekStart: string): Promise<TweakRunDto> {
+    const response = await http<ApiResponse<TweakRunDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks`);
+    return response.data;
   },
 };

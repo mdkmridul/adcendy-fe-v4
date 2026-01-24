@@ -14,24 +14,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    const user = getUser();
+    const checkAuth = () => {
+      const token = getToken();
+      const user = getUser();
 
-    if (!token || !user) {
-      router.push(`/auth/login?returnTo=${encodeURIComponent(pathname)}`);
-      return;
-    }
+      if (!token || !user) {
+        router.push(`/auth/login?returnTo=${encodeURIComponent(pathname)}`);
+        return;
+      }
 
-    // Check if user has access to current path
-    if (!canAccessPath(user, pathname)) {
-      router.push('/app/unauthorized');
+      // Check if user has access to current path
+      if (!canAccessPath(user, pathname)) {
+        router.push('/app/unauthorized');
+        setIsLoading(false);
+        return;
+      }
+
+      setIsAuthed(true);
+      setIsAuthorized(true);
       setIsLoading(false);
-      return;
-    }
+    };
 
-    setIsAuthed(true);
-    setIsAuthorized(true);
-    setIsLoading(false);
+    // Check auth on mount and pathname change
+    checkAuth();
+
+    // Listen for auth state changes
+    const handleAuthChange = () => {
+      checkAuth();
+    };
+    
+    window.addEventListener('auth-change', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+
+    return () => {
+      window.removeEventListener('auth-change', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
   }, [router, pathname]);
 
   if (isLoading) {

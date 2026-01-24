@@ -77,12 +77,55 @@ export default function CampaignsPage() {
           ))}
         </div>
       ) : campaigns.length === 0 ? (
-        <Card className="p-12 text-center bg-card border border-border">
-          <p className="text-muted-foreground mb-4">No campaigns yet. Create your first campaign to get started.</p>
-          <Button onClick={() => setCreateModalOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Create First Campaign
-          </Button>
+        <Card className="p-12 text-center bg-card border border-border relative overflow-hidden">
+          {/* Subtle intelligence presence cue */}
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
+          
+          <div className="relative">
+            {/* Status indicator */}
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/60 mb-6">
+              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
+              <span>Intelligence system ready</span>
+            </div>
+
+            {/* Main message */}
+            <h2 className="font-space-grotesk text-xl font-semibold text-foreground mb-2">
+              No market intelligence campaigns yet
+            </h2>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+              Create a campaign to start tracking competitor signals, market patterns, and weekly strategic insights.
+            </p>
+
+            {/* What happens next - inline steps */}
+            <div className="flex items-center justify-center gap-8 mb-8 text-xs">
+              <div className="flex items-center gap-2 text-muted-foreground/70">
+                <div className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center text-[10px] font-medium">1</div>
+                <span>Collect signals</span>
+              </div>
+              <div className="w-4 h-[1px] bg-border/50" />
+              <div className="flex items-center gap-2 text-muted-foreground/70">
+                <div className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center text-[10px] font-medium">2</div>
+                <span>Analyze patterns</span>
+              </div>
+              <div className="w-4 h-[1px] bg-border/50" />
+              <div className="flex items-center gap-2 text-muted-foreground/70">
+                <div className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center text-[10px] font-medium">3</div>
+                <span>Generate strategy</span>
+              </div>
+            </div>
+
+            {/* Elevated CTA */}
+            <div className="space-y-2">
+              <Button 
+                onClick={() => setCreateModalOpen(true)} 
+                className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Create First Campaign
+              </Button>
+              <p className="text-xs text-muted-foreground/50">Takes ~3 minutes</p>
+            </div>
+          </div>
         </Card>
       ) : filteredCampaigns.length === 0 ? (
         <Card className="p-8 text-center bg-card border border-border">

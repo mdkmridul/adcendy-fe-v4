@@ -2,7 +2,7 @@
  * AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
  * 
  * Generated from: http://localhost:3001/api/docs-json
- * Generated at: 2026-01-24T13:12:44.806Z
+ * Generated at: 2026-01-24T21:04:33.920Z
  * 
  * To regenerate, run: pnpm gen:api
  */
@@ -13,7 +13,7 @@
  */
 
 export interface paths {
-    "/v1/auth/register": {
+    "/v1/auth/signup/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -22,7 +22,39 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["AuthController_register"];
+        post: operations["AuthController_startSignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/signup/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_verifySignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_forgotPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -39,6 +71,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_resetPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1985,9 +2033,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        RegisterDto: {
+        SignupStartResponseDto: {
+            verificationId: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        ResponseMetaDto: {
+            requestId: Record<string, never> | null;
+            /** Format: date-time */
+            timestamp: string;
+        };
+        SignupStartDto: {
             email: string;
             password: string;
+            name?: string;
+        };
+        ErrorResponseDto: {
+            message: string;
+            code: string;
+            details?: Record<string, never>;
         };
         AuthUserDto: {
             id: string;
@@ -2002,37 +2066,69 @@ export interface components {
             accessToken: string;
             refreshToken: string;
         };
-        ErrorResponseDto: {
-            message: string;
-            code: string;
-            details?: Record<string, never>;
+        SignupVerifyDto: {
+            verificationId: string;
+            otp: string;
+        };
+        PasswordResetStartResponseDto: {
+            resetId: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        ForgotPasswordDto: {
+            email: string;
         };
         LoginDto: {
             email: string;
             password: string;
         };
+        PasswordResetResponseDto: {
+            /** @example true */
+            ok: boolean;
+        };
+        PasswordResetDto: {
+            resetId: string;
+            otp: string;
+            newPassword: string;
+        };
         RefreshDto: {
             refreshToken: string;
         };
-        LogoutResponseDto: {
+        LogoutResponseDataDto: {
+            /** @example true */
             success: boolean;
+        };
+        ProtectedResponseDto: {
+            /** @example true */
+            ok: boolean;
+        };
+        UserDto: {
+            id: string;
+            email: string;
+            /** @enum {string} */
+            role: "CLIENT" | "REVIEWER" | "ADMIN";
+            displayName?: Record<string, never>;
+            phone?: Record<string, never>;
+            avatarUrl?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         UpdateMeDto: {
             displayName?: string;
             phone?: string;
             avatarUrl?: string;
         };
-        CreateCampaignDto: {
-            title: string;
-            /** @enum {string} */
-            businessType?: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
-            websiteUrl?: string;
-            description?: string;
-            marketLocation?: string;
-            detectedCategoryKeyword?: string;
-            /** @enum {string} */
-            status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
-            currentStep?: number;
+        UserListMetaDto: {
+            page: number;
+            pageSize: number;
+            total: number;
+            hasNext: boolean;
+        };
+        UsersListResponseDto: {
+            items: components["schemas"]["UserDto"][];
+            meta: components["schemas"]["UserListMetaDto"];
         };
         CampaignDto: {
             id: string;
@@ -2051,6 +2147,18 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        CreateCampaignDto: {
+            title: string;
+            /** @enum {string} */
+            businessType?: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
+            websiteUrl?: string;
+            description?: string;
+            marketLocation?: string;
+            detectedCategoryKeyword?: string;
+            /** @enum {string} */
+            status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+            currentStep?: number;
         };
         CampaignListMetaDto: {
             page: number;
@@ -2151,6 +2259,33 @@ export interface components {
             steps: components["schemas"]["StrategyWizardPreviewStepsDto"];
             derived?: Record<string, never>;
         };
+        GenerationRunDto: {
+            runId: string;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "RETRIEVING" | "GENERATING" | "VALIDATING" | "READY";
+            currentStage: string;
+            progress: number;
+            errorCode?: Record<string, never> | null;
+            errorMessage?: Record<string, never> | null;
+            stageStatus?: {
+                [key: string]: unknown;
+            };
+            startedAt: Record<string, never> | null;
+            endedAt: Record<string, never> | null;
+            createdAt: string;
+            updatedAt: string;
+            parentRunId?: Record<string, never> | null;
+        };
+        GenerationRunListMetaDto: {
+            page: number;
+            pageSize: number;
+            total: number;
+            hasNext: boolean;
+        };
+        GenerationRunListResponseDto: {
+            items: components["schemas"]["GenerationRunDto"][];
+            meta: components["schemas"]["GenerationRunListMetaDto"];
+        };
         /** @enum {string} */
         MarketSource: "SERP_GOOGLE" | "MAPS_GOOGLE" | "ADS_META" | "MARKET_AMAZON" | "TRENDS_GOOGLE";
         /** @enum {string} */
@@ -2188,6 +2323,12 @@ export interface components {
             items: components["schemas"]["MarketSnapshotDto"][];
             total: number;
         };
+        SnapshotCreateResponseDto: {
+            snapshotId: string;
+            queued: boolean;
+            cached: boolean;
+            message?: string;
+        };
         SnapshotCreateDto: {
             /** @enum {string} */
             source: "SERP_GOOGLE" | "MAPS_GOOGLE" | "ADS_META" | "MARKET_AMAZON" | "TRENDS_GOOGLE";
@@ -2203,12 +2344,6 @@ export interface components {
             /** @default en */
             languageCode: string;
             ttlSeconds?: number;
-        };
-        SnapshotCreateResponseDto: {
-            snapshotId: string;
-            queued: boolean;
-            cached: boolean;
-            message?: string;
         };
         SerpRefreshDto: {
             queryText?: string;
@@ -2247,14 +2382,14 @@ export interface components {
             languageCode: string;
             ttlSeconds?: number;
         };
-        SummaryRefreshDto: {
-            /** @default false */
-            force: boolean;
-        };
         SummaryRefreshResponseDto: {
             summaryId: string;
             queued: boolean;
             message?: string;
+        };
+        SummaryRefreshDto: {
+            /** @default false */
+            force: boolean;
         };
         IntelligenceSummaryDto: {
             id: string;
@@ -2292,14 +2427,56 @@ export interface components {
             items: components["schemas"]["IntelligenceSummaryDto"][];
             total: number;
         };
+        EmbeddingSnapshotReindexResponseDto: {
+            snapshotId: string;
+            totalChunks: number;
+            created: number;
+            reused: number;
+        };
+        EmbeddingSearchResultDto: {
+            chunkId: string;
+            text: string;
+            metadata: {
+                [key: string]: unknown;
+            } | null;
+            similarity: number;
+        };
+        EmbeddingSearchResponseDto: {
+            model: string;
+            items: components["schemas"]["EmbeddingSearchResultDto"][];
+        };
         EmbeddingsSearchDto: Record<string, never>;
+        EmbeddingStatusCountDto: {
+            /** @enum {string} */
+            status: "QUEUED" | "EMBEDDING" | "READY" | "FAILED";
+            count: number;
+        };
+        EmbeddingDocTypeCountDto: {
+            /** @enum {string} */
+            docType: "SERP_ORGANIC" | "META_AD_CREATIVE" | "AMAZON_PRODUCT" | "INTEL_SUMMARY_BULLET";
+            count: number;
+        };
+        EmbeddingErrorSummaryDto: {
+            errorCode: string;
+            count: number;
+        };
+        EmbeddingStatusSummaryDto: {
+            byStatus: components["schemas"]["EmbeddingStatusCountDto"][];
+            byDocType: components["schemas"]["EmbeddingDocTypeCountDto"][];
+            errorSummary: components["schemas"]["EmbeddingErrorSummaryDto"][];
+            latestUpdatedAt: Record<string, never> | null;
+        };
+        EmbeddingRefreshResponseDto: {
+            queuedCount: number;
+            skippedCountReady: number;
+            statusSummary: components["schemas"]["EmbeddingStatusSummaryDto"];
+        };
         EmbeddingRefreshDto: {
             /** @default false */
             force: boolean;
         };
-        StrategyGenerateDto: {
-            force?: boolean;
-            overrides?: Record<string, never>;
+        EmbeddingRefreshStatusResponseDto: {
+            statusSummary: components["schemas"]["EmbeddingStatusSummaryDto"];
         };
         StrategyRunRequestResponseDto: {
             runId: string;
@@ -2307,6 +2484,10 @@ export interface components {
             status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "RETRIEVING" | "GENERATING" | "VALIDATING" | "READY";
             isFresh: boolean;
             runCacheKey: string;
+        };
+        StrategyGenerateDto: {
+            force?: boolean;
+            overrides?: Record<string, never>;
         };
         StrategyRunLlmsDto: {
             provider?: Record<string, never>;
@@ -2365,12 +2546,11 @@ export interface components {
         StrategyCurrentRunResponseDto: {
             current?: components["schemas"]["StrategyRunDto"];
         };
-        StrategyPinDto: Record<string, never>;
         StrategyCurrentPinResponseDto: {
             currentStrategyRunId?: Record<string, never>;
             currentStrategyPinnedAt?: Record<string, never>;
         };
-        StrategyCompareDto: Record<string, never>;
+        StrategyPinDto: Record<string, never>;
         StrategyRunDiffConfidenceDto: {
             from: Record<string, never> | null;
             to: Record<string, never> | null;
@@ -2390,6 +2570,14 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        StrategyCompareDto: Record<string, never>;
+        StrategyFeedbackSubmitResponseDto: {
+            feedbackId: string;
+            feedbackCount: number;
+            latestFeedbackSummary?: {
+                [key: string]: unknown;
+            };
+        };
         StrategyFeedbackSectionDto: {
             /** @enum {string} */
             sectionKey: "market" | "offer" | "audience" | "channels" | "creatives" | "plan" | "sources";
@@ -2404,13 +2592,6 @@ export interface components {
             note?: string;
             sectionFeedback?: components["schemas"]["StrategyFeedbackSectionDto"][];
             metadata?: {
-                [key: string]: unknown;
-            };
-        };
-        StrategyFeedbackSubmitResponseDto: {
-            feedbackId: string;
-            feedbackCount: number;
-            latestFeedbackSummary?: {
                 [key: string]: unknown;
             };
         };
@@ -2451,12 +2632,201 @@ export interface components {
             items: components["schemas"]["StrategyFeedbackItemResponseDto"][];
             meta: components["schemas"]["PaginationMetaDto"];
         };
+        ArtifactTriggerResponseDto: {
+            artifactId: string;
+            /** @enum {string} */
+            status: "QUEUED" | "GENERATING" | "STORED" | "EMAILED" | "FAILED" | "EXPIRED";
+            runId: string;
+        };
+        ArtifactListItemDto: {
+            id: string;
+            campaignId: string;
+            runId: string;
+            /** @enum {string} */
+            type: "PDF";
+            /** @enum {string} */
+            status: "QUEUED" | "GENERATING" | "STORED" | "EMAILED" | "FAILED" | "EXPIRED";
+            fileName: string;
+            fileSizeBytes?: Record<string, never>;
+            contentType: string;
+            storageKey?: Record<string, never>;
+            downloadExpiresAt?: Record<string, never>;
+            expiredAt?: Record<string, never>;
+            errorMessage?: Record<string, never>;
+            createdAt: string;
+            updatedAt: string;
+        };
+        ArtifactListMetaDto: {
+            page: number;
+            pageSize: number;
+            total: number;
+            hasNext: boolean;
+        };
+        ArtifactListResponseDto: {
+            items: components["schemas"]["ArtifactListItemDto"][];
+            meta: components["schemas"]["ArtifactListMetaDto"];
+        };
+        ArtifactDownloadResponseDto: {
+            /** @enum {string} */
+            status: "QUEUED" | "GENERATING" | "STORED" | "EMAILED" | "FAILED" | "EXPIRED";
+            url?: string;
+            expiresAt?: string;
+        };
+        BillingOrderDto: {
+            orderId: string;
+            /** @enum {string} */
+            provider: "RAZORPAY" | "STRIPE";
+            /** @enum {string} */
+            status: "CREATED" | "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "REFUNDED";
+            amountMinor: number;
+            currency: string;
+            credits: number;
+            bundleSku: string;
+            createdAt: string;
+            updatedAt: string;
+            providerOrderId: Record<string, never> | null;
+            providerPaymentId: Record<string, never> | null;
+            paidAt: Record<string, never> | null;
+        };
         CreateOrderDto: Record<string, never>;
+        BillingBalanceResponseDto: {
+            balance: number;
+            lastUpdatedAt: Record<string, never> | null;
+        };
+        BillingListMetaDto: {
+            page: number;
+            pageSize: number;
+            total: number;
+            hasNext: boolean;
+        };
+        BillingOrderListResponseDto: {
+            items: components["schemas"]["BillingOrderDto"][];
+            meta: components["schemas"]["BillingListMetaDto"];
+        };
+        BillingWebhookResponseDto: {
+            status: string;
+            reason: string | null;
+        };
+        AdminAuditEntryDto: {
+            id: string;
+            at: string;
+            actorUserId?: Record<string, never>;
+            /** @enum {string} */
+            actorRole?: "CLIENT" | "REVIEWER" | "ADMIN";
+            orgId?: Record<string, never>;
+            action: string;
+            entityType: string;
+            entityId: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+            requestId: string;
+            ip?: Record<string, never>;
+            userAgent?: Record<string, never>;
+        };
+        AdminListMetaDto: {
+            page: number;
+            pageSize: number;
+            total: number;
+            hasNext: boolean;
+        };
+        AdminAuditListResponseDto: {
+            items: components["schemas"]["AdminAuditEntryDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminUserDto: {
+            id: string;
+            email: string;
+            displayName: Record<string, never>;
+            /** @enum {string} */
+            role: "CLIENT" | "REVIEWER" | "ADMIN";
+            status: string;
+            createdAt: string;
+            lastLoginAt?: Record<string, never>;
+        };
+        AdminUserListResponseDto: {
+            items: components["schemas"]["AdminUserDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminUserDetailResponseDto: {
+            user: components["schemas"]["AdminUserDto"];
+        };
         AdminUserUpdateDto: {
             /** @enum {string} */
             status: "ACTIVE" | "DISABLED";
             reason: string;
             ticketId?: string;
+        };
+        AdminCampaignSummaryDto: {
+            id: string;
+            title: string;
+            status: string;
+            ownerId: string;
+            createdAt: string;
+            updatedAt: string;
+            ownerEmail: string;
+        };
+        AdminCampaignListResponseDto: {
+            items: components["schemas"]["AdminCampaignSummaryDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminCampaignOwnerDto: {
+            id: string;
+            email: string;
+        };
+        AdminCampaignDetailDto: {
+            id: string;
+            title: string;
+            status: string;
+            businessType: Record<string, never>;
+            websiteUrl: Record<string, never>;
+            description: Record<string, never>;
+            createdAt: string;
+            updatedAt: string;
+            owner: components["schemas"]["AdminCampaignOwnerDto"];
+        };
+        AdminCampaignWizardDto: {
+            status: string;
+            lastCompletedStep: number;
+            version: number;
+            updatedAt: string;
+            derivedJson?: {
+                [key: string]: unknown;
+            };
+        };
+        AdminRunSummaryDto: {
+            id: string;
+            campaignId: string;
+            userId: string;
+            /** @enum {string} */
+            status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "RETRIEVING" | "GENERATING" | "VALIDATING" | "READY";
+            currentStage: string;
+            progress: number;
+            errorCode?: Record<string, never>;
+            errorMessage?: Record<string, never>;
+            createdAt: string;
+            updatedAt: string;
+            startedAt?: Record<string, never>;
+            endedAt?: Record<string, never>;
+        };
+        AdminCampaignDetailResponseDto: {
+            campaign: components["schemas"]["AdminCampaignDetailDto"];
+            wizard: components["schemas"]["AdminCampaignWizardDto"] | null;
+            latestRun: components["schemas"]["AdminRunSummaryDto"] | null;
+        };
+        AdminCampaignRefreshResponseDto: {
+            results: Record<string, never>;
+        };
+        AdminRunListResponseDto: {
+            items: components["schemas"]["AdminRunSummaryDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminRunDetailResponseDto: {
+            run: components["schemas"]["AdminRunSummaryDto"];
+        };
+        AdminRunRetryResponseDto: {
+            runId: string;
+            stage: string;
         };
         AdminRunRetryDto: {
             /** @enum {string} */
@@ -2464,7 +2834,153 @@ export interface components {
             reason: string;
             ticketId?: string;
         };
+        AdminSnapshotDto: {
+            id: string;
+            campaignId: string;
+            cacheKey: string;
+            source: string;
+            status: string;
+            errorMessage?: Record<string, never>;
+            fetchedAt: string;
+            ttlSeconds: number;
+            createdAt: string;
+            updatedAt: string;
+        };
+        AdminSnapshotListResponseDto: {
+            items: components["schemas"]["AdminSnapshotDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminSnapshotDetailDto: {
+            snapshot: components["schemas"]["AdminSnapshotDto"];
+            rawJson?: string;
+            summaryJson?: string;
+            statsJson?: string;
+            rawJsonBytes?: number;
+            rawJsonTruncated?: boolean;
+        };
+        AdminBillingOrderDto: {
+            id: string;
+            userId: string;
+            /** @enum {string} */
+            provider: "RAZORPAY" | "STRIPE";
+            /** @enum {string} */
+            status: "CREATED" | "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "REFUNDED";
+            currency: string;
+            amountMinor: number;
+            bundleSku: string;
+            credits: number;
+            createdAt: string;
+            updatedAt: string;
+            paidAt?: Record<string, never>;
+            providerOrderId?: Record<string, never>;
+            providerPaymentId?: Record<string, never>;
+        };
+        AdminBillingOrderListResponseDto: {
+            items: components["schemas"]["AdminBillingOrderDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminBillingOrderDetailDto: {
+            order: components["schemas"]["AdminBillingOrderDto"];
+        };
+        AdminWebhookEventDto: {
+            id: string;
+            /** @enum {string} */
+            provider: "RAZORPAY" | "STRIPE";
+            eventId: string;
+            payload?: {
+                [key: string]: unknown;
+            };
+            payloadBytes?: number;
+            payloadTruncated?: boolean;
+            receivedAt: string;
+            processedAt?: Record<string, never>;
+            status: string;
+            errorMessage?: Record<string, never>;
+        };
+        AdminWebhookEventListResponseDto: {
+            items: components["schemas"]["AdminWebhookEventDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminCreditLedgerEntryDto: {
+            id: string;
+            userId: string;
+            /** @enum {string} */
+            type: "CREDIT_PURCHASE" | "CREDIT_CONSUME" | "CREDIT_ADJUST";
+            /** @enum {string} */
+            status: "POSTED" | "REVERSED";
+            creditsDelta: number;
+            referenceType: string;
+            referenceId: string;
+            note?: Record<string, never>;
+            createdAt: string;
+        };
+        AdminCreditAdjustResponseDto: {
+            entry: components["schemas"]["AdminCreditLedgerEntryDto"];
+        };
         AdminCreditAdjustDto: Record<string, never>;
+        AdminArtifactDto: {
+            id: string;
+            campaignId: string;
+            runId: string;
+            /** @enum {string} */
+            type: "PDF";
+            /** @enum {string} */
+            status: "QUEUED" | "GENERATING" | "STORED" | "EMAILED" | "FAILED" | "EXPIRED";
+            storageKey?: Record<string, never>;
+            fileName: string;
+            fileSizeBytes?: Record<string, never>;
+            contentType: string;
+            downloadExpiresAt?: Record<string, never>;
+            errorMessage?: Record<string, never>;
+            createdAt: string;
+            updatedAt: string;
+        };
+        AdminArtifactListResponseDto: {
+            items: components["schemas"]["AdminArtifactDto"][];
+            meta: components["schemas"]["AdminListMetaDto"];
+        };
+        AdminArtifactDetailResponseDto: {
+            artifact: components["schemas"]["AdminArtifactDto"];
+        };
+        AdminRetentionConfigDto: {
+            retentionSnapshotRawDays: number;
+            retentionArtifactPdfDays: number;
+            retentionAuditLogDays: number;
+            cleanupCron: string;
+            cleanupEnabled: boolean;
+            cleanupBatchSize: number;
+        };
+        AdminRetentionCountsDto: {
+            snapshotsPruned?: number;
+            artifactsExpired?: number;
+            auditLogsPurged?: number;
+        };
+        AdminCleanupStatusDto: {
+            lastCleanupAt?: string;
+            startedAt?: string;
+            finishedAt?: string;
+            counts?: components["schemas"]["AdminRetentionCountsDto"];
+            errors?: string[];
+        };
+        AdminRetentionStatusResponseDto: {
+            config: components["schemas"]["AdminRetentionConfigDto"];
+            status: components["schemas"]["AdminCleanupStatusDto"];
+        };
+        AdminVectorSearchResultDto: {
+            id: string;
+            /** @enum {string} */
+            docType: "SERP_ORGANIC" | "META_AD_CREATIVE" | "AMAZON_PRODUCT" | "INTEL_SUMMARY_BULLET";
+            /** @enum {string} */
+            sourceType: "SNAPSHOT" | "INTEL_SUMMARY" | "CAMPAIGN" | "OTHER";
+            sourceId: string;
+            sourceItemKey: string;
+            chunkIndex: number;
+            text?: Record<string, never>;
+            score: number;
+        };
+        AdminVectorSearchResponseDto: {
+            results: components["schemas"]["AdminVectorSearchResultDto"][];
+        };
         AdminVectorSearchDto: {
             queryEmbedding: number[];
             docTypes?: ("SERP_ORGANIC" | "META_AD_CREATIVE" | "AMAZON_PRODUCT" | "INTEL_SUMMARY_BULLET")[];
@@ -2477,6 +2993,42 @@ export interface components {
             includeText: boolean;
             efSearch?: number;
         };
+        AdminRagScoreBreakdownDto: {
+            vectorScore: number;
+            lexicalScore: number;
+            combinedScore: number;
+        };
+        AdminRagAttributionDto: {
+            url: string | null;
+            title: string | null;
+            pageName: string | null;
+            asin: string | null;
+            source: string | null;
+        };
+        AdminRagSelectedChunkDto: {
+            embeddingChunkId: string;
+            /** @enum {string} */
+            docType: "SERP_ORGANIC" | "META_AD_CREATIVE" | "AMAZON_PRODUCT" | "INTEL_SUMMARY_BULLET";
+            /** @enum {string} */
+            sourceType: "SNAPSHOT" | "INTEL_SUMMARY" | "CAMPAIGN" | "OTHER";
+            sourceId: string;
+            sourceItemKey: string;
+            score: components["schemas"]["AdminRagScoreBreakdownDto"];
+            text: string;
+            attribution: components["schemas"]["AdminRagAttributionDto"];
+        };
+        AdminRagStatsDto: {
+            candidatesVector: number;
+            candidatesLexical: number;
+            selectedCount: number;
+            truncatedByChars: number;
+            durationMs: number;
+        };
+        AdminRagRetrievalResponseDto: {
+            queryId: string;
+            selected: components["schemas"]["AdminRagSelectedChunkDto"][];
+            stats: components["schemas"]["AdminRagStatsDto"];
+        };
         AdminRagRetrieveDto: {
             question: string;
             docTypes?: ("SERP_ORGANIC" | "META_AD_CREATIVE" | "AMAZON_PRODUCT" | "INTEL_SUMMARY_BULLET")[];
@@ -2486,11 +3038,50 @@ export interface components {
             maxChunks?: number;
             maxContextChars?: number;
         };
+        AdminPromptVersionDto: {
+            id: string;
+            templateId: string;
+            version: number;
+            /** @enum {string} */
+            status: "DRAFT" | "ACTIVE" | "DEPRECATED";
+            systemTemplate: string;
+            userTemplate: string;
+            developerTemplate?: Record<string, never>;
+            inputSchemaJson?: {
+                [key: string]: unknown;
+            } | null;
+            outputSchemaJson?: {
+                [key: string]: unknown;
+            } | null;
+            modelParamsJson: {
+                [key: string]: unknown;
+            };
+            changelog?: Record<string, never>;
+            createdByUserId?: Record<string, never>;
+            createdAt: string;
+            updatedAt: string;
+        };
+        AdminPromptTemplateDto: {
+            id: string;
+            key: string;
+            /** @enum {string} */
+            scope: "INTEL_SUMMARY" | "STRATEGY_GENERATION" | "OTHER";
+            description?: Record<string, never>;
+            createdAt: string;
+            updatedAt: string;
+            activeVersion?: components["schemas"]["AdminPromptVersionDto"];
+        };
+        AdminPromptTemplateListResponseDto: {
+            items: components["schemas"]["AdminPromptTemplateDto"][];
+        };
         AdminPromptTemplateCreateDto: {
             key: string;
             /** @enum {string} */
             scope: "INTEL_SUMMARY" | "STRATEGY_GENERATION" | "OTHER";
             description?: string;
+        };
+        AdminPromptVersionListResponseDto: {
+            items: components["schemas"]["AdminPromptVersionDto"][];
         };
         AdminPromptVersionCreateDto: {
             systemTemplate: string;
@@ -2501,8 +3092,25 @@ export interface components {
             modelParamsJson?: Record<string, never>;
             changelog?: string;
         };
+        AdminPromptActivateResultDto: {
+            templateId: string;
+            activeVersionId: string;
+        };
         AdminPromptActivateDto: {
             versionId: string;
+        };
+        AdminPromptMessageDto: {
+            /** @enum {string} */
+            role: "system" | "developer" | "user";
+            content: string;
+        };
+        AdminPromptRenderResponseDto: {
+            promptVersionId: string;
+            messages: components["schemas"]["AdminPromptMessageDto"][];
+            promptFingerprint: string;
+            modelParamsJson: {
+                [key: string]: unknown;
+            };
         };
         AdminPromptRenderDto: {
             templateKey?: string;
@@ -2721,17 +3329,56 @@ export interface components {
             deletedCalls: number;
             deletedRollups: number;
         };
-        WeeklyManualDto: {
-            spend?: number;
-            impressions?: number;
-            clicks?: number;
-            leads?: number;
-            conversions?: number;
-            revenue?: number;
-            channelBreakdownJson?: {
-                [key: string]: unknown;
+        AdminSystemQueueDto: {
+            name: string;
+            waiting: number;
+            active: number;
+            delayed: number;
+            failed: number;
+            total: number;
+        };
+        AdminSystemJobFailureDto: {
+            jobName: string;
+            status: string;
+            count: number;
+        };
+        AdminSystemLlmTodayDto: {
+            calls: number;
+            tokens: number;
+            cost: number;
+        };
+        AdminSystemLlmOrgDto: {
+            orgId: string;
+            calls: number;
+            tokens: number;
+            cost: number;
+        };
+        AdminSystemLlmDto: {
+            today: components["schemas"]["AdminSystemLlmTodayDto"];
+            topOrgs: components["schemas"]["AdminSystemLlmOrgDto"][];
+        };
+        AdminSystemCostGuardDto: {
+            enabled: boolean;
+            globalDailyCost: number;
+            globalDailyCap: number;
+            /** @enum {string} */
+            state: "NORMAL" | "DEGRADED" | "BLOCKED";
+        };
+        AdminSystemStatusResponseDto: {
+            timestamp: string;
+            queues: components["schemas"]["AdminSystemQueueDto"][];
+            jobs: components["schemas"]["AdminSystemJobFailureDto"][];
+            llm: components["schemas"]["AdminSystemLlmDto"];
+            cache: {
+                [key: string]: {
+                    hit?: number;
+                    miss?: number;
+                    set?: number;
+                    del?: number;
+                    error?: number;
+                };
             };
-            notes?: string;
+            costGuard: components["schemas"]["AdminSystemCostGuardDto"];
         };
         WeeklySubmissionDto: {
             id: string;
@@ -2765,6 +3412,18 @@ export interface components {
             requestId?: Record<string, never>;
             createdAt: string;
             updatedAt: string;
+        };
+        WeeklyManualDto: {
+            spend?: number;
+            impressions?: number;
+            clicks?: number;
+            leads?: number;
+            conversions?: number;
+            revenue?: number;
+            channelBreakdownJson?: {
+                [key: string]: unknown;
+            };
+            notes?: string;
         };
         WeeklySubmissionSummaryDto: {
             weekStartDate: string;
@@ -2835,18 +3494,15 @@ export interface components {
             items: components["schemas"]["WeeklyAnomalyDto"][];
             meta: components["schemas"]["PaginationMetaDto"];
         };
-        AnomalyRefreshDto: {
-            weekStartDate?: string;
-        };
         AnomalyRefreshResponseDto: {
             queued: boolean;
             weekStartDate: string;
         };
+        AnomalyRefreshDto: {
+            weekStartDate?: string;
+        };
         AnomalyNoteDto: {
             note?: string;
-        };
-        WeeklyTweakGenerateDto: {
-            force?: boolean;
         };
         WeeklyTweakRunRequestResponseDto: {
             runId: string;
@@ -2854,6 +3510,9 @@ export interface components {
             status: "QUEUED" | "RETRIEVING" | "GENERATING" | "VALIDATING" | "READY" | "FAILED";
             isFresh: boolean;
             tweakCacheKey: string;
+        };
+        WeeklyTweakGenerateDto: {
+            force?: boolean;
         };
         WeeklyTweakRunDto: {
             id: string;
@@ -2970,6 +3629,79 @@ export interface components {
             summaryNote?: string;
             requestedChangesNote?: string;
         };
+        BenchmarkDetailDto: {
+            bucketKey: string;
+            categoryKeyword: string;
+            city: string;
+            primaryChannel: string;
+            algoVersion: string;
+            windowWeeks: number;
+            lastWeekStartDateIncluded: string;
+            lastUpdatedAt: string;
+            uniqueCampaigns: number;
+            sampleWeeks: number;
+            confidenceScore: number;
+            /** @enum {string} */
+            visibility: "PRIVATE_LOW_SAMPLE" | "PUBLIC";
+            metrics: {
+                [key: string]: Record<string, never>;
+            };
+            computedAt: string;
+        };
+        BenchmarkAvailabilityResponseDto: {
+            available: boolean;
+            reason?: string;
+            benchmark?: components["schemas"]["BenchmarkDetailDto"];
+        };
+        BenchmarkBucketKeyPartsDto: {
+            categoryKeyword: string;
+            city: string;
+            primaryChannel: string;
+        };
+        BenchmarkRefreshResponseDto: {
+            queued: boolean;
+            bucketKeyParts: components["schemas"]["BenchmarkBucketKeyPartsDto"];
+        };
+        NotificationNotifyResponseDto: {
+            queued: boolean;
+            messageId?: string;
+            reason?: string;
+        };
+        NotificationMessageDto: {
+            id: string;
+            /** @enum {string} */
+            eventType: "STRATEGY_READY" | "ANOMALY_DETECTED" | "TWEAKS_READY" | "APPROVAL_REQUIRED" | "GENERIC";
+            /** @enum {string} */
+            channel: "EMAIL" | "WHATSAPP";
+            campaignId?: Record<string, never>;
+            toUserId?: Record<string, never>;
+            toAddress: string;
+            /** @enum {string} */
+            status: "QUEUED" | "SENDING" | "SENT" | "FAILED" | "SUPPRESSED";
+            createdAt: string;
+            updatedAt: string;
+            idempotencyKey?: string;
+            templateKey?: Record<string, never>;
+            suppressedReason?: Record<string, never>;
+            providerMessageId?: Record<string, never>;
+            lastAttemptAt?: Record<string, never>;
+            attemptsCount: number;
+            requestId?: Record<string, never>;
+        };
+        NotificationListResponseDto: {
+            messages: components["schemas"]["NotificationMessageDto"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        NotificationPreferenceDto: {
+            userId: string;
+            enableEmail: boolean;
+            enableWhatsApp: boolean;
+            emailUnsubscribeToken: string;
+            createdAt: string;
+            updatedAt: string;
+        };
         InvalidatePrefixDto: Record<string, never>;
         InvalidateTagDto: Record<string, never>;
         HealthLivenessDto: {
@@ -3008,7 +3740,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    AuthController_register: {
+    AuthController_startSignup: {
         parameters: {
             query?: never;
             header?: never;
@@ -3017,7 +3749,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RegisterDto"];
+                "application/json": components["schemas"]["SignupStartDto"];
             };
         };
         responses: {
@@ -3026,7 +3758,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthSessionDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SignupStartResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -3037,7 +3774,43 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            401: {
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_verifySignup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupVerifyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AuthSessionDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3046,6 +3819,42 @@ export interface operations {
                 };
             };
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["PasswordResetStartResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
+            };
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3073,7 +3882,56 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthSessionDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AuthSessionDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["PasswordResetResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -3112,7 +3970,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthSessionDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AuthSessionDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -3147,7 +4010,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LogoutResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["LogoutResponseDataDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -3173,7 +4041,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["ProtectedResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3190,7 +4065,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["ProtectedResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3207,7 +4089,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["ProtectedResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3224,7 +4113,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["UserDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3245,7 +4141,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["UserDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3267,7 +4170,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["UsersListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3286,7 +4196,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["UserDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3311,7 +4228,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["CampaignListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -3342,7 +4264,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["CampaignDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -3379,7 +4306,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["CampaignDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -3416,7 +4348,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["CampaignDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -3457,7 +4394,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["CampaignDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -3494,7 +4436,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyWizardResultDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyWizardResultDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -3532,7 +4479,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyWizardResultDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyWizardResultDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -3585,7 +4537,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyWizardValidationDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyWizardValidationDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -3630,7 +4587,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyWizardResultDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyWizardResultDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -3683,7 +4645,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyWizardPreviewDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyWizardPreviewDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -3721,7 +4688,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["GenerationRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3743,7 +4717,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["GenerationRunListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3763,7 +4744,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["GenerationRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3779,11 +4767,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["GenerationRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3802,7 +4797,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["GenerationRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -3824,7 +4826,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MarketSnapshotDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["MarketSnapshotDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -3849,7 +4856,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SnapshotHistoryResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SnapshotHistoryResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -3874,7 +4886,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SnapshotCreateResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SnapshotCreateResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -3897,7 +4914,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SnapshotHistoryResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SnapshotHistoryResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -3922,7 +4944,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SnapshotCreateResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SnapshotCreateResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -3943,7 +4970,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MarketSnapshotDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["MarketSnapshotDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -3968,7 +5000,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SnapshotCreateResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SnapshotCreateResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -3989,7 +5026,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MarketSnapshotDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["MarketSnapshotDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -4014,7 +5056,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SnapshotCreateResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SnapshotCreateResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -4035,7 +5082,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MarketSnapshotDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["MarketSnapshotDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -4060,7 +5112,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SummaryRefreshResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["SummaryRefreshResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -4081,7 +5138,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IntelligenceSummaryLatestResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["IntelligenceSummaryLatestResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -4106,7 +5168,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IntelligenceSummaryHistoryResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["IntelligenceSummaryHistoryResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -4122,11 +5189,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["EmbeddingSnapshotReindexResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4143,11 +5217,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["EmbeddingSearchResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4166,11 +5247,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["EmbeddingRefreshResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4189,7 +5277,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["EmbeddingRefreshStatusResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4213,7 +5308,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyRunRequestResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyRunRequestResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -4259,7 +5359,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyRunDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4296,7 +5401,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyRunDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4333,7 +5443,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyRunListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyRunListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4362,7 +5477,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyCurrentRunResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyCurrentRunResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4403,7 +5523,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyCurrentPinResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyCurrentPinResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -4456,7 +5581,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyCurrentPinResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyCurrentPinResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4497,7 +5627,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyRunComparisonDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyRunComparisonDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4543,7 +5678,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyFeedbackListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyFeedbackListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4585,7 +5725,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyFeedbackSubmitResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyFeedbackSubmitResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -4639,7 +5784,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StrategyFeedbackSummaryResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["StrategyFeedbackSummaryResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -4671,11 +5821,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["ArtifactTriggerResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4694,7 +5851,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["ArtifactListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4714,7 +5878,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["ArtifactDownloadResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4731,7 +5902,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["BillingOrderListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4752,7 +5930,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["BillingOrderDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4769,7 +5954,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["BillingBalanceResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4784,11 +5976,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["BillingWebhookResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4805,7 +6004,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminAuditListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4826,7 +6032,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminUserListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4849,7 +6062,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminUserDetailResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4871,7 +6091,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminCampaignListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4892,7 +6119,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminCampaignDetailResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4909,11 +6143,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminCampaignRefreshResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4936,7 +6177,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminRunListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4955,7 +6203,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminRunDetailResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -4974,11 +6229,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminRunRetryResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5001,7 +6263,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminSnapshotListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5022,7 +6291,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminSnapshotDetailDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5042,7 +6318,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminBillingOrderListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5061,7 +6344,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminBillingOrderDetailDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5081,7 +6371,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminWebhookEventListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5098,11 +6395,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminCreditAdjustResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5122,7 +6426,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminArtifactListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5141,7 +6452,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminArtifactDetailResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5158,7 +6476,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminRetentionStatusResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5177,11 +6502,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminVectorSearchResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5200,11 +6532,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminRagRetrievalResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5221,7 +6560,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminPromptTemplateListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5242,7 +6588,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminPromptTemplateDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5261,7 +6614,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminPromptVersionListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5284,7 +6644,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminPromptVersionDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5303,11 +6670,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminPromptActivateResultDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5324,11 +6698,18 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminPromptRenderResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5357,7 +6738,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobRunListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["JobRunListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5397,7 +6783,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobRunDetailResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["JobRunDetailResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5436,7 +6827,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobRunsByEntityResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["JobRunsByEntityResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5473,7 +6869,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobFailureSummaryResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["JobFailureSummaryResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5510,7 +6911,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobStatsResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["JobStatsResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5545,7 +6951,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobPruneResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["JobPruneResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -5584,7 +6995,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AiCallListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AiCallListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -5613,7 +7029,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AiCallDetailDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AiCallDetailDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -5653,7 +7074,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AiDailyUsageResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AiDailyUsageResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5693,7 +7119,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AiUsageSummaryDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AiUsageSummaryDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5728,7 +7159,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AiRollupResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AiRollupResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5763,7 +7199,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AiPruneResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AiPruneResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -5789,7 +7230,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AdminSystemStatusResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -5810,7 +7258,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklySubmissionDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklySubmissionDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5852,7 +7305,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklySubmissionDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklySubmissionDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5890,7 +7348,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklySubmissionDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklySubmissionDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -5930,7 +7393,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklySubmissionListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklySubmissionListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -5963,7 +7431,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyIngestListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyIngestListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6007,7 +7480,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyAnomalyListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyAnomalyListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6045,7 +7523,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyAnomalyDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyAnomalyDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -6086,7 +7569,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AnomalyRefreshResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["AnomalyRefreshResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6128,7 +7616,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyAnomalyDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyAnomalyDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6178,7 +7671,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyAnomalyDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyAnomalyDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6228,7 +7726,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakRunRequestResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakRunRequestResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6266,7 +7769,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakRunDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6307,7 +7815,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -6337,7 +7850,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakRunDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakRunDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6380,7 +7898,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakApprovalListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakApprovalListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6418,7 +7941,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -6456,7 +7984,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             401: {
@@ -6499,7 +8032,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6549,7 +8087,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakApprovalDetailDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6599,7 +8142,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklyTweakApprovalListResponseDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["WeeklyTweakApprovalListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             400: {
@@ -6635,7 +8183,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["BenchmarkAvailabilityResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6650,11 +8205,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["BenchmarkRefreshResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6671,7 +8233,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["NotificationNotifyResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6690,7 +8259,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["NotificationMessageDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6714,7 +8290,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["NotificationListResponseDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6729,11 +8312,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["NotificationMessageDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6750,7 +8340,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["NotificationPreferenceDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6767,7 +8364,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["NotificationPreferenceDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
+                };
             };
         };
     };
@@ -6863,7 +8467,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthLivenessDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["HealthLivenessDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
@@ -6882,7 +8491,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthReadinessDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["HealthReadinessDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
             503: {
@@ -6909,7 +8523,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthHeartbeatDto"];
+                    "application/json": {
+                        /** @example true */
+                        success: boolean;
+                        data: components["schemas"]["HealthHeartbeatDto"];
+                        meta: components["schemas"]["ResponseMetaDto"];
+                    };
                 };
             };
         };
