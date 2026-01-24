@@ -4,7 +4,13 @@ import { campaignsMockAdapter } from '../mock/campaigns.mock';
 import { campaignsRealAdapter } from '../real/campaigns.real';
 import ENV from '@/lib/env';
 
+// Route to mock or real adapter based on DATA_SOURCE environment variable
 const adapter = ENV.API.isMock ? campaignsMockAdapter : campaignsRealAdapter;
+
+// Log adapter selection in development
+if (ENV.features.apiLogging && typeof window !== 'undefined') {
+  console.log('[Campaign Repository] Using adapter:', ENV.API.dataSource);
+}
 
 export const campaignsRepository = {
   listCampaigns: async (): Promise<Campaign[]> => adapter.listCampaigns(),

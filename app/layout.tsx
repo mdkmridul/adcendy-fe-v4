@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Space_Grotesk, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/shared/providers/Providers'
+import { ApiDebugPanel } from '@/components/dev/api-debug-panel'
 import './globals.css'
 
 const _spaceGrotesk = Space_Grotesk({ 
@@ -50,6 +51,7 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <ApiDebugPanel />
         <Analytics />
       </body>
     </html>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
@@ -12,8 +12,6 @@ import { DerivedMetricsSummary } from '@/shared/components/weekly/DerivedMetrics
 import { weeklyRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
 import type { WeeklyProcessingRun } from '@/shared/types/weekly';
-import { Suspense } from 'react';
-import Loading from './loading';
 
 function getMonday(date: Date) {
   const d = new Date(date);
@@ -89,7 +87,7 @@ export default function WeeklyPage() {
   );
 
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<div>Loading...</div>}>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -156,8 +154,4 @@ export default function WeeklyPage() {
       </div>
     </Suspense>
   );
-}
-
-export function Loading() {
-  return null;
 }

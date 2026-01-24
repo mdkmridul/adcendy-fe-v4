@@ -34,15 +34,15 @@ export function useRunPolling<T extends RunEntity = RunEntity>(
   const queryKey = [queryKeyBase, runId];
   const shouldPoll = enabled && runId && isVisibleRef.current;
 
-  const query = useQuery({
+  const query = useQuery<T>({
     queryKey,
     queryFn: async () => {
       if (!runId) throw new Error('runId required');
       return fetchRun(runId);
     },
     enabled: shouldPoll,
-    refetchInterval: (run) => {
-      if (!run || !isActive(run.status)) {
+    refetchInterval: (data) => {
+      if (!data || !('status' in data) || !isActive(data.status)) {
         return false; // Stop polling at terminal states
       }
       return shouldPoll ? intervalMs : false;

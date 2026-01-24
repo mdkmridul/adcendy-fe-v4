@@ -3,6 +3,12 @@ import type { StrategyRun, StrategyVersion, SubmitStrategyFeedbackPayload } from
 import type { ID } from '@/shared/types/common';
 
 export const strategyRealAdapter = {
+  async startRun(campaignId: ID): Promise<{ strategyRunId: ID }> {
+    return http<{ strategyRunId: ID }>(`/campaigns/${campaignId}/strategy/start`, {
+      method: 'POST',
+    });
+  },
+
   async getRun(id: ID): Promise<StrategyRun> {
     return http<StrategyRun>(`/strategy-runs/${id}`);
   },
@@ -13,6 +19,10 @@ export const strategyRealAdapter = {
 
   async getLatest(campaignId: ID): Promise<StrategyVersion> {
     return http<StrategyVersion>(`/campaigns/${campaignId}/strategy/latest`);
+  },
+
+  async getVersion(strategyVersionId: ID): Promise<StrategyVersion> {
+    return http<StrategyVersion>(`/strategy-versions/${strategyVersionId}`);
   },
 
   async submitFeedback(strategyVersionId: ID, payload: SubmitStrategyFeedbackPayload): Promise<void> {

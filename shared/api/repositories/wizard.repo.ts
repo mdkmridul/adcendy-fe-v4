@@ -5,9 +5,19 @@ import { wizardRealAdapter } from '../real/wizard.real';
 
 import ENV from '@/lib/env';
 
+// Route to mock or real adapter based on DATA_SOURCE environment variable
 const adapter = ENV.API.isMock ? wizardMockAdapter : wizardRealAdapter;
 
+// Log adapter selection in development
+if (ENV.features.apiLogging && typeof window !== 'undefined') {
+  console.log('[Wizard Repository] Using adapter:', ENV.API.dataSource);
+}
+
 export const wizardRepository = {
+  async listSteps(campaignId: ID): Promise<WizardStepState[]> {
+    return adapter.listSteps(campaignId);
+  },
+
   async getStep(campaignId: ID, stepKey: string): Promise<WizardStepState> {
     return adapter.getStep(campaignId, stepKey);
   },

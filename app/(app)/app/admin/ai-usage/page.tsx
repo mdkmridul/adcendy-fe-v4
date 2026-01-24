@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/shared/hooks/useAuth';
+import { useAuth } from '@/features/auth/useAuth';
 import { aiUsageRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
-import { Badge } from '@/shared/components/ui/badge';
-import { Skeleton } from '@/shared/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DollarSign, Zap, Activity } from 'lucide-react';
 import Link from 'next/link';
 

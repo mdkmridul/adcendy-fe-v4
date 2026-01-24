@@ -5,7 +5,13 @@ import { strategyRealAdapter } from '../real/strategy.real';
 
 import ENV from '@/lib/env';
 
+// Route to mock or real adapter based on DATA_SOURCE environment variable
 const adapter = ENV.API.isMock ? strategyMockAdapter : strategyRealAdapter;
+
+// Log adapter selection in development
+if (ENV.features.apiLogging && typeof window !== 'undefined') {
+  console.log('[Strategy Repository] Using adapter:', ENV.API.dataSource);
+}
 
 export const strategyRepository = {
   async startRun(campaignId: ID): Promise<{ strategyRunId: ID }> {

@@ -5,10 +5,10 @@ export const mockWeeklySubmission: WeeklySubmission = {
   campaignId: 'campaign-001',
   weekStart: '2024-02-05',
   metrics: {
+    spend: 1200,
     impressions: 45000,
     clicks: 2300,
-    conversions: 180,
-    spend: 1200,
+    leads: 180,
     revenue: 4500,
   },
   createdAt: '2024-02-05T09:00:00Z',

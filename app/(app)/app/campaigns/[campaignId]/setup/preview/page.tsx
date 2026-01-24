@@ -50,7 +50,7 @@ export default function PreviewPage() {
 
   useEffect(() => {
     if (allSteps) {
-      setCompletedSteps(allSteps.map(s => s.stepKey));
+      setCompletedSteps(allSteps.map((s: { stepKey: string }) => s.stepKey));
     }
   }, [allSteps]);
 

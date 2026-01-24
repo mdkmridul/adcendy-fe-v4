@@ -21,16 +21,25 @@ export const ENV = {
   // API Configuration
   API: {
     // Base URL for API requests
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
     
-    // API mode: 'mock' or 'real'
-    mode: (process.env.NEXT_PUBLIC_API_MODE || 'mock') as 'mock' | 'real',
+    // Data source: 'mock' or 'real'
+    dataSource: (process.env.NEXT_PUBLIC_DATA_SOURCE || process.env.NEXT_PUBLIC_API_MODE || 'mock') as 'mock' | 'real',
     
-    // Check if using mock API
-    isMock: process.env.NEXT_PUBLIC_API_MODE === 'mock',
+    // Check if using mock data
+    isMock: (process.env.NEXT_PUBLIC_DATA_SOURCE || process.env.NEXT_PUBLIC_API_MODE) === 'mock',
     
     // Check if using real API
-    isReal: process.env.NEXT_PUBLIC_API_MODE === 'real',
+    isReal: (process.env.NEXT_PUBLIC_DATA_SOURCE || process.env.NEXT_PUBLIC_API_MODE) === 'real',
+  },
+
+  // Feature Flags
+  features: {
+    // Enable debug panel in dev/staging
+    debugPanel: process.env.NEXT_PUBLIC_ENABLE_DEBUG_PANEL === 'true',
+    
+    // Enable API request/response logging
+    apiLogging: process.env.NEXT_PUBLIC_ENABLE_API_LOGGING === 'true',
   },
 } as const;
 
@@ -43,7 +52,9 @@ export function logEnvironment() {
     console.group('🔧 Environment Configuration');
     console.log('NODE_ENV:', ENV.NODE_ENV);
     console.log('API Base URL:', ENV.API.baseURL);
-    console.log('API Mode:', ENV.API.mode);
+    console.log('Data Source:', ENV.API.dataSource);
+    console.log('Debug Panel:', ENV.features.debugPanel);
+    console.log('API Logging:', ENV.features.apiLogging);
     console.groupEnd();
   }
 }
@@ -54,8 +65,8 @@ export function logEnvironment() {
  */
 export function validateEnvironment() {
   const required = [
-    { name: 'NEXT_PUBLIC_API_URL', value: process.env.NEXT_PUBLIC_API_URL },
-    { name: 'NEXT_PUBLIC_API_MODE', value: process.env.NEXT_PUBLIC_API_MODE },
+    { name: 'NEXT_PUBLIC_API_BASE_URL', value: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL },
+    { name: 'NEXT_PUBLIC_DATA_SOURCE', value: process.env.NEXT_PUBLIC_DATA_SOURCE || process.env.NEXT_PUBLIC_API_MODE },
   ];
 
   const missing = required.filter(({ value }) => !value);

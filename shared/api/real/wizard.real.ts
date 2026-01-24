@@ -3,6 +3,10 @@ import type { WizardStepState, WizardPreview, SaveWizardStepPayload } from '@/sh
 import type { ID } from '@/shared/types/common';
 
 export const wizardRealAdapter = {
+  async listSteps(campaignId: ID): Promise<WizardStepState[]> {
+    return http<WizardStepState[]>(`/campaigns/${campaignId}/wizard/steps`);
+  },
+
   async getStep(campaignId: ID, stepKey: string): Promise<WizardStepState> {
     return http<WizardStepState>(`/campaigns/${campaignId}/wizard/${stepKey}`);
   },

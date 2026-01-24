@@ -4,7 +4,13 @@ import { aiUsageRealAdapter } from '../real/aiUsage.real';
 
 import ENV from '@/lib/env';
 
+// Route to mock or real adapter based on DATA_SOURCE environment variable
 const adapter = ENV.API.isMock ? aiUsageMockAdapter : aiUsageRealAdapter;
+
+// Log adapter selection in development
+if (ENV.features.apiLogging && typeof window !== 'undefined') {
+  console.log('[AI Usage Repository] Using adapter:', ENV.API.dataSource);
+}
 
 export const aiUsageRepository = {
   async getAiUsageSummary(params?: GetAiUsageSummaryParams): Promise<AiUsageSummary> {

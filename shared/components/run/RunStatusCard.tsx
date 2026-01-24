@@ -34,7 +34,7 @@ export function RunStatusCard({
   compact = false,
   isPolling = false,
 }: RunStatusCardProps) {
-  const isApiError = error && 'kind' in error;
+  const isApiError = error && typeof error === 'object' && error !== null && 'kind' in error;
   const apiError = isApiError ? (error as ApiError) : null;
 
   const statusConfig = {

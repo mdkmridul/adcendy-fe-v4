@@ -5,7 +5,13 @@ import { weeklyRealAdapter } from '../real/weekly.real';
 
 import ENV from '@/lib/env';
 
+// Route to mock or real adapter based on DATA_SOURCE environment variable
 const adapter = ENV.API.isMock ? weeklyMockAdapter : weeklyRealAdapter;
+
+// Log adapter selection in development
+if (ENV.features.apiLogging && typeof window !== 'undefined') {
+  console.log('[Weekly Repository] Using adapter:', ENV.API.dataSource);
+}
 
 export const weeklyRepository = {
   async upsertSubmission(

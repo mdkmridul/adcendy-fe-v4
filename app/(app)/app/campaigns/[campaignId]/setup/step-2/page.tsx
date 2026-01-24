@@ -53,7 +53,7 @@ export default function Step2Page() {
 
   useEffect(() => {
     if (allSteps) {
-      setCompletedSteps(allSteps.map(s => s.stepKey));
+      setCompletedSteps(allSteps.map((s: { stepKey: string }) => s.stepKey));
     }
   }, [allSteps]);
 

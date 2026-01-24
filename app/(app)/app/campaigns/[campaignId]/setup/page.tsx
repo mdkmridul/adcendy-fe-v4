@@ -20,7 +20,7 @@ export default function SetupPage() {
   const determineNextStep = useCallback(() => {
     if (!steps) return 'step-1';
 
-    const completedSteps = steps.map(s => s.stepKey);
+    const completedSteps = steps.map((s: { stepKey: string }) => s.stepKey);
 
     // If all three steps are done, go to preview
     if (completedSteps.includes('STEP_3')) {
