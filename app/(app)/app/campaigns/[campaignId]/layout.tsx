@@ -53,13 +53,21 @@ export default function CampaignLayout({
   const { campaign, isLoading, error } = useCampaign(campaignId || null);
   const { user } = useAuth();
 
-  // Filter tabs based on user role
+  // Filter tabs based on user role and campaign status
   const TABS = React.useMemo(() => {
-    return ALL_TABS.filter(tab => {
+    const filteredByRole = ALL_TABS.filter(tab => {
       if (!tab.requiredRole) return true;
       return hasRoleAtLeast(user?.role, tab.requiredRole);
     });
-  }, [user?.role]);
+
+    // If campaign is DRAFT (setup in progress), only show setup tab
+    if (campaign?.status === 'DRAFT') {
+      return filteredByRole.filter(tab => tab.id === 'setup');
+    }
+
+    // For ACTIVE campaigns, show all tabs except setup
+    return filteredByRole.filter(tab => tab.id !== 'setup');
+  }, [user?.role, campaign?.status]);
 
   // Determine current tab from pathname
   const currentTabId = TABS.find(tab => pathname.includes(`/${tab.id}`))?.id || 'overview';

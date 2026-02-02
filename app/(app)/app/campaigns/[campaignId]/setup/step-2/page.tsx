@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -15,12 +16,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { WizardStepper } from '@/shared/components/wizard/WizardStepper';
 import { WizardHeader } from '@/shared/components/wizard/WizardHeader';
 import { wizardRepository } from '@/shared/api/repositories';
 import { campaignsRepository } from '@/shared/api/repositories';
 import { step2Schema, type Step2FormData } from '@/shared/schemas/wizard';
 import { queryKeys } from '@/shared/api/queryKeys';
+import { useToast } from '@/hooks/use-toast';
+import { ApiError } from '@/shared/api/errors';
 
 const STEPS = [
   { key: 'STEP_1', label: 'Context' },
@@ -35,6 +47,11 @@ export default function Step2Page() {
   const campaignId = params?.campaignId as string;
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
+  const versionRef = useRef<number>(0);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflictData, setConflictData] = useState<any>(null);
 
   const { data: campaign } = useQuery({
     queryKey: queryKeys.campaigns.detail(campaignId),
@@ -59,38 +76,108 @@ export default function Step2Page() {
 
   const saveMutation = useMutation({
     mutationFn: (data: Step2FormData) =>
-      wizardRepository.saveStep(campaignId, 'STEP_2', { data }),
+      wizardRepository.saveStep(campaignId, 'STEP_2', { data, version: versionRef.current }),
     onMutate: () => setSaveStatus('saving'),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      versionRef.current = result.draft.version;
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     },
-    onError: () => setSaveStatus('error'),
+    onError: (error: unknown) => {
+      setSaveStatus('error');
+      
+      if (error instanceof ApiError && error.status === 409 && error.data) {
+        setConflictData(error.data);
+        setShowConflictDialog(true);
+        
+        if (error.data?.draft?.version) {
+          versionRef.current = error.data.draft.version;
+        }
+      }
+    },
   });
 
   const { control, handleSubmit, formState, reset } = useForm<Step2FormData>({
     resolver: zodResolver(step2Schema),
     defaultValues: {
-      offerType: step2Data?.data?.offerType || 'SERVICE',
-      offerSummary: step2Data?.data?.offerSummary || '',
-      pricePoint: step2Data?.data?.pricePoint || undefined,
-      usp: step2Data?.data?.usp || '',
+      offerSummary: '',
+      priceRange: '',
+      differentiators: [''],
+      constraints: [],
     },
+  });
+
+  const { fields: differentiatorFields, append: appendDifferentiator, remove: removeDifferentiator } = useFieldArray({
+    control,
+    name: 'differentiators',
+  });
+
+  const { fields: constraintFields, append: appendConstraint, remove: removeConstraint } = useFieldArray({
+    control,
+    name: 'constraints',
   });
 
   useEffect(() => {
     if (step2Data) {
-      reset(step2Data.data);
+      reset(step2Data.data, { keepDirty: false }); // Reset dirty state when loading saved data
+      if (step2Data.version !== undefined) {
+        versionRef.current = step2Data.version;
+      }
     }
   }, [step2Data, reset]);
 
   const onNext = handleSubmit(async (data) => {
-    await saveMutation.mutateAsync(data);
+    // Only save if form has been modified
+    if (formState.isDirty) {
+      await saveMutation.mutateAsync(data);
+    }
     router.push(`/app/campaigns/${campaignId}/setup/step-3`);
   });
 
+  const handleRefreshConflict = async () => {
+    setShowConflictDialog(false);
+    
+    // Invalidate and refetch wizard state
+    await queryClient.invalidateQueries({ queryKey: queryKeys.wizard.step(campaignId, 'STEP_2') });
+    
+    // Navigate to the appropriate step based on latest draft
+    if (conflictData?.draft) {
+      const lastStep = conflictData.draft.lastCompletedStep || 0;
+      
+      // Navigate to next step after last completed
+      if (lastStep === 0) {
+        router.push(`/app/campaigns/${campaignId}/setup/step-1`);
+      } else if (lastStep === 1) {
+        router.push(`/app/campaigns/${campaignId}/setup/step-2`);
+      } else if (lastStep === 2) {
+        router.push(`/app/campaigns/${campaignId}/setup/step-3`);
+      } else {
+        router.push(`/app/campaigns/${campaignId}/setup/preview`);
+      }
+    }
+    
+    setConflictData(null);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background">
+      <AlertDialog open={showConflictDialog} onOpenChange={setShowConflictDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Campaign Updated Elsewhere</AlertDialogTitle>
+            <AlertDialogDescription>
+              This campaign was updated in another session. Your current changes cannot be saved.
+              Click "Refresh" to load the latest version and continue from where it was last updated.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleRefreshConflict}>
+              Refresh & Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <WizardHeader
         campaignName={campaign?.name || 'Campaign'}
         campaignId={campaignId}
@@ -123,31 +210,11 @@ export default function Step2Page() {
           <Card className="p-6 border border-border bg-card space-y-6">
             <form onSubmit={onNext} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Offer Type</label>
-                <Controller
-                  name="offerType"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="bg-background border-border">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="SERVICE">Service</SelectItem>
-                        <SelectItem value="PRODUCT">Product</SelectItem>
-                        <SelectItem value="SUBSCRIPTION">Subscription</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-
-              <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Offer Summary</label>
-                <Input
-                  placeholder="Brief description of what you offer..."
+                <Textarea
+                  placeholder="Describe what you're offering..."
                   {...control.register('offerSummary')}
-                  className="bg-background border-border"
+                  className="bg-background border-border min-h-[100px]"
                 />
                 {formState.errors.offerSummary && (
                   <p className="text-xs text-destructive">{formState.errors.offerSummary.message}</p>
@@ -155,32 +222,85 @@ export default function Step2Page() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Price Point (Optional)</label>
+                <label className="text-sm font-medium text-foreground">Price Range</label>
                 <Input
-                  type="number"
-                  placeholder="e.g., 99.99"
-                  {...control.register('pricePoint')}
+                  placeholder="e.g., $50-$100, $1000+, Free"
+                  {...control.register('priceRange')}
                   className="bg-background border-border"
                 />
-                {formState.errors.pricePoint && (
-                  <p className="text-xs text-destructive">{formState.errors.pricePoint.message}</p>
+                {formState.errors.priceRange && (
+                  <p className="text-xs text-destructive">{formState.errors.priceRange.message}</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Unique Selling Proposition (Optional)</label>
-                <Input
-                  placeholder="What makes your offer unique?..."
-                  {...control.register('usp')}
-                  className="bg-background border-border"
-                />
-                {formState.errors.usp && (
-                  <p className="text-xs text-destructive">{formState.errors.usp.message}</p>
+                <label className="text-sm font-medium text-foreground">Key Differentiators</label>
+                <p className="text-xs text-muted-foreground">What makes your offer unique?</p>
+                {differentiatorFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2">
+                    <Input
+                      placeholder="e.g., 24/7 support, Money-back guarantee"
+                      {...control.register(`differentiators.${index}`)}
+                      className="bg-background border-border flex-1"
+                    />
+                    {differentiatorFields.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeDifferentiator(index)}
+                      >
+                        ×
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendDifferentiator('')}
+                >
+                  + Add Differentiator
+                </Button>
+                {formState.errors.differentiators && (
+                  <p className="text-xs text-destructive">{formState.errors.differentiators.message}</p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Constraints (Optional)</label>
+                <p className="text-xs text-muted-foreground">Any limitations or restrictions?</p>
+                {constraintFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2">
+                    <Input
+                      placeholder="e.g., Limited availability, Seasonal offer"
+                      {...control.register(`constraints.${index}`)}
+                      className="bg-background border-border flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => removeConstraint(index)}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendConstraint('')}
+                >
+                  + Add Constraint
+                </Button>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={() => router.push(`/app/campaigns/${campaignId}/setup/step-1`)}
                 >

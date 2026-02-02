@@ -4,13 +4,13 @@ import React, { Suspense } from "react"
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { OtpInput } from '@/components/ui/otp-input';
-import { setToken, setUser } from '@/features/auth/auth';
+import { setAuthSession } from '@/features/auth/auth';
 import { authApi } from '@/src/lib/api/auth';
 import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
 import { X, ArrowLeft, Mail, Clock } from 'lucide-react';
@@ -43,6 +43,7 @@ function SignupContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  const verifyingRef = useRef(false); // Prevent duplicate API calls
 
   // Timer for OTP expiration
   useEffect(() => {
@@ -107,6 +108,13 @@ function SignupContent() {
   const handleVerifyOtp = async (otpCode: string) => {
     if (!verificationState) return;
     
+    // Prevent duplicate calls
+    if (verifyingRef.current) {
+      console.log('Already verifying, skipping duplicate call');
+      return;
+    }
+    
+    verifyingRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -117,9 +125,12 @@ function SignupContent() {
         otp: otpCode,
       });
 
-      // Store token and user
-      setToken(result.accessToken);
-      setUser(result.user);
+      // Store token, refresh token, and user
+      setAuthSession({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.user,
+      });
 
       // Store plan preference if provided
       if (planParam) {
@@ -140,6 +151,7 @@ function SignupContent() {
       setError(err.message || 'Invalid OTP. Please try again.');
       setIsLoading(false);
       setOtp(''); // Clear OTP on error
+      verifyingRef.current = false; // Reset on error to allow retry
     }
   };
 
@@ -177,6 +189,7 @@ function SignupContent() {
     setVerificationState(null);
     setOtp('');
     setError(null);
+    verifyingRef.current = false; // Reset verification flag
   };
 
   const formatTime = (seconds: number): string => {

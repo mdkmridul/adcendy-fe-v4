@@ -2,7 +2,7 @@
  * AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
  * 
  * Generated from: http://localhost:3001/api/docs-json
- * Generated at: 2026-01-24T21:04:33.920Z
+ * Generated at: 2026-01-27T12:04:09.727Z
  * 
  * To regenerate, run: pnpm gen:api
  */
@@ -2182,11 +2182,37 @@ export interface components {
             status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
             currentStep?: number;
         };
+        StrategyWizardStep1RequestDto: {
+            /** @description Optimistic concurrency version (optional when If-Match is provided) */
+            version?: number;
+            title?: string;
+            marketLocation?: string;
+            /** @enum {string} */
+            businessType?: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
+            websiteUrl?: string;
+        };
+        StrategyWizardStep2RequestDto: {
+            /** @description Optimistic concurrency version (optional when If-Match is provided) */
+            version?: number;
+            offerSummary?: string;
+            priceRange?: string;
+            differentiators?: string[];
+            constraints?: string[];
+        };
+        StrategyWizardStep3RequestDto: {
+            /** @description Optimistic concurrency version (optional when If-Match is provided) */
+            version?: number;
+            targetPersona?: string;
+            language?: string;
+            painPoints?: string[];
+            desiredOutcome?: string;
+        };
         StrategyWizardStep1Dto: {
-            businessName: string;
+            title: string;
             marketLocation: string;
-            businessType: string;
-            website?: string;
+            /** @enum {string} */
+            businessType: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
+            websiteUrl?: Record<string, never>;
         };
         StrategyWizardStep2Dto: {
             offerSummary: string;
@@ -2196,23 +2222,14 @@ export interface components {
         };
         StrategyWizardStep3Dto: {
             targetPersona: string;
-            geo: string;
             language: string;
             painPoints: string[];
             desiredOutcome: string;
-        };
-        StrategyWizardStep4Dto: {
-            confirmBusinessInfo: boolean;
-            confirmOffer: boolean;
-            confirmAudience: boolean;
-            readyToGenerate: boolean;
-            committedAt?: string;
         };
         StrategyWizardStepsDto: {
             step1Json?: components["schemas"]["StrategyWizardStep1Dto"] | null;
             step2Json?: components["schemas"]["StrategyWizardStep2Dto"] | null;
             step3Json?: components["schemas"]["StrategyWizardStep3Dto"] | null;
-            step4Json?: components["schemas"]["StrategyWizardStep4Dto"] | null;
         };
         StrategyWizardDraftDto: {
             campaignId: string;
@@ -2241,6 +2258,18 @@ export interface components {
             };
             lastCompletedStepSuggestion: number;
         };
+        StrategyWizardCommitRequestDto: {
+            /** @description Optimistic concurrency version (optional when If-Match is provided) */
+            version?: number;
+            /** @description User confirmed business info */
+            confirmBusinessInfo?: boolean;
+            /** @description User confirmed offer details */
+            confirmOffer?: boolean;
+            /** @description User confirmed audience */
+            confirmAudience?: boolean;
+            /** @description User ready to generate */
+            readyToGenerate?: boolean;
+        };
         StrategyWizardPreviewCampaignDto: {
             id: string;
             title: string;
@@ -2252,7 +2281,6 @@ export interface components {
             step1?: components["schemas"]["StrategyWizardStep1Dto"];
             step2?: components["schemas"]["StrategyWizardStep2Dto"];
             step3?: components["schemas"]["StrategyWizardStep3Dto"];
-            step4?: components["schemas"]["StrategyWizardStep4Dto"];
         };
         StrategyWizardPreviewDto: {
             campaign: components["schemas"]["StrategyWizardPreviewCampaignDto"];
@@ -4472,7 +4500,12 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description Step payload (the shape depends on the step number) */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StrategyWizardStep1RequestDto"] | components["schemas"]["StrategyWizardStep2RequestDto"] | components["schemas"]["StrategyWizardStep3RequestDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -4580,7 +4613,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StrategyWizardCommitRequestDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {

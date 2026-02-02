@@ -14,8 +14,9 @@ export function WizardStepper({ steps, currentStepKey, completedSteps, onStepCli
   const currentIndex = steps.findIndex(s => s.key === currentStepKey);
 
   return (
-    <div className="flex items-center gap-2 px-6 py-4 bg-card border-b border-border overflow-x-auto">
-      {steps.map((step, index) => {
+    <div className="bg-card border-b border-border overflow-x-auto">
+      <div className="max-w-3xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-center gap-2">{steps.map((step, index) => {
         const isActive = step.key === currentStepKey;
         const isCompleted = completedSteps.includes(step.key);
         const isClickable = isCompleted || index <= currentIndex;
@@ -51,6 +52,8 @@ export function WizardStepper({ steps, currentStepKey, completedSteps, onStepCli
           </div>
         );
       })}
+        </div>
+      </div>
     </div>
   );
 }

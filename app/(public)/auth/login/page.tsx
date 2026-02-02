@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { setToken, setUser } from '@/features/auth/auth';
+import { setAuthSession } from '@/features/auth/auth';
 import type { Role } from '@/features/auth/types';
 import { authApi } from '@/src/lib/api/auth';
 import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
@@ -45,9 +45,12 @@ function LoginContent() {
         password: formData.password,
       });
 
-      // Store token and user
-      setToken(result.accessToken);
-      setUser(result.user);
+      // Store token, refresh token, and user
+      setAuthSession({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.user,
+      });
 
       // Calculate redirect URL
       const redirectUrl = getAuthRedirectUrl(nextParam);

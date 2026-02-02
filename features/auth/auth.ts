@@ -12,6 +12,7 @@
 
 // Storage keys for auth data
 const TOKEN_KEY = 'adcendy_token';
+const REFRESH_TOKEN_KEY = 'adcendy_refresh_token';
 const USER_KEY = 'adcendy_user';
 
 import type { AuthUser } from './types';
@@ -26,6 +27,15 @@ export function getToken(): string | null {
 }
 
 /**
+ * Get the current refresh token
+ * @returns Refresh token string or null if not available
+ */
+export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+/**
  * Store authentication token
  * @param token - JWT token to store
  */
@@ -37,11 +47,21 @@ export function setToken(token: string): void {
 }
 
 /**
+ * Store refresh token
+ * @param refreshToken - Refresh token to store
+ */
+export function setRefreshToken(refreshToken: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+/**
  * Remove authentication token
  */
 export function clearToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
   // Notify components of auth change
   window.dispatchEvent(new Event('auth-change'));
 }
@@ -107,5 +127,15 @@ export function isAuthenticated(): boolean {
 export function setAuth(token: string, user: AuthUser): void {
   setToken(token);
   setUser(user);
+}
+
+/**
+ * Set authentication session with tokens and user
+ * @param session - Auth session with accessToken, refreshToken, and user
+ */
+export function setAuthSession(session: { accessToken: string; refreshToken: string; user: AuthUser }): void {
+  setToken(session.accessToken);
+  setRefreshToken(session.refreshToken);
+  setUser(session.user);
 }
 

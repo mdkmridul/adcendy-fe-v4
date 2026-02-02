@@ -53,6 +53,7 @@ export const queryKeys = {
   },
   wizard: {
     all: ['wizard'] as const,
+    state: (campaignId: string) => [...queryKeys.wizard.all, 'state', campaignId] as const,
     steps: (campaignId: string) => [...queryKeys.wizard.all, 'steps', campaignId] as const,
     step: (campaignId: string, stepKey: string) => [...queryKeys.wizard.all, 'step', campaignId, stepKey] as const,
     preview: (campaignId: string) => [...queryKeys.wizard.all, 'preview', campaignId] as const,

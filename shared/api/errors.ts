@@ -14,6 +14,7 @@ export interface ApiErrorResponse {
   message: string;
   requestId?: string;
   details?: any;
+  data?: any; // For conflict responses (e.g., 409 with latest draft)
 }
 
 export class ApiError extends Error implements ApiErrorResponse {
@@ -21,6 +22,7 @@ export class ApiError extends Error implements ApiErrorResponse {
   status?: number;
   requestId?: string;
   details?: any;
+  data?: any; // For conflict responses (e.g., 409 with latest draft)
 
   constructor(response: ApiErrorResponse) {
     super(response.message);
@@ -29,6 +31,7 @@ export class ApiError extends Error implements ApiErrorResponse {
     this.status = response.status;
     this.requestId = response.requestId;
     this.details = response.details;
+    this.data = response.data;
   }
 }
 

@@ -21,11 +21,25 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { createCampaignSchema, type CreateCampaignInput } from '@/shared/schemas/campaign';
 import { campaignsRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { useLastCampaign } from '@/hooks/useLastCampaign';
+
+const BUSINESS_TYPE_OPTIONS = [
+  { value: 'SERVICE', label: 'Service' },
+  { value: 'PRODUCT', label: 'Product' },
+  { value: 'ECOMMERCE', label: 'E-Commerce' },
+  { value: 'SAAS', label: 'SaaS' },
+] as const;
 
 interface CreateCampaignModalProps {
   open: boolean;
@@ -51,27 +65,59 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
   const onSubmit = async (data: CreateCampaignInput) => {
     try {
       setIsLoading(true);
-      const newCampaign = await campaignsRepository.createCampaign({
-        name: data.name,
-        city: data.city,
-        niche: data.niche,
-        website: data.website || null,
-      });
+      
+      // Prepare payload matching OpenAPI CreateCampaignDto schema
+      const payload: Record<string, any> = {
+        title: data.name,
+        marketLocation: data.city,
+        businessType: data.niche, // Use businessType enum field
+      };
+      
+      // Only add websiteUrl if it's a valid URL
+      if (data.website && data.website.trim()) {
+        payload.websiteUrl = data.website;
+      }
+      
+      console.log('[CreateCampaign] Sending payload:', payload);
+      
+      const newCampaign = await campaignsRepository.createCampaign(payload);
 
       // Invalidate campaigns list to refetch
       await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.list() });
 
-      // Update last campaign and navigate
+      // Update last campaign and navigate directly to Step 2
       setLastCampaignId(newCampaign.id);
-      router.push(`/app/campaigns/${newCampaign.id}/overview`);
+      router.push(`/app/campaigns/${newCampaign.id}/setup/step-2`);
 
       // Close modal and reset form
       onOpenChange(false);
       form.reset();
-    } catch (error) {
-      console.error('[v0] Failed to create campaign:', error);
+    } catch (error: any) {
+      console.error('[CreateCampaign] Failed to create campaign:', error);
+      console.error('[CreateCampaign] Error details:', {
+        kind: error?.kind,
+        status: error?.status,
+        message: error?.message,
+        details: error?.details,
+      });
+      
+      // Extract error message (auth errors are already handled by http module)
+      let errorMessage = 'Failed to create campaign. Please try again.';
+      
+      // Check for validation errors
+      if (error?.status === 400 && error?.details) {
+        const validationErrors = error.details?.errors || error.details?.message;
+        if (validationErrors) {
+          errorMessage = typeof validationErrors === 'string' 
+            ? validationErrors 
+            : JSON.stringify(validationErrors);
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       form.setError('root', {
-        message: 'Failed to create campaign. Please try again.',
+        message: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -123,10 +169,21 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
               name="niche"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Niche</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., B2B SaaS" {...field} />
-                  </FormControl>
+                  <FormLabel>Business Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select business type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {BUSINESS_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ function ForgotPasswordContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  const resettingRef = useRef(false); // Prevent duplicate API calls
 
   // Timer for OTP expiration
   useEffect(() => {
@@ -72,7 +73,9 @@ function ForgotPasswordContent() {
       setIsLoading(false);
     } catch (err: any) {
       console.error('Password reset request error:', err);
-      setError(err.message || 'Failed to send reset code. Please try again.');
+      // Extract the actual error message from the ApiErrorResponse
+      const errorMessage = err?.message || 'Failed to send reset code. Please try again.';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -81,6 +84,12 @@ function ForgotPasswordContent() {
     e.preventDefault();
     
     if (!resetState) return;
+    
+    // Prevent duplicate submissions
+    if (resettingRef.current) {
+      console.log('Already resetting password, skipping duplicate call');
+      return;
+    }
     
     // Validate password match
     if (newPassword !== confirmPassword) {
@@ -100,6 +109,7 @@ function ForgotPasswordContent() {
       return;
     }
 
+    resettingRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -111,13 +121,17 @@ function ForgotPasswordContent() {
         newPassword,
       });
 
-      // Move to success step
-      setStep('success');
+      // Clear error and move to success step
+      setError(null);
       setIsLoading(false);
+      setStep('success');
     } catch (err: any) {
       console.error('Password reset error:', err);
-      setError(err.message || 'Failed to reset password. Please try again.');
+      // Extract the actual error message from the ApiErrorResponse
+      const errorMessage = err?.message || 'Failed to reset password. Please try again.';
+      setError(errorMessage);
       setIsLoading(false);
+      resettingRef.current = false; // Reset on error to allow retry
     }
   };
 
@@ -141,7 +155,9 @@ function ForgotPasswordContent() {
       setIsLoading(false);
     } catch (err: any) {
       console.error('Resend OTP error:', err);
-      setError(err.message || 'Failed to resend OTP. Please try again.');
+      // Extract the actual error message from the ApiErrorResponse
+      const errorMessage = err?.message || 'Failed to resend OTP. Please try again.';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -153,6 +169,7 @@ function ForgotPasswordContent() {
     setNewPassword('');
     setConfirmPassword('');
     setError(null);
+    resettingRef.current = false; // Reset ref
   };
 
   const formatTime = (seconds: number): string => {

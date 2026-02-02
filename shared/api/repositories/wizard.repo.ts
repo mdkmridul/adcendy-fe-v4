@@ -18,6 +18,10 @@ export const wizardRepository = {
     return adapter.listSteps(campaignId);
   },
 
+  async getWizardState(campaignId: ID): Promise<any> {
+    return adapter.getWizardState(campaignId);
+  },
+
   async getStep(campaignId: ID, stepKey: string): Promise<WizardStepState> {
     return adapter.getStep(campaignId, stepKey);
   },
@@ -30,7 +34,16 @@ export const wizardRepository = {
     return adapter.getPreview(campaignId);
   },
 
-  async commitAndGenerate(campaignId: ID): Promise<{ strategyRunId: ID }> {
-    return adapter.commitAndGenerate(campaignId);
+  async commitAndGenerate(
+    campaignId: ID,
+    payload: {
+      version?: number;
+      confirmBusinessInfo: boolean;
+      confirmOffer: boolean;
+      confirmAudience: boolean;
+      readyToGenerate: boolean;
+    }
+  ): Promise<any> {
+    return adapter.commitAndGenerate(campaignId, payload);
   },
 };

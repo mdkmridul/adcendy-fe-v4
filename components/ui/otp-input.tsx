@@ -60,7 +60,8 @@ export function OtpInput({
     if (otpValue.length === length) {
       onComplete?.(otpValue);
     }
-  }, [otp, length, onChange, onComplete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp, length]);
 
   const handleChange = (index: number, value: string) => {
     // Only allow numeric input

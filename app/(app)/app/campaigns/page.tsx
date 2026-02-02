@@ -35,6 +35,29 @@ export default function CampaignsPage() {
     setLastCampaignId(campaignId);
   };
 
+  // Helper function to determine where to navigate based on campaign wizard state
+  const getCampaignLink = (campaign: typeof campaigns[0]) => {
+    // If campaign is ACTIVE, go to overview
+    if (campaign.status === 'ACTIVE') {
+      return `/app/campaigns/${campaign.id}/overview`;
+    }
+    
+    // If DRAFT, route to appropriate wizard step
+    // currentStep indicates the last completed step (0 = none completed)
+    const stepRoutes = ['step-1', 'step-2', 'step-3', 'preview'];
+    
+    // If no steps completed or still in progress, go to the next incomplete step
+    if (campaign.currentStep === 0) {
+      return `/app/campaigns/${campaign.id}/setup/step-1`;
+    } else if (campaign.currentStep < 4) {
+      // Go to next step after last completed
+      return `/app/campaigns/${campaign.id}/setup/${stepRoutes[campaign.currentStep]}`;
+    } else {
+      // All steps completed but not yet activated, go to preview
+      return `/app/campaigns/${campaign.id}/setup/preview`;
+    }
+  };
+
   if (error) {
     return (
       <div className="p-6">
@@ -136,7 +159,7 @@ export default function CampaignsPage() {
           {filteredCampaigns.map((campaign) => (
             <Link
               key={campaign.id}
-              href={`/app/campaigns/${campaign.id}/overview`}
+              href={getCampaignLink(campaign)}
               onClick={() => handleCampaignClick(campaign.id)}
             >
               <Card className="p-6 hover:border-primary transition-colors cursor-pointer border border-border bg-card">
@@ -146,6 +169,16 @@ export default function CampaignsPage() {
                       <h2 className="font-space-grotesk text-lg font-semibold text-foreground">
                         {campaign.name}
                       </h2>
+                      {campaign.status === 'DRAFT' && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">
+                          Setup in progress
+                        </span>
+                      )}
+                      {campaign.status === 'ACTIVE' && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+                          Active
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2 text-sm">
                       <span className="text-muted-foreground">{campaign.city}</span>

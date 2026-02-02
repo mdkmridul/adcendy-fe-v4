@@ -2,8 +2,69 @@
 
 import { makeRequestId } from './requestId';
 import { ApiError, normalizeError } from './errors';
-import { getToken } from '@/features/auth/auth';
+import { getToken, getRefreshToken, setToken, setRefreshToken, clearAuth } from '@/features/auth/auth';
 import ENV from '@/lib/env';
+
+// Flag to prevent multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+/**
+ * Attempt to refresh the access token using the refresh token
+ * @returns New access token or null if refresh failed
+ */
+async function refreshAccessToken(): Promise<string | null> {
+  // If already refreshing, wait for that to complete
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${ENV.API.baseURL}/v1/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        // Refresh failed, clear auth and return null
+        clearAuth();
+        return null;
+      }
+
+      const data = await response.json();
+      const newAccessToken = data?.data?.accessToken;
+      const newRefreshToken = data?.data?.refreshToken;
+
+      if (newAccessToken && newRefreshToken) {
+        setToken(newAccessToken);
+        setRefreshToken(newRefreshToken);
+        return newAccessToken;
+      }
+
+      clearAuth();
+      return null;
+    } catch (error) {
+      console.error('[Auth] Token refresh failed:', error);
+      clearAuth();
+      return null;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
 
 export interface HttpOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -71,10 +132,65 @@ export async function http<T>(
       data = { message: response.statusText };
     }
 
-    // Handle errors
+    // Handle 401 Unauthorized - attempt token refresh
+    if (response.status === 401 && !skipAuth) {
+      if (ENV.features.apiLogging) {
+        console.log('[API] 401 Unauthorized - attempting token refresh');
+      }
+
+      const newToken = await refreshAccessToken();
+      
+      if (newToken) {
+        // Retry the request with the new token
+        finalHeaders.Authorization = `Bearer ${newToken}`;
+        
+        const retryResponse = await fetch(url, {
+          method,
+          headers: finalHeaders,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+
+        // Parse retry response
+        if (contentType?.includes('application/json')) {
+          data = await retryResponse.json();
+        } else if (!retryResponse.ok) {
+          data = { message: retryResponse.statusText };
+        }
+
+        if (!retryResponse.ok) {
+          // Retry failed, throw error
+          const errorMessage = data?.message || data?.error || data?.data?.message || retryResponse.statusText || 'API Error';
+          const error = normalizeError(errorMessage, retryResponse.status, requestId);
+          error.details = data?.details || data;
+          throw error;
+        }
+
+        return data as T;
+      } else {
+        // Refresh failed, redirect to login
+        if (typeof window !== 'undefined') {
+          const currentPath = window.location.pathname;
+          // Don't redirect if already on auth pages
+          if (!currentPath.startsWith('/auth/')) {
+            window.location.href = `/auth/login?next=${encodeURIComponent(currentPath)}`;
+          }
+        }
+        
+        const error = normalizeError('Session expired. Please sign in again.', 401, requestId);
+        throw error;
+      }
+    }
+
+    // Handle other errors
     if (!response.ok) {
-      const error = normalizeError(data?.message || 'API Error', response.status, requestId);
+      // Extract error message from various possible formats
+      const errorMessage = data?.message || data?.error || data?.data?.message || response.statusText || 'API Error';
+      const error = normalizeError(errorMessage, response.status, requestId);
       error.details = data?.details || data;
+      // For 409 Conflict, preserve the full response data (contains latest draft)
+      if (response.status === 409) {
+        error.data = data?.data || data;
+      }
       throw error;
     }
 
