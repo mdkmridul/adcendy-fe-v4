@@ -1,6 +1,7 @@
 import { http } from '../index';
 import type { components } from '@/src/generated/openapi';
 import type { ApiResponse } from '../types';
+import type { WizardPreview, WizardStepState } from '@/shared/types/wizard';
 
 type StrategyWizardResultDto = components['schemas']['StrategyWizardResultDto'];
 type StrategyWizardPreviewDto = components['schemas']['StrategyWizardPreviewDto'];
@@ -27,7 +28,7 @@ export const wizardRealAdapter = {
     return response.data;
   },
 
-  async getStep(campaignId: string, stepKey: string): Promise<any> {
+  async getStep(campaignId: string, stepKey: string): Promise<WizardStepState> {
     // Get the full wizard state
     const wizardState = await this.getWizardState(campaignId);
     const stepNumber = STEP_MAP[stepKey];
@@ -36,11 +37,14 @@ export const wizardRealAdapter = {
     const stepData = wizardState.draft.steps[`step${stepNumber}Json` as keyof typeof wizardState.draft.steps];
     
     return {
+      campaignId,
+      stepKey: stepKey as WizardStepState['stepKey'],
       data: stepData || {},
+      updatedAt: new Date().toISOString(),
       lastCompletedStep: wizardState.draft.lastCompletedStep,
       status: wizardState.draft.status,
       version: wizardState.draft.version, // Include version for optimistic locking
-    };
+    } as WizardStepState;
   },
 
   async saveStep(campaignId: string, stepKey: string, payload: any): Promise<StrategyWizardResultDto> {
@@ -55,9 +59,9 @@ export const wizardRealAdapter = {
     return response.data;
   },
 
-  async getPreview(campaignId: string): Promise<StrategyWizardPreviewDto> {
+  async getPreview(campaignId: string): Promise<WizardPreview> {
     const response = await http<ApiResponse<StrategyWizardPreviewDto>>(`/v1/campaigns/${campaignId}/preview`);
-    return response.data;
+    return response.data as WizardPreview;
   },
 
   async validateWizard(campaignId: string): Promise<StrategyWizardValidationDto> {
@@ -75,6 +79,7 @@ export const wizardRealAdapter = {
       confirmOffer: boolean;
       confirmAudience: boolean;
       readyToGenerate: boolean;
+      dataConsentOptIn: boolean;
     }
   ): Promise<StrategyWizardResultDto> {
     console.log('[Wizard] Commit payload:', payload);

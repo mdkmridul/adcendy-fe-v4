@@ -1,4 +1,10 @@
-import type { JobRun, JobRunDetail, ListJobRunsParams } from '@/shared/types/jobs';
+import type {
+  JobFailureSummaryItem,
+  JobRun,
+  JobRunDetail,
+  JobStats,
+  ListJobRunsParams,
+} from '@/shared/types/jobs';
 import type { ID } from '@/shared/types/common';
 import { jobsMockAdapter } from '../mock/jobs.mock';
 import { jobsRealAdapter } from '../real/jobs.real';
@@ -20,5 +26,13 @@ export const jobsRepository = {
 
   async getJobRunDetail(jobRunId: ID): Promise<JobRunDetail> {
     return adapter.getJobRunDetail(jobRunId);
+  },
+
+  async getJobFailureSummary(days?: number): Promise<JobFailureSummaryItem[]> {
+    return adapter.getJobFailureSummary(days);
+  },
+
+  async getJobStats(days?: number): Promise<JobStats> {
+    return adapter.getJobStats(days);
   },
 };

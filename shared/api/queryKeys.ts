@@ -5,6 +5,12 @@ export const queryKeys = {
     byId: (id: string) => [...queryKeys.campaigns.all, 'byId', id] as const,
     detail: (id: string) => [...queryKeys.campaigns.all, 'detail', id] as const,
   },
+  documents: {
+    all: ['documents'] as const,
+    list: (campaignId: string) => [...queryKeys.documents.all, 'list', campaignId] as const,
+    download: (campaignId: string, documentId: string) =>
+      [...queryKeys.documents.all, 'download', campaignId, documentId] as const,
+  },
   strategy: {
     all: ['strategy'] as const,
     run: (id: string) => [...queryKeys.strategy.all, 'run', id] as const,
@@ -43,13 +49,50 @@ export const queryKeys = {
         ? [...queryKeys.jobs.all, 'list', filters] as const
         : [...queryKeys.jobs.all, 'list'] as const,
     detail: (jobRunId: string) => [...queryKeys.jobs.all, 'detail', jobRunId] as const,
+    failures: (days: number) => [...queryKeys.jobs.all, 'failures', days] as const,
+    stats: (days: number) => [...queryKeys.jobs.all, 'stats', days] as const,
   },
   aiUsage: {
     all: ['aiUsage'] as const,
-    summary: (windowDays?: number) =>
-      windowDays
-        ? [...queryKeys.aiUsage.all, 'summary', windowDays] as const
+    summary: (days?: number, userId?: string) =>
+      days || userId
+        ? [...queryKeys.aiUsage.all, 'summary', days ?? null, userId ?? null] as const
         : [...queryKeys.aiUsage.all, 'summary'] as const,
+    daily: (days?: number, limit?: number, userId?: string) =>
+      days || limit || userId
+        ? [...queryKeys.aiUsage.all, 'daily', days ?? null, limit ?? null, userId ?? null] as const
+        : [...queryKeys.aiUsage.all, 'daily'] as const,
+  },
+  strategyReviews: {
+    all: ['strategyReviews'] as const,
+    inbox: () => [...queryKeys.strategyReviews.all, 'inbox'] as const,
+    detail: (campaignId: string) => [...queryKeys.strategyReviews.all, 'detail', campaignId] as const,
+  },
+  adminReview: {
+    all: ['adminReview'] as const,
+    reviewers: (search?: string) =>
+      search
+        ? [...queryKeys.adminReview.all, 'reviewers', search] as const
+        : [...queryKeys.adminReview.all, 'reviewers'] as const,
+    campaignList: (filters?: Record<string, any>) =>
+      filters
+        ? [...queryKeys.adminReview.all, 'campaignList', filters] as const
+        : [...queryKeys.adminReview.all, 'campaignList'] as const,
+    campaignDetail: (campaignId: string) =>
+      [...queryKeys.adminReview.all, 'campaignDetail', campaignId] as const,
+    jobsByEntity: (entityType: string, entityId: string, limit?: number) =>
+      limit
+        ? [...queryKeys.adminReview.all, 'jobsByEntity', entityType, entityId, limit] as const
+        : [...queryKeys.adminReview.all, 'jobsByEntity', entityType, entityId] as const,
+    aiCalls: (campaignId: string, limit?: number) =>
+      limit
+        ? [...queryKeys.adminReview.all, 'aiCalls', campaignId, limit] as const
+        : [...queryKeys.adminReview.all, 'aiCalls', campaignId] as const,
+    aiCallsList: (filters?: Record<string, any>) =>
+      filters
+        ? [...queryKeys.adminReview.all, 'aiCallsList', filters] as const
+        : [...queryKeys.adminReview.all, 'aiCallsList'] as const,
+    aiCall: (callId: string) => [...queryKeys.adminReview.all, 'aiCall', callId] as const,
   },
   wizard: {
     all: ['wizard'] as const,

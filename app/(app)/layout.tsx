@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AppShell } from '@/shared/components/layout/AppShell';
-import { getToken, getUser } from '@/features/auth/auth';
-import { canAccessPath } from '@/features/auth/rbac';
+import { clearAuth, getToken, getUser } from '@/features/auth/auth';
+import { canAccessPath, getRequiredRoleForPath } from '@/features/auth/rbac';
+import { authRepository } from '@/shared/api/repositories';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,39 +15,60 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = () => {
+    let isCancelled = false;
+
+    const checkAuth = async () => {
       const token = getToken();
       const user = getUser();
 
       if (!token || !user) {
-        router.push(`/auth/login?returnTo=${encodeURIComponent(pathname)}`);
+        router.push(`/auth/login?next=${encodeURIComponent(pathname)}`);
         return;
       }
 
-      // Check if user has access to current path
       if (!canAccessPath(user, pathname)) {
         router.push('/app/unauthorized');
-        setIsLoading(false);
         return;
       }
 
-      setIsAuthed(true);
-      setIsAuthorized(true);
-      setIsLoading(false);
+      try {
+        const requiredRole = getRequiredRoleForPath(pathname);
+
+        if (requiredRole === 'ADMIN') {
+          await authRepository.verifyAdminAccess();
+        } else if (requiredRole === 'REVIEWER') {
+          if (user.role === 'ADMIN') {
+            await authRepository.verifyAdminAccess();
+          } else {
+            await authRepository.verifyReviewerAccess();
+          }
+        }
+
+        if (!isCancelled) {
+          setIsAuthed(true);
+          setIsAuthorized(true);
+          setIsLoading(false);
+        }
+      } catch {
+        clearAuth();
+        if (!isCancelled) {
+          router.push(`/auth/login?next=${encodeURIComponent(pathname)}`);
+        }
+      }
     };
 
-    // Check auth on mount and pathname change
-    checkAuth();
+    setIsLoading(true);
+    void checkAuth();
 
-    // Listen for auth state changes
     const handleAuthChange = () => {
-      checkAuth();
+      void checkAuth();
     };
     
     window.addEventListener('auth-change', handleAuthChange);
     window.addEventListener('storage', handleAuthChange);
 
     return () => {
+      isCancelled = true;
       window.removeEventListener('auth-change', handleAuthChange);
       window.removeEventListener('storage', handleAuthChange);
     };

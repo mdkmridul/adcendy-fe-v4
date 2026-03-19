@@ -3,9 +3,10 @@ import type { components } from '@/src/generated/openapi';
 
 // Use generated OpenAPI types
 type LoginRequest = components['schemas']['LoginDto'];
-type SignupRequest = components['schemas']['RegisterDto'];
+type SignupRequest = components['schemas']['SignupStartDto'];
 type AuthResponse = components['schemas']['AuthSessionDto'];
 type AuthUser = components['schemas']['AuthUserDto'];
+type ProtectedResponse = components['schemas']['ProtectedResponseDto'];
 
 // API response wrapper structure
 interface ApiResponse<T> {
@@ -90,5 +91,19 @@ export const authRealAdapter = {
       }
     );
     return response.data;
+  },
+
+  verifyReviewerAccess: async (): Promise<boolean> => {
+    const response = await http<ApiResponse<ProtectedResponse>>('/v1/auth/protected/reviewer', {
+      method: 'GET',
+    });
+    return Boolean(response.data.ok);
+  },
+
+  verifyAdminAccess: async (): Promise<boolean> => {
+    const response = await http<ApiResponse<ProtectedResponse>>('/v1/auth/protected/admin', {
+      method: 'GET',
+    });
+    return Boolean(response.data.ok);
   },
 };

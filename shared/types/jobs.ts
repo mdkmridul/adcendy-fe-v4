@@ -1,41 +1,59 @@
-import type { ID, ISODateTime, RunStatus } from './common';
+import type { ID, ISODateTime } from './common';
 
-export type JobType =
-  | 'INTELLIGENCE_REFRESH'
-  | 'STRATEGY_GENERATION'
-  | 'WEEKLY_PROCESSING'
-  | 'TWEAK_GENERATION'
-  | 'BENCHMARK_UPDATE'
-  | 'EVALUATION_RUN';
+export type AdminJobStatus = 'QUEUED' | 'ACTIVE' | 'COMPLETED' | 'FAILED';
 
 export interface JobRun {
   id: ID;
-  jobType: JobType;
-  status: RunStatus;
-  campaignId?: ID | null;
-  weekStart?: string | null;
-  startedAt: ISODateTime;
-  finishedAt?: ISODateTime | null;
-  attempts: number;
-  errorMessage?: string | null;
-  traceId?: string | null;
+  jobName: string;
+  queueName: string;
+  status: AdminJobStatus;
+  attemptsMade: number;
+  maxAttempts?: number | null;
+  lastErrorCode?: string | null;
+  lastErrorMessage?: string | null;
+  queueDurationMs?: number | null;
+  runDurationMs?: number | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+  logsCount: number;
 }
 
 export interface JobLogEntry {
-  at: ISODateTime;
-  level: 'INFO' | 'WARN' | 'ERROR';
-  message: string;
-  meta?: Record<string, any>;
+  timestamp?: ISODateTime | null;
+  level?: string | null;
+  message?: string | null;
+  raw: Record<string, unknown>;
 }
 
-export interface JobRunDetail {
-  job: JobRun;
+export interface JobRunDetail extends JobRun {
   logs: JobLogEntry[];
+  logPagination: {
+    limit: number;
+    offset: number;
+    total: number;
+  } | null;
+}
+
+export interface JobFailureSummaryItem {
+  jobName: string;
+  errorCode: string;
+  count: number;
+}
+
+export interface JobStats {
+  totalRuns: number;
+  completed: number;
+  failed: number;
+  active: number;
+  successRate: string;
+  avgDurationMs: number;
 }
 
 export interface ListJobRunsParams {
-  status?: RunStatus;
-  jobType?: JobType;
+  jobName?: string;
   campaignId?: ID;
+  from?: ISODateTime;
+  to?: ISODateTime;
   limit?: number;
+  page?: number;
 }

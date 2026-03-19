@@ -3,7 +3,7 @@ import type { components } from '@/src/generated/openapi';
 
 // Use generated OpenAPI types
 export type LoginRequest = components['schemas']['LoginDto'];
-export type SignupRequest = components['schemas']['RegisterDto'];
+export type SignupRequest = components['schemas']['SignupStartDto'];
 export type AuthResponse = components['schemas']['AuthSessionDto'];
 
 /**
@@ -114,5 +114,15 @@ export const authMockAdapter = {
       refreshToken: mockRefreshToken,
       user: mockUser,
     };
+  },
+
+  verifyReviewerAccess: async (): Promise<boolean> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return true;
+  },
+
+  verifyAdminAccess: async (): Promise<boolean> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return true;
   },
 };

@@ -3,9 +3,42 @@
  * 
  * Handles redirect logic after successful authentication:
  * 1. If `next` query param exists -> redirect there
- * 2. Else if lastCampaignId exists -> /app/campaigns/{id}/overview
- * 3. Else -> /app/campaigns
+ * 2. Else route by authenticated role
+ * 3. For clients, prefer last campaign if available
+ * 4. Else -> /app/campaigns
  */
+
+import type { Role } from '@/features/auth/types';
+
+function normalizePrivilegedNext(nextParam?: string | null): string | null {
+  if (!nextParam) {
+    return null;
+  }
+
+  if (nextParam === '/app/admin') {
+    return '/admin';
+  }
+
+  if (nextParam.startsWith('/app/admin/')) {
+    return nextParam.replace('/app/admin', '/admin');
+  }
+
+  return nextParam;
+}
+
+function isAdminNextPath(path: string): boolean {
+  return path === '/admin' || path.startsWith('/admin/');
+}
+
+function isReviewerNextPath(path: string): boolean {
+  return (
+    path === '/app/reviewer' ||
+    path.startsWith('/app/reviewer/') ||
+    path === '/app/review' ||
+    path.startsWith('/app/review/') ||
+    /^\/app\/campaigns\/[^/]+\/review(?:\/|$)/.test(path)
+  );
+}
 
 /**
  * Get last campaign ID from localStorage
@@ -19,12 +52,31 @@ export function getLastCampaignId(): string | null {
  * Calculate redirect URL after authentication
  * 
  * @param nextParam - Optional next URL from query params
+ * @param role - Authenticated user role from login response
  * @returns Redirect URL
  */
-export function getAuthRedirectUrl(nextParam?: string | null): string {
+export function getAuthRedirectUrl(nextParam?: string | null, role?: Role): string {
+  const normalizedNext = normalizePrivilegedNext(nextParam);
+
+  if (role === 'ADMIN') {
+    if (normalizedNext && isAdminNextPath(normalizedNext)) {
+      return normalizedNext;
+    }
+
+    return '/admin';
+  }
+
+  if (role === 'REVIEWER') {
+    if (normalizedNext && isReviewerNextPath(normalizedNext)) {
+      return normalizedNext;
+    }
+
+    return '/app/reviewer/strategy-reviews';
+  }
+
   // Priority 1: next param
-  if (nextParam) {
-    return nextParam;
+  if (normalizedNext) {
+    return normalizedNext;
   }
 
   // Priority 2: last campaign

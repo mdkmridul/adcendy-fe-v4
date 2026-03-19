@@ -30,16 +30,14 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { createCampaignSchema, type CreateCampaignInput } from '@/shared/schemas/campaign';
-import { campaignsRepository } from '@/shared/api/repositories';
+import { campaignsRepository, wizardRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { useLastCampaign } from '@/hooks/useLastCampaign';
-
-const BUSINESS_TYPE_OPTIONS = [
-  { value: 'SERVICE', label: 'Service' },
-  { value: 'PRODUCT', label: 'Product' },
-  { value: 'ECOMMERCE', label: 'E-Commerce' },
-  { value: 'SAAS', label: 'SaaS' },
-] as const;
+import {
+  BUSINESS_MODEL_OPTIONS,
+  BUSINESS_TYPE_OPTIONS,
+  MARKET_SCOPE_OPTIONS,
+} from '@/shared/types/campaign';
 
 interface CreateCampaignModalProps {
   open: boolean;
@@ -55,10 +53,12 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
   const form = useForm<CreateCampaignInput>({
     resolver: zodResolver(createCampaignSchema),
     defaultValues: {
-      name: '',
-      city: '',
-      niche: '',
-      website: '',
+      title: '',
+      marketLocation: '',
+      businessType: undefined,
+      businessModel: undefined,
+      marketScope: undefined,
+      websiteUrl: '',
     },
   });
 
@@ -66,28 +66,37 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
     try {
       setIsLoading(true);
       
-      // Prepare payload matching OpenAPI CreateCampaignDto schema
-      const payload: Record<string, any> = {
-        title: data.name,
-        marketLocation: data.city,
-        businessType: data.niche, // Use businessType enum field
-      };
-      
-      // Only add websiteUrl if it's a valid URL
-      if (data.website && data.website.trim()) {
-        payload.websiteUrl = data.website;
-      }
-      
-      console.log('[CreateCampaign] Sending payload:', payload);
-      
-      const newCampaign = await campaignsRepository.createCampaign(payload);
+      const newCampaign = await campaignsRepository.createCampaign({
+        title: data.title,
+        marketLocation: data.marketLocation,
+        businessType: data.businessType,
+        businessModel: data.businessModel,
+        marketScope: data.marketScope,
+        websiteUrl: data.websiteUrl?.trim() || undefined,
+      });
+
+      await wizardRepository.saveStep(newCampaign.id, 'STEP_1', {
+        data: {
+          title: data.title,
+          marketLocation: data.marketLocation,
+          businessType: data.businessType,
+          businessModel: data.businessModel,
+          marketScope: data.marketScope,
+          websiteUrl: data.websiteUrl?.trim() || '',
+        },
+      });
 
       // Invalidate campaigns list to refetch
-      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.list() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.list() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.detail(newCampaign.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.wizard.state(newCampaign.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.wizard.step(newCampaign.id, 'STEP_1') }),
+      ]);
 
-      // Update last campaign and navigate directly to Step 2
+      // Update last campaign and continue directly into the campaigns-page wizard modal
       setLastCampaignId(newCampaign.id);
-      router.push(`/app/campaigns/${newCampaign.id}/setup/step-2`);
+      router.push(`/app/campaigns?draftCampaignId=${newCampaign.id}&wizardStep=2`);
 
       // Close modal and reset form
       onOpenChange(false);
@@ -126,7 +135,7 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Create New Campaign</DialogTitle>
           <DialogDescription>
@@ -138,10 +147,10 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="name"
+              name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Campaign Name</FormLabel>
+                  <FormLabel>Campaign Title</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., SaaS Product Launch" {...field} />
                   </FormControl>
@@ -152,10 +161,10 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
 
             <FormField
               control={form.control}
-              name="city"
+              name="marketLocation"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City</FormLabel>
+                  <FormLabel>Market Location</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., San Francisco" {...field} />
                   </FormControl>
@@ -164,20 +173,72 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
               )}
             />
 
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="businessType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select business type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {BUSINESS_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="businessModel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Model</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select business model" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {BUSINESS_MODEL_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="niche"
+              name="marketScope"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Business Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormLabel>Market Scope</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select business type" />
+                        <SelectValue placeholder="Select market scope" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {BUSINESS_TYPE_OPTIONS.map((option) => (
+                      {MARKET_SCOPE_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -191,7 +252,7 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
 
             <FormField
               control={form.control}
-              name="website"
+              name="websiteUrl"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Website (Optional)</FormLabel>

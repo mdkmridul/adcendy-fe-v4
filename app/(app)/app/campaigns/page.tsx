@@ -1,205 +1,190 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useCampaigns } from '@/hooks/useCampaigns';
-import { formatDistanceToNow } from 'date-fns';
-import { CreateCampaignModal } from '@/shared/components/campaigns/CreateCampaignModal';
 import { useLastCampaign } from '@/hooks/useLastCampaign';
-import { useSearchParams } from 'next/navigation';
-import Loading from './loading';
+import { CampaignListItem } from '@/shared/components/campaigns/CampaignListItem';
+import { CampaignWizardModal, resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
+import {
+  formatBusinessModel,
+  formatBusinessType,
+  formatMarketScope,
+  type Campaign,
+} from '@/shared/types/campaign';
+
+interface WizardModalState {
+  campaignId?: string | null;
+  initialStep: 1 | 2 | 3 | 4;
+}
 
 export default function CampaignsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { campaigns, isLoading, error } = useCampaigns();
   const { setLastCampaignId } = useLastCampaign();
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [wizardModalState, setWizardModalState] = useState<WizardModalState | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const searchParams = useSearchParams();
 
   const filteredCampaigns = useMemo(() => {
-    if (!searchQuery.trim()) return campaigns;
+    if (!searchQuery.trim()) {
+      return campaigns;
+    }
+
     const query = searchQuery.toLowerCase();
-    return campaigns.filter(
-      c =>
-        c.name.toLowerCase().includes(query) ||
-        c.city.toLowerCase().includes(query) ||
-        c.niche.toLowerCase().includes(query)
+    return campaigns.filter((campaign) =>
+      [
+        campaign.name,
+        campaign.city,
+        campaign.niche,
+        campaign.businessType,
+        campaign.businessModel,
+        campaign.marketScope,
+        formatBusinessType(campaign.businessType),
+        formatBusinessModel(campaign.businessModel),
+        formatMarketScope(campaign.marketScope),
+      ]
+        .filter((value): value is string => typeof value === 'string' && value.length > 0)
+        .some((value) => value.toLowerCase().includes(query)),
     );
   }, [campaigns, searchQuery]);
 
-  const handleCampaignClick = (campaignId: string) => {
-    setLastCampaignId(campaignId);
+  const openCreateWizard = () => {
+    setWizardModalState({
+      campaignId: null,
+      initialStep: 1,
+    });
   };
 
-  // Helper function to determine where to navigate based on campaign wizard state
-  const getCampaignLink = (campaign: typeof campaigns[0]) => {
-    // If campaign is ACTIVE, go to overview
-    if (campaign.status === 'ACTIVE') {
-      return `/app/campaigns/${campaign.id}/overview`;
-    }
-    
-    // If DRAFT, route to appropriate wizard step
-    // currentStep indicates the last completed step (0 = none completed)
-    const stepRoutes = ['step-1', 'step-2', 'step-3', 'preview'];
-    
-    // If no steps completed or still in progress, go to the next incomplete step
-    if (campaign.currentStep === 0) {
-      return `/app/campaigns/${campaign.id}/setup/step-1`;
-    } else if (campaign.currentStep < 4) {
-      // Go to next step after last completed
-      return `/app/campaigns/${campaign.id}/setup/${stepRoutes[campaign.currentStep]}`;
-    } else {
-      // All steps completed but not yet activated, go to preview
-      return `/app/campaigns/${campaign.id}/setup/preview`;
-    }
+  const openDraftWizard = (campaign: Campaign) => {
+    setLastCampaignId(campaign.id);
+    const step = resolveWizardStep(campaign.currentStep);
+    setWizardModalState({
+      campaignId: campaign.id,
+      initialStep: step,
+    });
+    router.push(`/app/campaigns?draftCampaignId=${campaign.id}&wizardStep=${step}`);
   };
+
+  useEffect(() => {
+    const draftCampaignId = searchParams.get('draftCampaignId');
+    const wizardStepParam = Number(searchParams.get('wizardStep'));
+
+    if (!draftCampaignId) {
+      return;
+    }
+
+    const initialStep =
+      wizardStepParam === 2 || wizardStepParam === 3 || wizardStepParam === 4
+        ? wizardStepParam
+        : 1;
+
+    setWizardModalState({
+      campaignId: draftCampaignId,
+      initialStep,
+    });
+  }, [searchParams]);
 
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
-          <p className="text-destructive">Failed to load campaigns: {error}</p>
-        </div>
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="py-6">
+            <p className="text-sm text-destructive">Failed to load campaigns: {error}</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-5 p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
           <h1 className="font-space-grotesk text-3xl font-bold text-foreground">Campaigns</h1>
-          <p className="text-muted-foreground mt-1">Manage your market intelligence campaigns</p>
+          <p className="text-sm text-muted-foreground">
+            Select a campaign to open its current workspace state.
+          </p>
         </div>
-        <Button className="gap-2" onClick={() => setCreateModalOpen(true)}>
-          <Plus className="w-4 h-4" />
-          New Campaign
-        </Button>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 sm:min-w-[320px]">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by campaign, market, type, or niche"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-auto border-0 bg-transparent px-0 focus-visible:ring-0"
+            />
+          </div>
+
+          <Button className="gap-2" onClick={openCreateWizard}>
+            <Plus className="h-4 w-4" />
+            New Campaign
+          </Button>
+        </div>
       </div>
 
-      {campaigns.length > 0 && (
-        <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search campaigns by name, city, or niche..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="border-0 bg-transparent focus-visible:ring-0"
-          />
-        </div>
-      )}
-
       {isLoading ? (
-        <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i} className="p-6 bg-card animate-pulse h-24" />
+        <div className="grid gap-3">
+          {[...Array(4)].map((_, index) => (
+            <Card key={index} className="h-36 animate-pulse border-border bg-card" />
           ))}
         </div>
       ) : campaigns.length === 0 ? (
-        <Card className="p-12 text-center bg-card border border-border relative overflow-hidden">
-          {/* Subtle intelligence presence cue */}
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
-          
-          <div className="relative">
-            {/* Status indicator */}
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/60 mb-6">
-              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
-              <span>Intelligence system ready</span>
-            </div>
-
-            {/* Main message */}
-            <h2 className="font-space-grotesk text-xl font-semibold text-foreground mb-2">
-              No market intelligence campaigns yet
-            </h2>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Create a campaign to start tracking competitor signals, market patterns, and weekly strategic insights.
-            </p>
-
-            {/* What happens next - inline steps */}
-            <div className="flex items-center justify-center gap-8 mb-8 text-xs">
-              <div className="flex items-center gap-2 text-muted-foreground/70">
-                <div className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center text-[10px] font-medium">1</div>
-                <span>Collect signals</span>
-              </div>
-              <div className="w-4 h-[1px] bg-border/50" />
-              <div className="flex items-center gap-2 text-muted-foreground/70">
-                <div className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center text-[10px] font-medium">2</div>
-                <span>Analyze patterns</span>
-              </div>
-              <div className="w-4 h-[1px] bg-border/50" />
-              <div className="flex items-center gap-2 text-muted-foreground/70">
-                <div className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center text-[10px] font-medium">3</div>
-                <span>Generate strategy</span>
-              </div>
-            </div>
-
-            {/* Elevated CTA */}
-            <div className="space-y-2">
-              <Button 
-                onClick={() => setCreateModalOpen(true)} 
-                className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
-              >
-                <Plus className="w-4 h-4" />
+        <Card className="border-border bg-card">
+          <CardContent className="py-14 text-center">
+            <div className="mx-auto max-w-xl space-y-3">
+              <h2 className="font-space-grotesk text-2xl font-semibold text-foreground">
+                No campaigns yet
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Create your first campaign to set up business context, review readiness, and generate
+                a strategy workspace.
+              </p>
+              <Button className="mt-3 gap-2" onClick={openCreateWizard}>
+                <Plus className="h-4 w-4" />
                 Create First Campaign
               </Button>
-              <p className="text-xs text-muted-foreground/50">Takes ~3 minutes</p>
             </div>
-          </div>
+          </CardContent>
         </Card>
       ) : filteredCampaigns.length === 0 ? (
-        <Card className="p-8 text-center bg-card border border-border">
-          <p className="text-muted-foreground">No campaigns match your search.</p>
+        <Card className="border-border bg-card">
+          <CardContent className="py-10 text-center">
+            <p className="text-sm text-muted-foreground">No campaigns match your search.</p>
+          </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-3">
           {filteredCampaigns.map((campaign) => (
-            <Link
+            <CampaignListItem
               key={campaign.id}
-              href={getCampaignLink(campaign)}
-              onClick={() => handleCampaignClick(campaign.id)}
-            >
-              <Card className="p-6 hover:border-primary transition-colors cursor-pointer border border-border bg-card">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
-                      <h2 className="font-space-grotesk text-lg font-semibold text-foreground">
-                        {campaign.name}
-                      </h2>
-                      {campaign.status === 'DRAFT' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">
-                          Setup in progress
-                        </span>
-                      )}
-                      {campaign.status === 'ACTIVE' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
-                          Active
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2 text-sm">
-                      <span className="text-muted-foreground">{campaign.city}</span>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground">{campaign.niche}</span>
-                    </div>
-                    {campaign.website && (
-                      <p className="text-xs text-muted-foreground">{campaign.website}</p>
-                    )}
-                    <div className="text-xs text-muted-foreground pt-2">
-                      Updated {formatDistanceToNow(new Date(campaign.updatedAt), { addSuffix: true })}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </Link>
+              campaign={campaign}
+              onOpen={(campaignId) => setLastCampaignId(campaignId)}
+              onOpenDraftWizard={openDraftWizard}
+            />
           ))}
         </div>
       )}
 
-      <CreateCampaignModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
+      <CampaignWizardModal
+        open={Boolean(wizardModalState)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setWizardModalState(null);
+            if (searchParams.get('draftCampaignId')) {
+              router.replace('/app/campaigns');
+            }
+          }
+        }}
+        campaignId={wizardModalState?.campaignId ?? null}
+        initialStep={wizardModalState?.initialStep ?? 1}
+      />
     </div>
   );
 }

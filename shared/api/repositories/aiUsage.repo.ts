@@ -1,4 +1,9 @@
-import type { AiUsageSummary, GetAiUsageSummaryParams } from '@/shared/types/aiUsage';
+import type {
+  AiDailyUsage,
+  AiUsageSummary,
+  GetAiDailyUsageParams,
+  GetAiUsageSummaryParams,
+} from '@/shared/types/aiUsage';
 import { aiUsageMockAdapter } from '../mock/aiUsage.mock';
 import { aiUsageRealAdapter } from '../real/aiUsage.real';
 
@@ -15,5 +20,9 @@ if (ENV.features.apiLogging && typeof window !== 'undefined') {
 export const aiUsageRepository = {
   async getAiUsageSummary(params?: GetAiUsageSummaryParams): Promise<AiUsageSummary> {
     return adapter.getAiUsageSummary(params);
+  },
+
+  async getDailyUsage(params?: GetAiDailyUsageParams): Promise<AiDailyUsage[]> {
+    return adapter.getDailyUsage(params);
   },
 };

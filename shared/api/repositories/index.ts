@@ -1,8 +1,11 @@
 export { authRepository } from './auth.repo';
 export { campaignsRepository } from './campaigns.repo';
+export { campaignDocumentsRepository } from './campaignDocuments.repo';
 export { wizardRepository } from './wizard.repo';
 export { strategyRepository } from './strategy.repo';
 export { weeklyRepository } from './weekly.repo';
 export { intelligenceRepository } from './intelligence.repo';
 export { jobsRepository } from './jobs.repo';
 export { aiUsageRepository } from './aiUsage.repo';
+export { strategyReviewRepository } from './strategyReview.repo';
+export { adminReviewRepository } from './adminReview.repo';

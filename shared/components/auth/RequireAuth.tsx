@@ -18,7 +18,7 @@ export function RequireAuth({ children, requiredRole }: RequireAuthProps) {
   React.useEffect(() => {
     if (!user) {
       const returnTo = window.location.pathname;
-      router.push(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
+      router.push(`/auth/login?next=${encodeURIComponent(returnTo)}`);
       return;
     }
 

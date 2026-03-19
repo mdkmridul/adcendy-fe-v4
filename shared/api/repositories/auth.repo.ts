@@ -50,4 +50,14 @@ export const authRepository = {
    * @returns New access token and user data
    */
   refreshToken: async (): Promise<AuthResponse> => adapter.refreshToken(),
+
+  /**
+   * Verify reviewer-protected access with the backend.
+   */
+  verifyReviewerAccess: async (): Promise<boolean> => adapter.verifyReviewerAccess(),
+
+  /**
+   * Verify admin-protected access with the backend.
+   */
+  verifyAdminAccess: async (): Promise<boolean> => adapter.verifyAdminAccess(),
 };

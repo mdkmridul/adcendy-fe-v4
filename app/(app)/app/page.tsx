@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLastCampaign } from '@/hooks/useLastCampaign';
 import { Suspense } from 'react';
+import { getUser } from '@/features/auth/auth';
 
 function AppIndexContent() {
   const router = useRouter();
@@ -11,6 +12,8 @@ function AppIndexContent() {
   const { getLastCampaignId } = useLastCampaign();
 
   useEffect(() => {
+    const user = getUser();
+
     // Priority 1: Check for 'next' query param
     const nextParam = searchParams.get('next');
     if (nextParam) {
@@ -18,10 +21,20 @@ function AppIndexContent() {
       return;
     }
 
+    if (user?.role === 'ADMIN') {
+      router.replace('/admin');
+      return;
+    }
+
+    if (user?.role === 'REVIEWER') {
+      router.replace('/app/reviewer/strategy-reviews');
+      return;
+    }
+
     // Priority 2: Check for last campaign (returning user)
     const lastCampaignId = getLastCampaignId();
     if (lastCampaignId) {
-      router.replace(`/app/campaigns/${lastCampaignId}/overview`);
+      router.replace(`/app/campaigns/${lastCampaignId}`);
       return;
     }
 

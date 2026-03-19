@@ -1,14 +1,15 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { setAuthSession } from '@/features/auth/auth';
-import type { Role } from '@/features/auth/types';
+import { clearAuth, getToken, getUser, setAuthSession } from '@/features/auth/auth';
+import { authRepository } from '@/shared/api/repositories';
 import { authApi } from '@/src/lib/api/auth';
 import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
 import { X } from 'lucide-react';
@@ -16,9 +17,9 @@ import Loading from './loading';
 
 function LoginContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const nextParam = searchParams.get('next');
-  const redirectTarget = nextParam || '/app';
+  const nextParam = searchParams.get('next') ?? searchParams.get('returnTo');
   const signupQuery = nextParam ? `?next=${encodeURIComponent(nextParam)}` : '';
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +27,46 @@ function LoginContent() {
     email: '',
     password: '',
   });
+  const isAdminLoginFlow = pathname === '/admin/login';
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const redirectExistingSession = async () => {
+      const token = getToken();
+      const user = getUser();
+
+      if (!token || !user) {
+        return;
+      }
+
+      try {
+        if (user.role === 'ADMIN') {
+          await authRepository.verifyAdminAccess();
+        }
+
+        if (isAdminLoginFlow && user.role !== 'ADMIN') {
+          clearAuth();
+          if (!isCancelled) {
+            setError('Access denied. This sign-in is for admin users only.');
+          }
+          return;
+        }
+
+        if (!isCancelled) {
+          router.replace(isAdminLoginFlow ? '/admin' : getAuthRedirectUrl(nextParam, user.role));
+        }
+      } catch {
+        clearAuth();
+      }
+    };
+
+    void redirectExistingSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAdminLoginFlow, nextParam, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -52,8 +93,19 @@ function LoginContent() {
         user: result.user,
       });
 
+      if (result.user.role === 'ADMIN') {
+        await authRepository.verifyAdminAccess();
+      }
+
+      if (isAdminLoginFlow && result.user.role !== 'ADMIN') {
+        clearAuth();
+        setError('Access denied. This sign-in is for admin users only.');
+        setIsLoading(false);
+        return;
+      }
+
       // Calculate redirect URL
-      const redirectUrl = getAuthRedirectUrl(nextParam);
+      const redirectUrl = isAdminLoginFlow ? '/admin' : getAuthRedirectUrl(nextParam, result.user.role);
       console.log('Login successful, redirecting to:', redirectUrl);
       
       // Dispatch auth-change event for reactive components
@@ -62,37 +114,10 @@ function LoginContent() {
       // Use replace to avoid back button issues
       router.replace(redirectUrl);
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password');
+      clearAuth();
+      setError(err.message || (isAdminLoginFlow ? 'Admin access denied.' : 'Invalid email or password'));
       setIsLoading(false);
     }
-  };
-
-  const handleMockLogin = async (role: Role) => {
-    setIsLoading(true);
-    setError(null);
-    
-    // Mock token generation
-    const mockToken = `mock.${role}.${Date.now()}`;
-    const mockUser = {
-      id: `user-${Date.now()}`,
-      email: `${role.toLowerCase()}@adcendy.com`,
-      role,
-      createdAt: new Date().toISOString(),
-    };
-
-    setToken(mockToken);
-    setUser(mockUser);
-    
-    // Calculate redirect URL
-    const redirectUrl = getAuthRedirectUrl(nextParam);
-    console.log('Mock login successful, redirecting to:', redirectUrl);
-    
-    // Dispatch auth-change event for reactive components
-    window.dispatchEvent(new Event('auth-change'));
-    
-    // Brief UX delay to show loading state
-    await new Promise(resolve => setTimeout(resolve, 300));
-    router.replace(redirectUrl);
   };
 
   return (
@@ -108,7 +133,9 @@ function LoginContent() {
 
       <div className="text-center space-y-2">
         <h1 className="font-space-grotesk text-2xl font-bold">Welcome to AdCendy</h1>
-        <p className="text-sm text-muted-foreground">Sign in to your account</p>
+        <p className="text-sm text-muted-foreground">
+          {isAdminLoginFlow ? 'Sign in to the admin console' : 'Sign in to your account'}
+        </p>
       </div>
 
       <form
@@ -160,36 +187,14 @@ function LoginContent() {
         </Button>
       </form>
 
-      <div className="space-y-2 border-t border-border pt-4">
-        <p className="text-xs text-muted-foreground text-center font-semibold">
-          Quick access for testing (Mock Mode):
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full text-sm bg-transparent"
-          onClick={() => handleMockLogin('REVIEWER')}
-          disabled={isLoading}
-        >
-          Sign In as Reviewer
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full text-sm bg-transparent"
-          onClick={() => handleMockLogin('ADMIN')}
-          disabled={isLoading}
-        >
-          Sign In as Admin
-        </Button>
-      </div>
-
-      <div className="text-center text-sm text-muted-foreground">
-        Don't have an account?{' '}
-        <Link href={`/auth/signup${signupQuery}`} className="text-primary hover:underline">
-          Sign up
-        </Link>
-      </div>
+      {!isAdminLoginFlow && (
+        <div className="text-center text-sm text-muted-foreground">
+          Don't have an account?{' '}
+          <Link href={`/auth/signup${signupQuery}`} className="text-primary hover:underline">
+            Sign up
+          </Link>
+        </div>
+      )}
     </Card>
   );
 }

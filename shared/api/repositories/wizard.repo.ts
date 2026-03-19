@@ -42,6 +42,7 @@ export const wizardRepository = {
       confirmOffer: boolean;
       confirmAudience: boolean;
       readyToGenerate: boolean;
+      dataConsentOptIn: boolean;
     }
   ): Promise<any> {
     return adapter.commitAndGenerate(campaignId, payload);

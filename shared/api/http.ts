@@ -67,7 +67,7 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 export interface HttpOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
   query?: Record<string, any>;
   headers?: Record<string, string>;

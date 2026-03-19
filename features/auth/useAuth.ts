@@ -25,8 +25,8 @@ export function useAuth() {
     const mockUser: AuthUser = {
       id: `user-${Date.now()}`,
       email: `${role.toLowerCase()}@adcendy.com`,
-      name: role === 'CLIENT' ? 'Demo User' : role === 'REVIEWER' ? 'Reviewer' : 'Administrator',
       role,
+      createdAt: new Date().toISOString(),
     };
 
     setToken(mockToken);
@@ -60,7 +60,7 @@ export function useAuthGuard() {
     const token = getToken();
     if (!token) {
       const returnTo = window.location.pathname + window.location.search;
-      router.push(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
+      router.push(`/auth/login?next=${encodeURIComponent(returnTo)}`);
     }
     setIsLoading(false);
   }, [router]);
