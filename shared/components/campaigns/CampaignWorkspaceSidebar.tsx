@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import type { Campaign } from '@/shared/types/campaign';
-import type { CampaignLifecycleStage } from '@/shared/components/campaigns/campaign-ui';
+import {
+  canAccessCampaignFiles,
+  type CampaignLifecycleStage,
+} from '@/shared/components/campaigns/campaign-ui';
 
 interface CampaignWorkspaceSidebarProps {
   campaign: Campaign;
@@ -25,6 +28,8 @@ interface WorkspaceNavItem {
 }
 
 function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage): WorkspaceNavItem[] {
+  const showFiles = canAccessCampaignFiles(campaign);
+
   if (stage === 'draft') {
     return [
       {
@@ -54,11 +59,15 @@ function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage):
         href: `/app/campaigns/${campaign.id}/setup/preview`,
         isActive: (pathname) => pathname.includes('/setup/preview'),
       },
-      {
-        label: 'Files',
-        href: `/app/campaigns/${campaign.id}/files`,
-        isActive: (pathname) => pathname.includes('/files'),
-      },
+      ...(showFiles
+        ? [
+            {
+              label: 'Files',
+              href: `/app/campaigns/${campaign.id}/files`,
+              isActive: (pathname: string) => pathname.includes('/files'),
+            },
+          ]
+        : []),
       {
         label: 'Settings',
         href: `/app/campaigns/${campaign.id}/settings`,
@@ -79,11 +88,15 @@ function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage):
         href: `/app/campaigns/${campaign.id}/inputs`,
         isActive: (pathname) => pathname.includes('/inputs'),
       },
-      {
-        label: 'Files',
-        href: `/app/campaigns/${campaign.id}/files`,
-        isActive: (pathname) => pathname.includes('/files'),
-      },
+      ...(showFiles
+        ? [
+            {
+              label: 'Files',
+              href: `/app/campaigns/${campaign.id}/files`,
+              isActive: (pathname: string) => pathname.includes('/files'),
+            },
+          ]
+        : []),
       {
         label: 'Settings',
         href: `/app/campaigns/${campaign.id}/settings`,
@@ -114,11 +127,15 @@ function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage):
       href: `/app/campaigns/${campaign.id}/intelligence`,
       isActive: (pathname) => pathname.includes('/intelligence'),
     },
-    {
-      label: 'Files',
-      href: `/app/campaigns/${campaign.id}/files`,
-      isActive: (pathname) => pathname.includes('/files'),
-    },
+    ...(showFiles
+      ? [
+          {
+            label: 'Files',
+            href: `/app/campaigns/${campaign.id}/files`,
+            isActive: (pathname: string) => pathname.includes('/files'),
+          },
+        ]
+      : []),
     {
       label: 'Settings',
       href: `/app/campaigns/${campaign.id}/settings`,

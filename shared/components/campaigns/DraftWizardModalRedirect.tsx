@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useCampaign } from '@/hooks/useCampaigns';
 import {
   getCampaignWorkspaceHref,
-  hasCompletedDraftSetup,
 } from '@/shared/components/campaigns/campaign-ui';
 import { resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
 
@@ -25,7 +24,7 @@ export function DraftWizardModalRedirect({ step }: DraftWizardModalRedirectProps
       return;
     }
 
-    if (campaign.status !== 'DRAFT' || hasCompletedDraftSetup(campaign)) {
+    if (campaign.status !== 'DRAFT') {
       router.replace(getCampaignWorkspaceHref(campaign));
       return;
     }

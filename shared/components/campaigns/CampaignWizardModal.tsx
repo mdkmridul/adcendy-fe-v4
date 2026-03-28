@@ -5,7 +5,7 @@ import { useFieldArray, useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Building2, Package, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -46,7 +46,6 @@ import { queryKeys } from '@/shared/api/queryKeys';
 import { ApiError } from '@/shared/api/errors';
 import { ReadinessSummaryCard } from '@/shared/components/campaigns/ReadinessSummaryCard';
 import {
-  SectionStatusBadge,
   extractWebsiteHost,
   type SectionReadinessStatus,
 } from '@/shared/components/campaigns/campaign-ui';
@@ -584,6 +583,24 @@ export function CampaignWizardModal({
         ? 'Fix Missing Inputs'
         : 'Confirm Inputs';
 
+  const openPreviewSectionEditor = (
+    targetStep: 1 | 2 | 3,
+    section: 'business' | 'offer' | 'audience',
+  ) => {
+    if (section === 'business') {
+      setConfirmBusinessInfo(false);
+    } else if (section === 'offer') {
+      setConfirmOffer(false);
+    } else {
+      setConfirmAudience(false);
+    }
+
+    setStep(targetStep);
+    if (activeCampaignId) {
+      syncWizardUrl(activeCampaignId, targetStep);
+    }
+  };
+
   const handlePreviewPrimaryAction = () => {
     if (allConfirmed) {
       commitMutation.mutate();
@@ -945,77 +962,23 @@ export function CampaignWizardModal({
                       title="Campaign Readiness"
                       description="Review what is complete, what still needs confirmation, and what to do next before generating strategy."
                       items={readinessItems}
-                      ctaLabel={primaryActionLabel}
-                      onCtaClick={handlePreviewPrimaryAction}
-                      ctaDisabled={commitMutation.isPending}
                     />
 
-                    <div className="grid gap-6 lg:grid-cols-3">
-                      <Card className="border-border bg-card lg:col-span-1">
-                        <CardHeader>
-                          <CardTitle className="text-lg">Quick Review</CardTitle>
-                          <CardDescription>Jump back into any section that still needs attention.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full justify-between"
-                            onClick={() => {
-                              setStep(1);
-                              if (activeCampaignId) {
-                                syncWizardUrl(activeCampaignId, 1);
-                              }
-                            }}
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              <Building2 className="h-4 w-4" />
-                              Business Context
-                            </span>
-                            <SectionStatusBadge status={deriveSectionStatus(businessComplete, confirmBusinessInfo)} />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full justify-between"
-                            onClick={() => {
-                              setStep(2);
-                              if (activeCampaignId) {
-                                syncWizardUrl(activeCampaignId, 2);
-                              }
-                            }}
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              <Package className="h-4 w-4" />
-                              Offer
-                            </span>
-                            <SectionStatusBadge status={deriveSectionStatus(offerComplete, confirmOffer)} />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full justify-between"
-                            onClick={() => {
-                              setStep(3);
-                              if (activeCampaignId) {
-                                syncWizardUrl(activeCampaignId, 3);
-                              }
-                            }}
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              <Users className="h-4 w-4" />
-                              Audience
-                            </span>
-                            <SectionStatusBadge status={deriveSectionStatus(audienceComplete, confirmAudience)} />
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      <div className="space-y-6 lg:col-span-2">
+                    <div className="space-y-6">
                         <Card className="border-border bg-card">
-                          <CardHeader>
-                            <CardTitle className="text-lg">Business Context</CardTitle>
-                            <CardDescription>Review the core business and market setup.</CardDescription>
+                          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-1">
+                              <CardTitle className="text-lg">Business Context</CardTitle>
+                              <CardDescription>Review the core business and market setup.</CardDescription>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openPreviewSectionEditor(1, 'business')}
+                            >
+                              Edit
+                            </Button>
                           </CardHeader>
                           <CardContent className="grid gap-4 md:grid-cols-2">
                             <SummaryField label="Campaign Title" value={previewStep1?.title || campaign?.name || preview.campaign?.title} />
@@ -1052,9 +1015,19 @@ export function CampaignWizardModal({
                         </Card>
 
                         <Card className="border-border bg-card">
-                          <CardHeader>
-                            <CardTitle className="text-lg">Offer</CardTitle>
-                            <CardDescription>Review the offer summary, price range, and constraints.</CardDescription>
+                          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-1">
+                              <CardTitle className="text-lg">Offer</CardTitle>
+                              <CardDescription>Review the offer summary, price range, and constraints.</CardDescription>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openPreviewSectionEditor(2, 'offer')}
+                            >
+                              Edit
+                            </Button>
                           </CardHeader>
                           <CardContent className="grid gap-4 md:grid-cols-2">
                             <SummaryField label="Offer Summary" value={previewStep2?.offerSummary} />
@@ -1080,9 +1053,19 @@ export function CampaignWizardModal({
                         </Card>
 
                         <Card className="border-border bg-card">
-                          <CardHeader>
-                            <CardTitle className="text-lg">Audience</CardTitle>
-                            <CardDescription>Review the persona, pain points, and desired outcome.</CardDescription>
+                          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-1">
+                              <CardTitle className="text-lg">Audience</CardTitle>
+                              <CardDescription>Review the persona, pain points, and desired outcome.</CardDescription>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openPreviewSectionEditor(3, 'audience')}
+                            >
+                              Edit
+                            </Button>
                           </CardHeader>
                           <CardContent className="grid gap-4 md:grid-cols-2">
                             <SummaryField label="Audience Summary" value={previewStep3?.targetPersona} />
@@ -1158,7 +1141,6 @@ export function CampaignWizardModal({
                             ) : null}
                           </CardContent>
                         </Card>
-                      </div>
                     </div>
                   </>
                 ) : (

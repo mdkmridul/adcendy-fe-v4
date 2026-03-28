@@ -14,7 +14,6 @@ import {
   CampaignProgressSummary,
   CampaignStatusBadge,
   deriveCampaignState,
-  hasCompletedDraftSetup,
 } from './campaign-ui';
 
 export function CampaignListItem({
@@ -36,7 +35,7 @@ export function CampaignListItem({
   ].filter(Boolean);
   const openCampaign = () => {
     onOpen?.(campaign.id);
-    if (campaign.status === 'DRAFT' && !hasCompletedDraftSetup(campaign) && onOpenDraftWizard) {
+    if (campaign.status === 'DRAFT' && onOpenDraftWizard) {
       onOpenDraftWizard(campaign);
       return;
     }

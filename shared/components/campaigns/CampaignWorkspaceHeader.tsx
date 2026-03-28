@@ -35,11 +35,13 @@ export function CampaignWorkspaceHeader({
   const draftSetupHref = getCampaignSetupHref(campaign);
   const draftAtPreview = draftSetupHref.endsWith('/setup/preview');
   const showPrimaryAction = stage !== 'draft' || pathname.includes('/setup/preview');
-  const classificationMeta = [
-    formatBusinessType(campaign.businessType),
-    formatBusinessModel(campaign.businessModel),
-    formatMarketScope(campaign.marketScope),
-  ].filter(Boolean);
+  const headerMetaItems = [
+    { label: 'Market', value: campaignState.marketLabel },
+    { label: 'Business Type', value: formatBusinessType(campaign.businessType) },
+    { label: 'Business Model', value: formatBusinessModel(campaign.businessModel) },
+    { label: 'Market Scope', value: formatMarketScope(campaign.marketScope) },
+    { label: 'Website', value: campaignState.websiteHost },
+  ].filter((item): item is { label: string; value: string } => Boolean(item.value));
 
   const primaryAction =
     stage === 'draft'
@@ -102,13 +104,26 @@ export function CampaignWorkspaceHeader({
               <CampaignLifecycleBadge campaign={campaign} stage={stage} />
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <span>{campaignState.marketLabel}</span>
-              {classificationMeta.map((value, index) => (
-                <span key={`${value}-${index}`}>{value}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {headerMetaItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1.5"
+                >
+                  <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    {item.label}
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{item.value}</span>
+                </div>
               ))}
-              {campaignState.websiteHost ? <span>{campaignState.websiteHost}</span> : null}
-              <span>Updated {formatDistanceToNow(new Date(campaign.updatedAt), { addSuffix: true })}</span>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                  Updated
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {formatDistanceToNow(new Date(campaign.updatedAt), { addSuffix: true })}
+                </span>
+              </div>
             </div>
           </div>
 

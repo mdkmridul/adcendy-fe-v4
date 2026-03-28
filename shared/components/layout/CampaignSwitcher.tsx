@@ -12,6 +12,7 @@ import { ChevronDown } from 'lucide-react';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { useLastCampaign } from '@/hooks/useLastCampaign';
 import { cn } from '@/lib/utils';
+import { getCampaignWorkspaceHref } from '@/shared/components/campaigns/campaign-ui';
 
 export function CampaignSwitcher() {
   const router = useRouter();
@@ -25,6 +26,12 @@ export function CampaignSwitcher() {
 
   const handleSelectCampaign = (selectedId: string) => {
     setLastCampaignId(selectedId);
+    const selectedCampaign = campaigns.find(c => c.id === selectedId);
+
+    if (selectedCampaign?.status === 'DRAFT') {
+      router.push(getCampaignWorkspaceHref(selectedCampaign));
+      return;
+    }
 
     // Extract the current section from pathname
     // e.g., /app/campaigns/id123/overview -> overview

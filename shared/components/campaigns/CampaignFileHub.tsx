@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { formatDistanceToNowStrict } from 'date-fns';
 import {
@@ -27,11 +28,13 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCampaignLifecycle } from '@/hooks/useCampaignLifecycle';
 import { useToast } from '@/hooks/use-toast';
 import {
   useCampaignDocumentDownload,
   useCampaignDocuments,
 } from '@/hooks/useCampaignDocuments';
+import { canAccessCampaignFiles } from '@/shared/components/campaigns/campaign-ui';
 import type { CampaignDocument } from '@/shared/types/campaignDocument';
 
 const PRIORITY_PATTERNS = [
@@ -347,9 +350,13 @@ export function CampaignFileHub() {
   const campaignId = params?.campaignId as string | undefined;
   const { toast } = useToast();
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const { campaign, isLoading: isCampaignLoading } = useCampaignLifecycle(campaignId ?? null);
+  const filesAvailable = campaign ? canAccessCampaignFiles(campaign) : false;
 
-  const { data, error, isLoading, refetch, isFetching } = useCampaignDocuments(campaignId ?? null);
-  const downloadDocument = useCampaignDocumentDownload(campaignId ?? null);
+  const { data, error, isLoading, refetch, isFetching } = useCampaignDocuments(
+    campaignId && filesAvailable ? campaignId : null,
+  );
+  const downloadDocument = useCampaignDocumentDownload(campaignId && filesAvailable ? campaignId : null);
 
   const documents = useMemo(() => {
     return [...(data?.items ?? [])].sort(compareDocuments);
@@ -417,8 +424,35 @@ export function CampaignFileHub() {
     }
   };
 
-  if (isLoading) {
+  if (isCampaignLoading || isLoading) {
     return <FileHubLoadingState />;
+  }
+
+  if (campaign && !filesAvailable) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h1 className="font-space-grotesk text-3xl font-bold text-foreground">File Hub</h1>
+          <p className="text-muted-foreground">
+            Files unlock after the campaign finishes the active review stage.
+          </p>
+        </div>
+
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Files are unavailable during review</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>
+              This campaign is still being generated or reviewed, so the files section is hidden
+              until that process is complete.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/app/campaigns/${campaign.id}/overview`}>Back to Overview</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   }
 
   if (error) {

@@ -28,10 +28,6 @@ function clampStep(step: number | null | undefined) {
   return Math.min(Math.max(step ?? 0, 0), TOTAL_SETUP_STEPS);
 }
 
-export function hasCompletedDraftSetup(campaign: Campaign) {
-  return campaign.status === 'DRAFT' && clampStep(campaign.currentStep) >= TOTAL_SETUP_STEPS;
-}
-
 export function extractWebsiteHost(website?: string | null) {
   if (!website) {
     return null;
@@ -70,17 +66,25 @@ export function getCampaignWizardModalHref(campaign: Campaign) {
 }
 
 export function getCampaignWorkspaceHref(campaign: Campaign) {
-  if (campaign.status !== 'DRAFT' || hasCompletedDraftSetup(campaign)) {
-    return `/app/campaigns/${campaign.id}/overview`;
+  if (campaign.status === 'DRAFT') {
+    return getCampaignWizardModalHref(campaign);
   }
 
-  return getCampaignWizardModalHref(campaign);
+  return `/app/campaigns/${campaign.id}/overview`;
+}
+
+export function isCampaignUnderReview(campaign: Campaign) {
+  return campaign.status === 'SUBMITTED_FOR_REVIEW' || campaign.status === 'IN_REVIEW';
+}
+
+export function canAccessCampaignFiles(campaign: Campaign) {
+  return !isCampaignUnderReview(campaign);
 }
 
 export function getCampaignLifecycleStage(
   campaign: Campaign,
 ): CampaignLifecycleStage {
-  if (campaign.status === 'DRAFT' && !hasCompletedDraftSetup(campaign)) {
+  if (campaign.status === 'DRAFT') {
     return 'draft';
   }
 
@@ -229,10 +233,10 @@ export function deriveCampaignState(campaign: Campaign): DerivedCampaignState {
   return {
     statusLabel: 'In Setup',
     statusTone: 'setup',
-    progressLabel: currentStep >= TOTAL_SETUP_STEPS ? 'Ready' : 'Pending confirmation',
+    progressLabel: currentStep >= TOTAL_SETUP_STEPS ? 'Ready to generate' : 'Pending confirmation',
     progressValue: currentStep >= TOTAL_SETUP_STEPS ? 100 : 82,
-    primaryActionLabel: 'Open Overview',
-    primaryActionHref: `/app/campaigns/${campaign.id}/overview`,
+    primaryActionLabel: 'Review & Generate',
+    primaryActionHref: getCampaignSetupHref(campaign),
     needsAttention: false,
     marketLabel,
     websiteHost,

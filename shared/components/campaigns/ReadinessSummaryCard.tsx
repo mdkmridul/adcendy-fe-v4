@@ -24,8 +24,8 @@ export function ReadinessSummaryCard({
   title: string;
   description?: string;
   items: ReadinessSummaryItem[];
-  ctaLabel: string;
-  onCtaClick: () => void;
+  ctaLabel?: string;
+  onCtaClick?: () => void;
   ctaDisabled?: boolean;
   footer?: ReactNode;
 }) {
@@ -38,10 +38,12 @@ export function ReadinessSummaryCard({
             {description ? <CardDescription className="max-w-2xl text-sm">{description}</CardDescription> : null}
           </div>
 
-          <Button onClick={onCtaClick} disabled={ctaDisabled} className="min-w-[180px]">
-            {ctaLabel}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          {ctaLabel && onCtaClick ? (
+            <Button onClick={onCtaClick} disabled={ctaDisabled} className="min-w-[180px]">
+              {ctaLabel}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
