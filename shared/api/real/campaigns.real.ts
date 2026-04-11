@@ -76,6 +76,16 @@ export const campaignsRealAdapter = {
     return mapCampaignDtoToCampaign(response.data);
   },
 
+  async createDraftCampaign(): Promise<Campaign> {
+    const response = await http<ApiResponse<CampaignDto>>('/v1/campaigns', {
+      method: 'POST',
+      body: {
+        title: 'Untitled Campaign',
+      },
+    });
+    return mapCampaignDtoToCampaign(response.data);
+  },
+
   async createCampaign(payload: CreateCampaignPayload): Promise<Campaign> {
     const response = await http<ApiResponse<CampaignDto>>('/v1/campaigns', { 
       method: 'POST', 

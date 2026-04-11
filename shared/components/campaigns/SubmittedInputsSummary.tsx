@@ -1,15 +1,28 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { extractWebsiteHost } from '@/shared/components/campaigns/campaign-ui';
 import {
   formatBusinessModel,
   formatBusinessType,
   formatMarketScope,
+  type Campaign,
 } from '@/shared/types/campaign';
-import type { Campaign } from '@/shared/types/campaign';
-import type { WizardPreview } from '@/shared/types/wizard';
+import type { WizardPreview, WizardPreviewStep4 } from '@/shared/types/wizard';
+import {
+  formatAvgCustomerRetention,
+  formatDigitalPresenceLinkType,
+  formatEmailListSize,
+  formatMarketingHandler,
+  formatMarketingTargetType,
+  formatMonthlyMarketingSpend,
+  formatMonthlyRevenue,
+  formatMonthlyWebsiteTraffic,
+  formatPrimaryGoal,
+  formatRepeatPurchaseFrequency,
+  formatSalesChannel,
+  formatSocialPlatform,
+  formatSourceType,
+} from '@/shared/types/wizard';
 
 type SummaryMode = 'compact' | 'full';
 
@@ -31,32 +44,6 @@ interface SummarySection {
   fullItems: SummaryItem[];
 }
 
-function SummarySectionCard({
-  section,
-  items,
-  compact = false,
-  className,
-}: {
-  section: SummarySection;
-  items: SummaryItem[];
-  compact?: boolean;
-  className?: string;
-}) {
-  return (
-    <Card className={cn('border-border bg-card', className)}>
-      <CardHeader className={cn(compact ? 'space-y-1 px-5 pb-4 pt-5' : 'space-y-1.5')}>
-        <CardTitle className="text-lg">{section.title}</CardTitle>
-        <CardDescription className="leading-6">{section.description}</CardDescription>
-      </CardHeader>
-      <CardContent className={cn(compact ? 'space-y-3 px-5 pb-5' : 'space-y-4')}>
-        {items.map((item) => (
-          <SummaryField key={item.label} {...item} />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 function SummaryField({ label, value }: SummaryItem) {
   return (
     <div className="space-y-1">
@@ -66,80 +53,130 @@ function SummaryField({ label, value }: SummaryItem) {
   );
 }
 
+function normalizeList(values?: string[] | null) {
+  const cleaned = (values ?? []).map((value) => value.trim()).filter(Boolean);
+  return cleaned.length ? cleaned.join(', ') : null;
+}
+
+function formatSalesChannels(
+  salesChannels?: { channel: string; rank: number; customName?: string | null }[],
+) {
+  if (!salesChannels?.length) {
+    return null;
+  }
+
+  return salesChannels
+    .map((item) => `${item.rank}. ${item.channel === 'other' ? item.customName || 'Other' : formatSalesChannel(item.channel)}`)
+    .join(' | ');
+}
+
+function formatSocialHandles(
+  socialHandles?: { platform: string; handle: string }[],
+) {
+  if (!socialHandles?.length) {
+    return null;
+  }
+
+  return socialHandles.map((item) => `${formatSocialPlatform(item.platform)}: ${item.handle}`).join(' | ');
+}
+
+function formatDigitalPresenceLinks(
+  links?: { type: string; url: string; label?: string | null }[],
+) {
+  if (!links?.length) {
+    return null;
+  }
+
+  return links.map((item) => `${formatDigitalPresenceLinkType(item.type)}: ${item.label || item.url}`).join(' | ');
+}
+
+function formatNumber(value?: number | null, prefix = '') {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return null;
+  }
+
+  return `${prefix}${new Intl.NumberFormat('en-IN', {
+    maximumFractionDigits: 2,
+  }).format(value)}`;
+}
+
 function buildSubmittedInputSections(campaign: Campaign, preview?: WizardPreview | null): SummarySection[] {
   const step1 = preview?.steps?.step1;
   const step2 = preview?.steps?.step2;
   const step3 = preview?.steps?.step3;
+  const step4 = preview?.steps?.step4 ?? (step3 as WizardPreviewStep4 | undefined);
 
   return [
     {
-      title: 'Business Context',
-      description: 'Core business, market, and destination details submitted for review.',
+      title: 'Classification',
+      description: 'What is being marketed and which source the strategy can use.',
       compactItems: [
         { label: 'Campaign Title', value: step1?.title || campaign.name },
-        { label: 'Market Location', value: step1?.marketLocation || campaign.city },
-        {
-          label: 'Business Type',
-          value: formatBusinessType(step1?.businessType || campaign.businessType || null),
-        },
-        {
-          label: 'Business Model',
-          value: formatBusinessModel(step1?.businessModel || campaign.businessModel || null),
-        },
-        {
-          label: 'Market Scope',
-          value: formatMarketScope(step1?.marketScope || campaign.marketScope || null),
-        },
-        {
-          label: 'Website (Optional)',
-          value: extractWebsiteHost((step1?.websiteUrl as string | undefined) || campaign.website || null),
-        },
+        { label: 'Focus', value: step1?.focusName },
+        { label: 'Source', value: formatSourceType(step1?.sourceType) },
       ],
       fullItems: [
         { label: 'Campaign Title', value: step1?.title || campaign.name },
+        { label: 'Marketing Target', value: formatMarketingTargetType(step1?.marketingTargetType) },
+        { label: 'Focus Name', value: step1?.focusName },
+        { label: 'Source Type', value: formatSourceType(step1?.sourceType) },
+        { label: 'Source URL', value: step1?.primaryUrl || null },
         { label: 'Market Location', value: step1?.marketLocation || campaign.city },
-        {
-          label: 'Business Type',
-          value: formatBusinessType(step1?.businessType || campaign.businessType || null),
-        },
-        {
-          label: 'Business Model',
-          value: formatBusinessModel(step1?.businessModel || campaign.businessModel || null),
-        },
-        {
-          label: 'Market Scope',
-          value: formatMarketScope(step1?.marketScope || campaign.marketScope || null),
-        },
-        {
-          label: 'Website (Optional)',
-          value: extractWebsiteHost((step1?.websiteUrl as string | undefined) || campaign.website || null),
-        },
       ],
     },
     {
-      title: 'Offer',
-      description: 'The submitted offer framing and positioning summary.',
+      title: 'Business And Offer',
+      description: 'Business identity, offer details, channels, and digital presence.',
       compactItems: [
-        { label: 'Price Range', value: step2?.priceRange },
+        { label: 'Business Type', value: formatBusinessType(step2?.businessType || campaign.businessType || null) },
+        { label: 'Product / Service', value: step2?.productOrService },
+        { label: 'Sales Channels', value: formatSalesChannels(step2?.salesChannels) },
       ],
       fullItems: [
+        { label: 'Business Type', value: formatBusinessType(step2?.businessType || campaign.businessType || null) },
+        { label: 'Business Model', value: formatBusinessModel(step2?.businessModel || campaign.businessModel || null) },
+        { label: 'Market Scope', value: formatMarketScope(step2?.marketScope || campaign.marketScope || null) },
+        { label: 'Product Category', value: step2?.productCategory },
+        { label: 'Product / Service', value: step2?.productOrService },
         { label: 'Offer Summary', value: step2?.offerSummary },
         { label: 'Price Range', value: step2?.priceRange },
-        { label: 'Key Differentiators', value: step2?.differentiators?.join(', ') || null },
-        { label: 'Constraints (Optional)', value: step2?.constraints?.join(', ') || null },
+        { label: 'Differentiators', value: normalizeList(step2?.differentiators) },
+        { label: 'Sales Channels', value: formatSalesChannels(step2?.salesChannels) },
+        { label: 'Social Handles', value: formatSocialHandles(step2?.socialHandles) },
+        { label: 'Digital Presence Links', value: formatDigitalPresenceLinks(step2?.digitalPresenceLinks) },
+        { label: 'Business Description', value: step2?.businessDescription },
       ],
     },
     {
-      title: 'Audience',
-      description: 'Audience framing, language, and intent guidance from setup.',
+      title: 'Goals And Context',
+      description: 'Targeting, goals, constraints, and supporting business context.',
       compactItems: [
         { label: 'Target Persona', value: step3?.targetPersona },
+        { label: 'Goal', value: formatPrimaryGoal(step4?.primaryGoal) },
+        { label: 'Spend', value: formatMonthlyMarketingSpend(step4?.monthlyMarketingSpend) },
       ],
       fullItems: [
         { label: 'Target Persona', value: step3?.targetPersona },
+        { label: 'Target Audience', value: step3?.targetAudience },
         { label: 'Language', value: step3?.language },
-        { label: 'Pain Points', value: step3?.painPoints?.join(', ') || null },
+        { label: 'Pain Points', value: normalizeList(step3?.painPoints) },
         { label: 'Desired Outcome', value: step3?.desiredOutcome },
+        { label: 'Constraints', value: normalizeList(step4?.constraints) },
+        { label: 'Monthly Marketing Spend', value: formatMonthlyMarketingSpend(step4?.monthlyMarketingSpend) },
+        { label: 'Primary Goal', value: formatPrimaryGoal(step4?.primaryGoal) },
+        { label: 'Marketing Owner', value: formatMarketingHandler(step4?.marketingHandler) },
+        { label: "What's Working", value: step4?.whatsWorking },
+        { label: 'Biggest Frustration', value: step4?.biggestFrustration },
+        { label: 'Monthly Revenue', value: formatMonthlyRevenue(step4?.monthlyRevenue) },
+        { label: 'Monthly Order Volume', value: formatNumber(step4?.monthlyOrderVolume) },
+        { label: 'Product Cost', value: formatNumber(step4?.productCost, 'INR ') },
+        { label: 'Retention Pattern', value: formatAvgCustomerRetention(step4?.avgCustomerRetention) },
+        { label: 'Repeat Purchase Frequency', value: formatRepeatPurchaseFrequency(step4?.repeatPurchaseFrequency) },
+        { label: 'Website Traffic', value: formatMonthlyWebsiteTraffic(step4?.monthlyWebsiteTraffic) },
+        { label: 'Email List Size', value: formatEmailListSize(step4?.emailListSize) },
+        { label: 'Google Analytics', value: step4?.googleAnalyticsConnected ? 'Connected' : null },
+        { label: 'Known Competitors', value: normalizeList(step4?.knownCompetitors) },
+        { label: 'Additional Context', value: step4?.additionalContext },
       ],
     },
   ];
@@ -153,7 +190,7 @@ export function SubmittedInputsSummary({
   const sections = buildSubmittedInputSections(campaign, preview);
   const gridClassName =
     mode === 'compact'
-      ? 'lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.75fr)_minmax(0,0.9fr)]'
+      ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]'
       : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]';
 
   return (

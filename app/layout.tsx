@@ -1,6 +1,6 @@
 import React from "react"
 import type { Metadata } from 'next'
-import { Space_Grotesk, Inter } from 'next/font/google'
+import { DM_Sans, Space_Grotesk, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/shared/providers/Providers'
 import { ApiDebugPanel } from '@/components/dev/api-debug-panel'
@@ -16,6 +16,13 @@ const _spaceGrotesk = Space_Grotesk({
 const _inter = Inter({ 
   subsets: ["latin"],
   variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  preload: true
+});
+const _dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: '--font-dm-sans',
   weight: ['400', '500', '600', '700'],
   display: 'swap',
   preload: true
@@ -51,7 +58,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${_inter.variable} ${_spaceGrotesk.variable} font-sans antialiased`} suppressHydrationWarning>
+      <body className={`${_inter.variable} ${_spaceGrotesk.variable} ${_dmSans.variable} font-sans antialiased`} suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>

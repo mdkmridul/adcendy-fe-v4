@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { createCampaignSchema, type CreateCampaignInput } from '@/shared/schemas/campaign';
-import { campaignsRepository, wizardRepository } from '@/shared/api/repositories';
+import { campaignsRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { useLastCampaign } from '@/hooks/useLastCampaign';
 import {
@@ -75,28 +75,16 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
         websiteUrl: data.websiteUrl?.trim() || undefined,
       });
 
-      await wizardRepository.saveStep(newCampaign.id, 'STEP_1', {
-        data: {
-          title: data.title,
-          marketLocation: data.marketLocation,
-          businessType: data.businessType,
-          businessModel: data.businessModel,
-          marketScope: data.marketScope,
-          websiteUrl: data.websiteUrl?.trim() || '',
-        },
-      });
-
       // Invalidate campaigns list to refetch
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.list() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.detail(newCampaign.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.wizard.state(newCampaign.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.wizard.step(newCampaign.id, 'STEP_1') }),
       ]);
 
-      // Update last campaign and continue directly into the campaigns-page wizard modal
+      // Update last campaign and continue into step 1 so the user can finish the full context contract
       setLastCampaignId(newCampaign.id);
-      router.push(`/app/campaigns?draftCampaignId=${newCampaign.id}&wizardStep=2`);
+      router.push(`/app/campaigns?draftCampaignId=${newCampaign.id}&wizardStep=1`);
 
       // Close modal and reset form
       onOpenChange(false);

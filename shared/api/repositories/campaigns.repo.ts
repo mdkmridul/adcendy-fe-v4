@@ -15,6 +15,7 @@ if (ENV.features.apiLogging && typeof window !== 'undefined') {
 export const campaignsRepository = {
   listCampaigns: async (): Promise<Campaign[]> => adapter.listCampaigns(),
   getCampaign: async (id: ID): Promise<Campaign> => adapter.getCampaign(id),
+  createDraftCampaign: async (): Promise<Campaign> => adapter.createDraftCampaign(),
   createCampaign: async (payload: CreateCampaignPayload): Promise<Campaign> =>
     adapter.createCampaign(payload),
   updateCampaign: async (id: ID, payload: UpdateCampaignPayload): Promise<Campaign> =>

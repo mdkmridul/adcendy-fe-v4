@@ -53,6 +53,26 @@ export const campaignsMockAdapter = {
     return campaign;
   },
 
+  async createDraftCampaign(): Promise<Campaign> {
+    await delay(300);
+    const campaign: Campaign = {
+      id: `campaign-${Date.now()}`,
+      name: 'Untitled Campaign',
+      city: '',
+      niche: '',
+      businessType: null,
+      businessModel: null,
+      marketScope: null,
+      website: null,
+      status: 'DRAFT',
+      currentStep: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockCampaignState.campaigns.push(campaign);
+    return campaign;
+  },
+
   async createCampaign(payload: CreateCampaignPayload): Promise<Campaign> {
     await delay(300);
     const campaign: Campaign = {

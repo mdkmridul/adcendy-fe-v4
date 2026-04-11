@@ -10,7 +10,7 @@ import {
 import { resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
 
 interface DraftWizardModalRedirectProps {
-  step?: 1 | 2 | 3 | 4;
+  step?: 1 | 2 | 3 | 4 | 5;
 }
 
 export function DraftWizardModalRedirect({ step }: DraftWizardModalRedirectProps) {

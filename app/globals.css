@@ -75,6 +75,7 @@
 
 @theme inline {
   --font-sans: 'Inter', 'Inter Fallback';
+  --font-dm-sans: 'DM Sans', 'DM Sans Fallback';
   --font-space-grotesk: 'Space Grotesk', 'Space Grotesk Fallback';
   --font-mono: 'Inter', 'Inter Fallback';
   --color-background: var(--background);

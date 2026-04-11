@@ -2183,58 +2183,177 @@ export interface components {
             currentStep?: number;
         };
         StrategyWizardStep1RequestDto: {
-            /** @description Optimistic concurrency version (optional when If-Match is provided) */
+            /** @description Optimistic concurrency version. Optional; defaults to 0 when omitted and If-Match is not provided. */
             version?: number;
             title?: string;
             marketLocation?: string;
             /** @enum {string} */
-            businessType?: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
-            websiteUrl?: string;
+            marketingTargetType?: "single_product" | "brand_store" | "category_collection";
+            focusName?: string;
+            /** @enum {string} */
+            sourceType?: "website" | "marketplace" | "social" | "gmb" | "manual_only";
+            primaryUrl?: string | null;
         };
         StrategyWizardStep2RequestDto: {
-            /** @description Optimistic concurrency version (optional when If-Match is provided) */
+            /** @description Optimistic concurrency version. Optional; defaults to 0 when omitted and If-Match is not provided. */
             version?: number;
+            /** @enum {string} */
+            businessType?: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
+            /** @enum {string} */
+            businessModel?: "B2B" | "B2C" | "D2C" | "MARKETPLACE" | "SUBSCRIPTION";
+            /** @enum {string} */
+            marketScope?: "LOCAL" | "REGIONAL" | "NATIONAL" | "GLOBAL";
+            businessDescription?: string;
+            productCategory?: string;
+            productOrService?: string;
             offerSummary?: string;
             priceRange?: string;
             differentiators?: string[];
-            constraints?: string[];
+            salesChannels?: components["schemas"]["SalesChannelRequestDto"][];
+            socialHandles?: components["schemas"]["SocialHandleRequestDto"][] | null;
+            digitalPresenceLinks?: components["schemas"]["DigitalPresenceLinkRequestDto"][] | null;
         };
         StrategyWizardStep3RequestDto: {
-            /** @description Optimistic concurrency version (optional when If-Match is provided) */
+            /** @description Optimistic concurrency version. Optional; defaults to 0 when omitted and If-Match is not provided. */
             version?: number;
             targetPersona?: string;
+            targetAudience?: string | null;
             language?: string;
             painPoints?: string[];
             desiredOutcome?: string;
+        };
+        StrategyWizardStep4RequestDto: {
+            /** @description Optimistic concurrency version. Optional; defaults to 0 when omitted and If-Match is not provided. */
+            version?: number;
+            constraints?: string[];
+            /** @enum {string} */
+            monthlyMarketingSpend?: "nothing" | "under_5k" | "5k_15k" | "15k_50k" | "50k_plus";
+            pastMarketing?: string | null;
+            /** @enum {string} */
+            primaryGoal?: "more_sales" | "more_customers" | "new_market" | "launch_product" | "reduce_channel_dependence" | "brand_awareness" | "beat_competitor";
+            /** @enum {string} */
+            marketingHandler?: "self" | "team_member" | "freelancer_agency" | "nobody";
+            whatsWorking?: string | null;
+            biggestFrustration?: string | null;
+            monthlyRevenue?: ("under_25k" | "25k_1l" | "1l_5l" | "5l_25l" | "25l_plus" | string) | null;
+            monthlyOrderVolume?: number | null;
+            productCost?: number | null;
+            /** @enum {string} */
+            avgCustomerRetention?: "one_time_buyers" | "some_repeat" | "mostly_repeat" | "subscription" | null;
+            /** @enum {string} */
+            repeatPurchaseFrequency?: "never" | "every_few_months" | "monthly" | "weekly" | null;
+            googleAnalyticsConnected?: boolean;
+            /** @enum {string} */
+            monthlyWebsiteTraffic?: "under_500" | "500_2000" | "2000_10000" | "10000_50000" | "50000_plus" | null;
+            /** @enum {string} */
+            emailListSize?: "none" | "under_500" | "500_2000" | "2000_10000" | "10000_plus" | null;
+            knownCompetitors?: string[] | null;
+            additionalContext?: string | null;
+        };
+        SalesChannelRequestDto: {
+            /** @enum {string} */
+            channel: "own_website" | "amazon" | "flipkart" | "instagram" | "whatsapp" | "retail_store" | "justdial" | "google_business" | "facebook" | "other_marketplace" | "direct_sales" | "other";
+            rank: number;
+            customName?: string | null;
+        };
+        SocialHandleRequestDto: {
+            /** @enum {string} */
+            platform: "instagram" | "facebook" | "youtube" | "twitter" | "linkedin";
+            handle: string;
+        };
+        DigitalPresenceLinkRequestDto: {
+            /** @enum {string} */
+            type: "instagram" | "facebook" | "youtube" | "twitter" | "linkedin" | "amazon" | "flipkart" | "google_business" | "whatsapp" | "other_marketplace" | "other";
+            url: string;
+            label?: string | null;
         };
         StrategyWizardStep1Dto: {
             title: string;
             marketLocation: string;
             /** @enum {string} */
-            businessType: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
-            websiteUrl?: Record<string, never>;
+            marketingTargetType: "single_product" | "brand_store" | "category_collection";
+            focusName: string;
+            /** @enum {string} */
+            sourceType: "website" | "marketplace" | "social" | "gmb" | "manual_only";
+            primaryUrl?: string | null;
         };
         StrategyWizardStep2Dto: {
+            /** @enum {string} */
+            businessType: "SERVICE" | "PRODUCT" | "ECOMMERCE" | "SAAS";
+            /** @enum {string} */
+            businessModel: "B2B" | "B2C" | "D2C" | "MARKETPLACE" | "SUBSCRIPTION";
+            /** @enum {string} */
+            marketScope: "LOCAL" | "REGIONAL" | "NATIONAL" | "GLOBAL";
+            businessDescription: string;
+            productCategory: string;
+            productOrService: string;
             offerSummary: string;
             priceRange: string;
             differentiators: string[];
-            constraints: string[];
+            salesChannels: components["schemas"]["SalesChannelDto"][];
+            socialHandles?: components["schemas"]["SocialHandleDto"][] | null;
+            digitalPresenceLinks?: components["schemas"]["DigitalPresenceLinkDto"][] | null;
         };
         StrategyWizardStep3Dto: {
             targetPersona: string;
+            targetAudience?: string | null;
             language: string;
             painPoints: string[];
             desiredOutcome: string;
+        };
+        StrategyWizardStep4Dto: {
+            constraints: string[];
+            /** @enum {string} */
+            monthlyMarketingSpend: "nothing" | "under_5k" | "5k_15k" | "15k_50k" | "50k_plus";
+            pastMarketing?: string | null;
+            /** @enum {string} */
+            primaryGoal: "more_sales" | "more_customers" | "new_market" | "launch_product" | "reduce_channel_dependence" | "brand_awareness" | "beat_competitor";
+            /** @enum {string} */
+            marketingHandler: "self" | "team_member" | "freelancer_agency" | "nobody";
+            whatsWorking?: string | null;
+            biggestFrustration?: string | null;
+            monthlyRevenue?: ("under_25k" | "25k_1l" | "1l_5l" | "5l_25l" | "25l_plus" | string) | null;
+            monthlyOrderVolume?: number | null;
+            productCost?: number | null;
+            /** @enum {string} */
+            avgCustomerRetention?: "one_time_buyers" | "some_repeat" | "mostly_repeat" | "subscription" | null;
+            /** @enum {string} */
+            repeatPurchaseFrequency?: "never" | "every_few_months" | "monthly" | "weekly" | null;
+            googleAnalyticsConnected?: boolean;
+            /** @enum {string} */
+            monthlyWebsiteTraffic?: "under_500" | "500_2000" | "2000_10000" | "10000_50000" | "50000_plus" | null;
+            /** @enum {string} */
+            emailListSize?: "none" | "under_500" | "500_2000" | "2000_10000" | "10000_plus" | null;
+            knownCompetitors?: string[] | null;
+            additionalContext?: string | null;
+        };
+        SalesChannelDto: {
+            /** @enum {string} */
+            channel: "own_website" | "amazon" | "flipkart" | "instagram" | "whatsapp" | "retail_store" | "justdial" | "google_business" | "facebook" | "other_marketplace" | "direct_sales" | "other";
+            rank: number;
+            customName?: string | null;
+        };
+        SocialHandleDto: {
+            /** @enum {string} */
+            platform: "instagram" | "facebook" | "youtube" | "twitter" | "linkedin";
+            handle: string;
+        };
+        DigitalPresenceLinkDto: {
+            /** @enum {string} */
+            type: "instagram" | "facebook" | "youtube" | "twitter" | "linkedin" | "amazon" | "flipkart" | "google_business" | "whatsapp" | "other_marketplace" | "other";
+            url: string;
+            label?: string | null;
         };
         StrategyWizardStepsDto: {
             step1Json?: components["schemas"]["StrategyWizardStep1Dto"] | null;
             step2Json?: components["schemas"]["StrategyWizardStep2Dto"] | null;
             step3Json?: components["schemas"]["StrategyWizardStep3Dto"] | null;
+            step4Json?: components["schemas"]["StrategyWizardStep4Dto"] | null;
         };
         StrategyWizardDraftDto: {
             campaignId: string;
             /** @enum {string} */
-            status: "IN_PROGRESS" | "READY_TO_GENERATE";
+            status: "IN_PROGRESS" | "READY_TO_GENERATE" | "PENDING_REVIEW";
             lastCompletedStep: number;
             version: number;
             updatedAt?: Record<string, never>;
@@ -2261,14 +2380,18 @@ export interface components {
         StrategyWizardCommitRequestDto: {
             /** @description Optimistic concurrency version (optional when If-Match is provided) */
             version?: number;
-            /** @description User confirmed business info */
-            confirmBusinessInfo?: boolean;
-            /** @description User confirmed offer details */
-            confirmOffer?: boolean;
+            /** @description User confirmed focus inputs */
+            confirmFocus?: boolean;
+            /** @description User confirmed business inputs */
+            confirmBusiness?: boolean;
             /** @description User confirmed audience */
             confirmAudience?: boolean;
+            /** @description User confirmed goals and context */
+            confirmGoals?: boolean;
             /** @description User ready to generate */
             readyToGenerate?: boolean;
+            /** @description User consent for processing campaign/business data */
+            dataConsentOptIn?: boolean;
         };
         StrategyWizardPreviewCampaignDto: {
             id: string;
@@ -2281,6 +2404,7 @@ export interface components {
             step1?: components["schemas"]["StrategyWizardStep1Dto"];
             step2?: components["schemas"]["StrategyWizardStep2Dto"];
             step3?: components["schemas"]["StrategyWizardStep3Dto"];
+            step4?: components["schemas"]["StrategyWizardStep4Dto"];
         };
         StrategyWizardPreviewDto: {
             campaign: components["schemas"]["StrategyWizardPreviewCampaignDto"];
@@ -4503,7 +4627,7 @@ export interface operations {
         /** @description Step payload (the shape depends on the step number) */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StrategyWizardStep1RequestDto"] | components["schemas"]["StrategyWizardStep2RequestDto"] | components["schemas"]["StrategyWizardStep3RequestDto"];
+                "application/json": components["schemas"]["StrategyWizardStep1RequestDto"] | components["schemas"]["StrategyWizardStep2RequestDto"] | components["schemas"]["StrategyWizardStep3RequestDto"] | components["schemas"]["StrategyWizardStep4RequestDto"];
             };
         };
         responses: {

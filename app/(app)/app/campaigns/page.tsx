@@ -19,7 +19,7 @@ import {
 
 interface WizardModalState {
   campaignId?: string | null;
-  initialStep: 1 | 2 | 3 | 4;
+  initialStep: 1 | 2 | 3 | 4 | 5;
 }
 
 export default function CampaignsPage() {
@@ -79,7 +79,7 @@ export default function CampaignsPage() {
     }
 
     const initialStep =
-      wizardStepParam === 2 || wizardStepParam === 3 || wizardStepParam === 4
+      wizardStepParam === 2 || wizardStepParam === 3 || wizardStepParam === 4 || wizardStepParam === 5
         ? wizardStepParam
         : 1;
 

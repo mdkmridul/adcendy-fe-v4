@@ -38,9 +38,10 @@ export const wizardRepository = {
     campaignId: ID,
     payload: {
       version?: number;
-      confirmBusinessInfo: boolean;
-      confirmOffer: boolean;
+      confirmFocus: boolean;
+      confirmBusiness: boolean;
       confirmAudience: boolean;
+      confirmGoals: boolean;
       readyToGenerate: boolean;
       dataConsentOptIn: boolean;
     }

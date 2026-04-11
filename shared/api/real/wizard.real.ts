@@ -6,23 +6,40 @@ import type { WizardPreview, WizardStepState } from '@/shared/types/wizard';
 type StrategyWizardResultDto = components['schemas']['StrategyWizardResultDto'];
 type StrategyWizardPreviewDto = components['schemas']['StrategyWizardPreviewDto'];
 type StrategyWizardValidationDto = components['schemas']['StrategyWizardValidationDto'];
-type StrategyWizardStep1Dto = components['schemas']['StrategyWizardStep1Dto'];
-type StrategyWizardStep2Dto = components['schemas']['StrategyWizardStep2Dto'];
-type StrategyWizardStep3Dto = components['schemas']['StrategyWizardStep3Dto'];
-type StrategyWizardStep1RequestDto = components['schemas']['StrategyWizardStep1RequestDto'];
-type StrategyWizardStep2RequestDto = components['schemas']['StrategyWizardStep2RequestDto'];
-type StrategyWizardStep3RequestDto = components['schemas']['StrategyWizardStep3RequestDto'];
-type StrategyWizardStep4RequestDto = components['schemas']['StrategyWizardStep4RequestDto'];
 
 // Map step keys to numbers
 const STEP_MAP: Record<string, number> = {
   'STEP_1': 1,
   'STEP_2': 2,
   'STEP_3': 3,
-  'PREVIEW': 4,
+  'STEP_4': 4,
+  'PREVIEW': 5,
 };
 
 export const wizardRealAdapter = {
+  async listSteps(campaignId: string): Promise<WizardStepState[]> {
+    const wizardState = await this.getWizardState(campaignId);
+
+    return (['STEP_1', 'STEP_2', 'STEP_3', 'STEP_4'] as const)
+      .map((stepKey) => {
+        const stepNumber = STEP_MAP[stepKey];
+        const stepData = wizardState.draft.steps[`step${stepNumber}Json` as keyof typeof wizardState.draft.steps];
+
+        if (!stepData) {
+          return null;
+        }
+
+        return {
+          campaignId,
+          stepKey,
+          data: stepData,
+          updatedAt: new Date().toISOString(),
+          version: wizardState.draft.version,
+        } satisfies WizardStepState;
+      })
+      .filter(Boolean) as WizardStepState[];
+  },
+
   async getWizardState(campaignId: string): Promise<StrategyWizardResultDto> {
     const response = await http<ApiResponse<StrategyWizardResultDto>>(`/v1/campaigns/${campaignId}/wizard`);
     return response.data;
@@ -47,7 +64,7 @@ export const wizardRealAdapter = {
     } as WizardStepState;
   },
 
-  async saveStep(campaignId: string, stepKey: string, payload: any): Promise<StrategyWizardResultDto> {
+  async saveStep(campaignId: string, stepKey: string, payload: any): Promise<WizardStepState> {
     const stepNumber = STEP_MAP[stepKey];
     const response = await http<ApiResponse<StrategyWizardResultDto>>(`/v1/campaigns/${campaignId}/wizard/steps/${stepNumber}`, {
       method: 'PATCH',
@@ -56,7 +73,14 @@ export const wizardRealAdapter = {
         version: payload.version, // Include version for conflict detection
       },
     });
-    return response.data;
+
+    return {
+      campaignId,
+      stepKey: stepKey as WizardStepState['stepKey'],
+      data: payload.data ?? {},
+      updatedAt: new Date().toISOString(),
+      version: response.data.draft.version,
+    };
   },
 
   async getPreview(campaignId: string): Promise<WizardPreview> {
@@ -75,9 +99,10 @@ export const wizardRealAdapter = {
     campaignId: string,
     payload: {
       version?: number;
-      confirmBusinessInfo: boolean;
-      confirmOffer: boolean;
+      confirmFocus: boolean;
+      confirmBusiness: boolean;
       confirmAudience: boolean;
+      confirmGoals: boolean;
       readyToGenerate: boolean;
       dataConsentOptIn: boolean;
     }
