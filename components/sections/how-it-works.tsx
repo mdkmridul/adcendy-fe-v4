@@ -1,26 +1,40 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Search, BarChart3, Zap } from 'lucide-react';
+import { ClipboardList, Search, UserCheck, FileText } from 'lucide-react';
 
 const STEPS = [
   {
     number: '01',
-    title: 'Submit your market',
-    description: 'Tell us your city, niche, and budget. We gather competitive intelligence from 5,000+ live data points.',
-    icon: Search,
+    title: 'You tell us about your business',
+    time: '15 minutes',
+    description:
+      'A guided wizard captures your product, audience, goals, and current marketing setup. If you have a website, our system scrapes it for positioning, trust signals, and conversion architecture.',
+    icon: ClipboardList,
   },
   {
     number: '02',
-    title: 'We analyze signals',
-    description: 'Our system processes SERP rankings, paid ads, local listings, and reviews in real-time.',
-    icon: BarChart3,
+    title: 'Our data pipeline gets to work',
+    time: 'within 24 hours',
+    description:
+      'We pull live competitor data, SERP rankings, keyword opportunities, and market positioning across 7 query categories — branded, non-branded, competitor, segment, and long-tail. Every data point is timestamped to your market.',
+    icon: Search,
   },
   {
     number: '03',
-    title: 'Get your strategy',
-    description: 'Receive a comprehensive report with signals, opportunities, and tactical recommendations in 30 minutes.',
-    icon: Zap,
+    title: 'A human strategist reviews and refines',
+    time: '3–5 days',
+    description:
+      'Nothing ships without passing our review gate. A strategist on our team validates the positioning, pressure-tests every recommendation, and turns the collected intelligence into a playbook you can actually run.',
+    icon: UserCheck,
+  },
+  {
+    number: '04',
+    title: 'You get a 30-day execution-ready strategy',
+    time: 'delivered day 7',
+    description:
+      'Not a pitch deck. A working document with positioning, messaging, channel mix, content themes, paid strategy, and a week-by-week execution calendar. Built to be used, not admired.',
+    icon: FileText,
   },
 ];
 
@@ -28,7 +42,6 @@ export function HowItWorks() {
   return (
     <section id="how" className="py-20 sm:py-32 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -37,15 +50,14 @@ export function HowItWorks() {
           className="text-center max-w-2xl mx-auto mb-16 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            How it works
+            From form to playbook in 7 days
           </h2>
           <p className="text-lg text-muted-foreground">
-            From submission to strategy in three straightforward steps.
+            Four steps. No calls until the strategy lands.
           </p>
         </motion.div>
 
-        {/* Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {STEPS.map((step, idx) => {
             const Icon = step.icon;
             return (
@@ -54,28 +66,30 @@ export function HowItWorks() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: idx * 0.15, duration: 0.6 }}
-                className="relative space-y-6"
+                transition={{ delay: idx * 0.12, duration: 0.6 }}
+                className="relative space-y-5"
               >
-                {/* Connector */}
                 {idx < STEPS.length - 1 && (
-                  <div className="hidden md:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-primary via-primary to-transparent" />
+                  <div className="hidden lg:block absolute top-6 left-full w-full h-px bg-linear-to-r from-primary/50 via-primary/20 to-transparent" />
                 )}
 
-                {/* Number badge */}
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/20 border border-primary/50 flex items-center justify-center flex-shrink-0">
-                    <span className="font-space-grotesk text-lg font-bold text-primary">{step.number}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
+                    <span className="font-space-grotesk text-sm font-bold text-primary">{step.number}</span>
                   </div>
-                  <Icon className="w-6 h-6 text-accent flex-shrink-0 hidden sm:block" />
+                  <div className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                    {step.time}
+                  </div>
                 </div>
 
-                {/* Content */}
-                <div className="space-y-3">
-                  <h3 className="font-space-grotesk text-xl font-bold text-foreground">
-                    {step.title}
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <Icon className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <h3 className="font-space-grotesk text-base font-bold text-foreground leading-snug">
+                      {step.title}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
                 </div>

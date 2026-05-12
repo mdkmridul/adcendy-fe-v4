@@ -1596,7 +1596,7 @@ export function CampaignWizardModal({
     if (step1Data?.version !== undefined) {
       step1VersionRef.current = step1Data.version;
     }
-  }, [activeCampaignId, campaign, open, step, step1Data, step1Form]);
+  }, [activeCampaignId, campaign, open, step, step1Data]);
 
   useEffect(() => {
     if (!open || step !== 2 || !activeCampaignId) {
@@ -1728,7 +1728,7 @@ export function CampaignWizardModal({
     if (step4Data?.version !== undefined) {
       step4VersionRef.current = step4Data.version;
     }
-  }, [activeCampaignId, open, step, step2Data, step3Data, step4Data, step3Form]);
+  }, [activeCampaignId, open, step, step2Data, step3Data, step4Data]);
 
   const addListItem = (
     values: string[],

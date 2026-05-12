@@ -101,8 +101,8 @@ export function Starfield() {
         baseX: x,
         y,
         baseY: y,
-        size: Math.random() * 1.2 + 0.4,
-        opacity: Math.random() * 0.4 + 0.4,
+        size: Math.random() * 1.8 + 0.8,
+        opacity: Math.random() * 0.3 + 0.6,
         vx: (Math.random() - 0.5) * 0.08,
         vy: (Math.random() - 0.5) * 0.08,
         twinkleCycle: Math.random() * Math.PI * 2,
@@ -111,7 +111,7 @@ export function Starfield() {
 
     let animationFrameId: number;
     let lastTime = Date.now();
-    const connectionDistance = 150;
+    const connectionDistance = 200;
 
     const animate = () => {
       // Skip animation if tab is hidden or component is out of viewport
@@ -123,41 +123,38 @@ export function Starfield() {
       const w = canvas.width / window.devicePixelRatio;
       const h = canvas.height / window.devicePixelRatio;
 
-      ctx.fillStyle = '#060713';
+      const isDark = document.documentElement.classList.contains('dark');
+
+      // Slightly distinct from --background so the hero section has its own feel
+      ctx.fillStyle = isDark ? '#0A0D1F' : '#EDEAF6';
       ctx.fillRect(0, 0, w, h);
 
       const now = Date.now();
-      const deltaTime = Math.min((now - lastTime) / 16, 1);
       lastTime = now;
 
       // Update particle positions
       stars.forEach((star) => {
         if (prefersReducedMotion) {
-          // Static on reduced motion
           star.x = star.baseX;
           star.y = star.baseY;
         } else {
-          // Cursor parallax effect
           const offsetX = (mousePos.x / window.innerWidth - 0.5) * 40;
           const offsetY = (mousePos.y / window.innerHeight - 0.5) * 40;
-          
           star.x = star.baseX + offsetX;
           star.y = star.baseY + offsetY;
         }
 
-        // Wrap around edges
         if (star.x < 0) star.x = w;
         if (star.x > w) star.x = 0;
         if (star.y < 0) star.y = h;
         if (star.y > h) star.y = 0;
 
-        // Twinkle animation
         star.twinkleCycle += 0.03;
         const twinkleAmount = Math.sin(star.twinkleCycle) * 0.2;
-        star.opacity = Math.max(0.15, Math.min(0.9, 0.5 + twinkleAmount));
+        star.opacity = Math.max(0.4, Math.min(1.0, 0.7 + twinkleAmount));
       });
 
-      // Draw gradient connections between nearby particles
+      // Draw gradient connections
       stars.forEach((star, idx) => {
         for (let i = idx + 1; i < stars.length; i++) {
           const otherStar = stars[i];
@@ -166,16 +163,23 @@ export function Starfield() {
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance < connectionDistance) {
-            const opacity = (1 - distance / connectionDistance) * 0.3;
-            
-            // Create gradient for connection line
+            // Quadratic falloff keeps distant lines more visible than linear
+            const t = 1 - distance / connectionDistance;
+            const opacity = (t * t + t) / 2 * 0.9;
             const gradient = ctx.createLinearGradient(star.x, star.y, otherStar.x, otherStar.y);
-            gradient.addColorStop(0, `rgba(91, 140, 255, ${opacity * 0.8})`);
-            gradient.addColorStop(0.5, `rgba(53, 211, 163, ${opacity * 0.5})`);
-            gradient.addColorStop(1, `rgba(91, 140, 255, ${opacity * 0.8})`);
+
+            if (isDark) {
+              gradient.addColorStop(0, `rgba(91, 140, 255, ${opacity})`);
+              gradient.addColorStop(0.5, `rgba(53, 211, 163, ${opacity * 0.85})`);
+              gradient.addColorStop(1, `rgba(91, 140, 255, ${opacity})`);
+            } else {
+              gradient.addColorStop(0, `rgba(80, 70, 130, ${opacity})`);
+              gradient.addColorStop(0.5, `rgba(100, 90, 160, ${opacity * 0.85})`);
+              gradient.addColorStop(1, `rgba(80, 70, 130, ${opacity})`);
+            }
 
             ctx.strokeStyle = gradient;
-            ctx.lineWidth = 0.8;
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(star.x, star.y);
             ctx.lineTo(otherStar.x, otherStar.y);
@@ -186,7 +190,10 @@ export function Starfield() {
 
       // Draw particles
       stars.forEach((star) => {
-        ctx.fillStyle = `rgba(238, 243, 255, ${star.opacity})`;
+        const starColor = isDark
+          ? `rgba(238, 243, 255, ${star.opacity})`
+          : `rgba(50, 56, 65, ${star.opacity})`;
+        ctx.fillStyle = starColor;
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();

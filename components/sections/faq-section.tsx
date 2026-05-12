@@ -6,28 +6,54 @@ import { ChevronDown } from 'lucide-react';
 
 const FAQS = [
   {
-    question: 'What signals does AdCendy analyze?',
-    answer: 'We analyze SERP rankings, paid advertising campaigns, local business listings, and customer reviews across major platforms. This gives you a 360-degree view of your competitive market landscape and real market opportunities.',
+    question: 'How is this different from an AI tool?',
+    answer:
+      "Generic tools generate from patterns — they don't know your live competitors, your current SERP, or what's actually moving in your market right now. We collect that data through a live pipeline before any analysis begins. The difference is the source: collected, not generated. Then a human strategist validates it before it reaches you.",
   },
   {
-    question: 'How quickly can I get my strategy report?',
-    answer: 'Your initial report is delivered in approximately 30 minutes from submission. We process market data in real-time to ensure you get the most current and actionable insights for your market.',
+    question: "What if I don't have a website yet?",
+    answer:
+      "We have a structured intake path for pre-website founders. We'll capture your offer, audience, and goals through a guided form and use SERP brand lookup for any external signals.",
   },
   {
-    question: 'What makes the "versioned" strategy different?',
-    answer: 'Your strategy automatically evolves with the market. Professional plans get weekly updates creating v1, v2, v3 of your strategy. You see what changed in the market and what tactics to adjust. Traditional consultants deliver once—we keep you ahead.',
+    question: 'How long does it actually take?',
+    answer:
+      '7 days from wizard completion to delivery. Data collection and pipeline processing runs in the first 24 hours. Human review and strategy refinement takes 3–5 days. Revision round (if needed) adds 1–2 days.',
   },
   {
-    question: 'Can I customize the strategy for my specific situation?',
-    answer: 'Absolutely. While our base reports are data-driven and comprehensive, Enterprise plans include a dedicated strategy consultant who can tailor recommendations to your specific business model, sales cycle, and resources.',
+    question: "What if the strategy doesn't fit my business?",
+    answer:
+      "You get one revision round included. If after that the strategy still doesn't surface 3 actionable opportunities specific to your business, we refund the pilot fee.",
   },
   {
-    question: 'Is this suitable for startups or only established companies?',
-    answer: 'We work with companies at all stages. Startups especially benefit from understanding market signals early. Our Starter plan gives you that foundation. As you grow, upgrade to Professional or Enterprise for ongoing market intelligence.',
+    question: 'Will you execute the strategy for me?',
+    answer:
+      "The strategy document is standalone — you (or your team) can run it. If you want execution support, the 30-Day Sprint adds weekly check-ins, content briefs, and ad creative direction.",
   },
   {
-    question: 'What happens if I don\'t implement the recommendations?',
-    answer: 'The strategy is there when you need it. Many customers keep their report for reference and implement tactics over time. Professional plans give you weekly updates so you can phase things in strategically without overwhelming your team.',
+    question: 'Can I see a sample before paying?',
+    answer:
+      "Yes — anonymized samples are available on request. Or use the free competitive snapshot to see how we work without committing.",
+  },
+  {
+    question: 'Do you work with international clients?',
+    answer:
+      "Yes. We work with clients across India, the US, UK, and SEA. International pricing is in USD; the deliverable is the same.",
+  },
+  {
+    question: 'What industries do you specialize in?',
+    answer:
+      "Three: SaaS, D2C e-commerce, and coaches/consultants. We've intentionally narrowed to deliver real depth in each — we don't take on every type of business.",
+  },
+  {
+    question: 'Who actually reviews my strategy?',
+    answer:
+      "Each strategy is reviewed by a human marketer on our team before delivery. As we scale the pilot, we're expanding the review team to maintain output quality.",
+  },
+  {
+    question: 'What happens to my data?',
+    answer:
+      "Your business information is used only to build your strategy. We don't sell or share data, and you can request deletion at any time.",
   },
 ];
 
@@ -47,7 +73,7 @@ export function FAQ() {
             Frequently asked questions
           </h2>
           <p className="text-lg text-muted-foreground">
-            Everything you need to know about AdCendy
+            Everything you need to know about Adcendy
           </p>
         </motion.div>
 
@@ -57,7 +83,7 @@ export function FAQ() {
               key={idx}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
+              transition={{ delay: idx * 0.04 }}
               viewport={{ once: true }}
               className="border border-border rounded-lg overflow-hidden hover:border-primary/30 transition-colors"
             >
@@ -65,12 +91,14 @@ export function FAQ() {
                 onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
                 className="w-full px-6 py-4 flex items-center justify-between gap-4 text-left hover:bg-card/30 transition-colors"
               >
-                <span className="font-space-grotesk font-semibold text-foreground">{faq.question}</span>
+                <span className="font-space-grotesk font-semibold text-foreground text-sm sm:text-base">
+                  {faq.question}
+                </span>
                 <motion.div
                   animate={{ rotate: openIdx === idx ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <ChevronDown className="w-5 h-5 text-primary flex-shrink-0" />
+                  <ChevronDown className="w-5 h-5 text-primary shrink-0" />
                 </motion.div>
               </button>
 
@@ -83,7 +111,9 @@ export function FAQ() {
                     transition={{ duration: 0.3 }}
                   >
                     <div className="px-6 py-4 border-t border-border bg-card/30">
-                      <p className="text-muted-foreground leading-relaxed">{faq.answer}</p>
+                      <p className="text-muted-foreground leading-relaxed text-sm">
+                        {faq.answer}
+                      </p>
                     </div>
                   </motion.div>
                 )}

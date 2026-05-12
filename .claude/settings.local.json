@@ -3,7 +3,9 @@
     "allow": [
       "Bash(find:*)",
       "Bash(tree:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\eemri\\\\AdCendy\\\\adcendy-fe-v4\" -Force)",
+      "Bash(Select-Object -Property Name, FullName)"
     ]
   }
 }

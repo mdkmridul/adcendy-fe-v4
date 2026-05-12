@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
+import { ThemeToggle } from '@/shared/components/layout/ThemeToggle';
 
 const ANCHOR_LINKS = [
   { label: 'How it works', href: '#how' },
@@ -61,6 +62,7 @@ function MarketingNavContent() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           {!isAuthed ? (
             <>
               <Link href={loginHref}>
