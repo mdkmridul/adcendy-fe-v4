@@ -146,3 +146,67 @@
     will-change: transform;
   }
 }
+
+.adcendy-cinematic {
+  --background: #070d10;
+  --foreground: #ede8dc;
+  --card: #0a1114;
+  --card-foreground: #ede8dc;
+  --popover: #0a1114;
+  --popover-foreground: #ede8dc;
+  --primary: #d4a853;
+  --primary-foreground: #11181a;
+  --secondary: #11181a;
+  --secondary-foreground: #ede8dc;
+  --muted: #0d1519;
+  --muted-foreground: rgba(237, 232, 220, 0.62);
+  --accent: #11181a;
+  --accent-foreground: #ede8dc;
+  --border: rgba(237, 232, 220, 0.12);
+  --input: #0a1114;
+  --ring: rgba(212, 168, 83, 0.6);
+  --sidebar: #0a1114;
+  --sidebar-foreground: #ede8dc;
+  --sidebar-primary: #d4a853;
+  --sidebar-primary-foreground: #11181a;
+  --sidebar-accent: #11181a;
+  --sidebar-accent-foreground: #ede8dc;
+  --sidebar-border: rgba(237, 232, 220, 0.12);
+  --sidebar-ring: rgba(212, 168, 83, 0.6);
+  position: relative;
+  isolation: isolate;
+  background-color: #070d10;
+  background-image:
+    radial-gradient(140% 95% at 50% 36%, rgba(17, 24, 26, 0.78), rgba(7, 13, 16, 0.98)),
+    radial-gradient(70% 54% at 18% 16%, rgba(13, 21, 25, 0.24), transparent 74%),
+    radial-gradient(74% 62% at 84% 74%, rgba(15, 23, 28, 0.20), transparent 76%),
+    linear-gradient(to bottom, #0a1114, #070d10 32%, #05090b 100%);
+}
+
+.adcendy-cinematic::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(4, 8, 11, 0.88) 0%, rgba(4, 8, 11, 0.76) 26%, rgba(4, 8, 11, 0.44) 48%, rgba(4, 8, 11, 0.14) 66%, rgba(4, 8, 11, 0) 84%);
+}
+
+.adcendy-cinematic::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.14;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.65'/%3E%3C/svg%3E");
+  background-size: 210px 210px;
+  mix-blend-mode: soft-light;
+}
+
+.adcendy-cinematic > * {
+  position: relative;
+  z-index: 1;
+}

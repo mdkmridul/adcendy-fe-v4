@@ -76,7 +76,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="adcendy-cinematic min-h-screen bg-background flex items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
       </div>
     );
@@ -86,5 +86,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  return <AppShell>{children}</AppShell>;
+  return <div className="adcendy-cinematic"><AppShell>{children}</AppShell></div>;
 }
