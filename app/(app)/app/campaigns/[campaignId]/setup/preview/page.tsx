@@ -3,5 +3,5 @@
 import { DraftWizardModalRedirect } from '@/shared/components/campaigns/DraftWizardModalRedirect';
 
 export default function PreviewPage() {
-  return <DraftWizardModalRedirect step={4} />;
+  return <DraftWizardModalRedirect />;
 }

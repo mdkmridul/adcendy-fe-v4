@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +20,7 @@ const ANCHOR_LINKS = [
 ];
 
 function MarketingNavContent() {
+  const router = useRouter();
   const pathname = usePathname() ?? '/';
   const searchParams = useSearchParams();
   const { status, user, logout } = useMarketingAuth();
@@ -41,6 +42,11 @@ function MarketingNavContent() {
 
   const loginHref = `/auth/login?next=${nextParam}`;
   const signupHref = `/auth/signup?next=${nextParam}`;
+
+  useEffect(() => {
+    router.prefetch('/auth/login');
+    router.prefetch('/auth/signup');
+  }, [router]);
 
   return (
     <nav className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-md">

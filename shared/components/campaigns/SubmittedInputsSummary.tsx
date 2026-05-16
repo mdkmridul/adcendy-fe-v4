@@ -58,6 +58,15 @@ function normalizeList(values?: string[] | null) {
   return cleaned.length ? cleaned.join(', ') : null;
 }
 
+function normalizeStringOrList(values?: string | string[] | null) {
+  if (Array.isArray(values)) {
+    return normalizeList(values);
+  }
+
+  const cleaned = values?.trim();
+  return cleaned ? cleaned : null;
+}
+
 function formatSalesChannels(
   salesChannels?: { channel: string; rank: number; customName?: string | null }[],
 ) {
@@ -90,14 +99,20 @@ function formatDigitalPresenceLinks(
   return links.map((item) => `${formatDigitalPresenceLinkType(item.type)}: ${item.label || item.url}`).join(' | ');
 }
 
-function formatNumber(value?: number | null, prefix = '') {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return null;
+function formatGoogleAnalyticsConnected(value?: boolean | 'unknown' | null) {
+  if (value === true) {
+    return 'Connected';
   }
 
-  return `${prefix}${new Intl.NumberFormat('en-IN', {
-    maximumFractionDigits: 2,
-  }).format(value)}`;
+  if (value === false) {
+    return 'Not connected';
+  }
+
+  if (value === 'unknown') {
+    return 'Unknown';
+  }
+
+  return null;
 }
 
 function buildSubmittedInputSections(campaign: Campaign, preview?: WizardPreview | null): SummarySection[] {
@@ -129,7 +144,7 @@ function buildSubmittedInputSections(campaign: Campaign, preview?: WizardPreview
       description: 'Business identity, offer details, channels, and digital presence.',
       compactItems: [
         { label: 'Business Type', value: formatBusinessType(step2?.businessType || campaign.businessType || null) },
-        { label: 'Product / Service', value: step2?.productOrService },
+        { label: 'Product / Service', value: normalizeStringOrList(step2?.productOrService) },
         { label: 'Sales Channels', value: formatSalesChannels(step2?.salesChannels) },
       ],
       fullItems: [
@@ -137,7 +152,7 @@ function buildSubmittedInputSections(campaign: Campaign, preview?: WizardPreview
         { label: 'Business Model', value: formatBusinessModel(step2?.businessModel || campaign.businessModel || null) },
         { label: 'Market Scope', value: formatMarketScope(step2?.marketScope || campaign.marketScope || null) },
         { label: 'Product Category', value: step2?.productCategory },
-        { label: 'Product / Service', value: step2?.productOrService },
+        { label: 'Product / Service', value: normalizeStringOrList(step2?.productOrService) },
         { label: 'Offer Summary', value: step2?.offerSummary },
         { label: 'Price Range', value: step2?.priceRange },
         { label: 'Differentiators', value: normalizeList(step2?.differentiators) },
@@ -168,13 +183,13 @@ function buildSubmittedInputSections(campaign: Campaign, preview?: WizardPreview
         { label: "What's Working", value: step4?.whatsWorking },
         { label: 'Biggest Frustration', value: step4?.biggestFrustration },
         { label: 'Monthly Revenue', value: formatMonthlyRevenue(step4?.monthlyRevenue) },
-        { label: 'Monthly Order Volume', value: formatNumber(step4?.monthlyOrderVolume) },
-        { label: 'Product Cost', value: formatNumber(step4?.productCost, 'INR ') },
+        { label: 'Monthly Order Volume', value: normalizeStringOrList(step4?.monthlyOrderVolume) },
+        { label: 'Product Cost', value: normalizeStringOrList(step4?.productCost) },
         { label: 'Retention Pattern', value: formatAvgCustomerRetention(step4?.avgCustomerRetention) },
         { label: 'Repeat Purchase Frequency', value: formatRepeatPurchaseFrequency(step4?.repeatPurchaseFrequency) },
         { label: 'Website Traffic', value: formatMonthlyWebsiteTraffic(step4?.monthlyWebsiteTraffic) },
         { label: 'Email List Size', value: formatEmailListSize(step4?.emailListSize) },
-        { label: 'Google Analytics', value: step4?.googleAnalyticsConnected ? 'Connected' : null },
+        { label: 'Google Analytics', value: formatGoogleAnalyticsConnected(step4?.googleAnalyticsConnected) },
         { label: 'Known Competitors', value: normalizeList(step4?.knownCompetitors) },
         { label: 'Additional Context', value: step4?.additionalContext },
       ],

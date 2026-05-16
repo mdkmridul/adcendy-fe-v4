@@ -158,11 +158,13 @@ export function IntelligenceStreamCanvas() {
         vec2 p = gl_PointCoord * 2.0 - 1.0;
         float r = length(p);
         if (r > 1.0) discard;
-        float core = smoothstep(0.55, 0.0, r);
-        float flare = (1.0 - abs(p.x)) * 0.35 + (1.0 - abs(p.y)) * 0.35;
-        float glow = smoothstep(1.0, 0.1, r) * 0.4;
-        float alpha = min(1.0, core * 0.95 + flare + glow) * vCol.a;
-        gl_FragColor = vec4(vCol.rgb, alpha);
+        float core = 1.0 - smoothstep(0.0, 0.28, r);
+        float inner = 1.0 - smoothstep(0.18, 0.46, r);
+        float ring = smoothstep(0.58, 0.64, r) - smoothstep(0.72, 0.80, r);
+        float edge = smoothstep(0.86, 0.98, r);
+        float alpha = min(1.0, core * 0.95 + inner * 0.35 + ring * 0.7 + edge * 0.18) * vCol.a;
+        vec3 col = mix(vCol.rgb * 0.92, vec3(1.0), core * 0.75 + ring * 0.2);
+        gl_FragColor = vec4(col, alpha);
       }
     `;
 
@@ -177,16 +179,22 @@ export function IntelligenceStreamCanvas() {
     const ptColLoc = gl.getAttribLocation(pointProgram, 'aCol');
     const ptSizeLoc = gl.getAttribLocation(pointProgram, 'aSize');
 
+    const mountTimeSec = performance.now() / 1000;
     const particles: Particle[] = strands.flatMap((strand, si) =>
-      Array.from({ length: strand.particleCount }, (_, pi) => ({
-        strandIdx: si,
-        t: 0.1 + fhash(si * 7 + pi, 101) * 0.8,
-        speed: (0.008 + fhash(si * 7 + pi, 102) * 0.011) * (0.8 + strand.strength * 0.4),
-        size: 1.5 + fhash(si * 7 + pi, 103) * 2.2,
-        alpha: (0.5 + fhash(si * 7 + pi, 104) * 0.35) * (0.55 + strand.strength * 0.75),
-        twPhase: fhash(si * 7 + pi, 105) * Math.PI * 2,
-        twSpeed: 0.7 + fhash(si * 7 + pi, 106) * 1.3,
-      })),
+      Array.from({ length: strand.particleCount }, (_, pi) => {
+        const speed = (0.008 + fhash(si * 7 + pi, 102) * 0.011) * (0.8 + strand.strength * 0.4);
+        const seedT = 0.1 + fhash(si * 7 + pi, 101) * 0.8;
+        return {
+          strandIdx: si,
+          // Phase-lock particle start to absolute clock so route remounts don't look like resets.
+          t: (seedT + mountTimeSec * speed) % 1,
+          speed,
+          size: 1.5 + fhash(si * 7 + pi, 103) * 2.2,
+          alpha: (0.5 + fhash(si * 7 + pi, 104) * 0.35) * (0.55 + strand.strength * 0.75),
+          twPhase: fhash(si * 7 + pi, 105) * Math.PI * 2,
+          twSpeed: 0.7 + fhash(si * 7 + pi, 106) * 1.3,
+        };
+      }),
     );
 
     const pointData = new Float32Array(particles.length * 7);

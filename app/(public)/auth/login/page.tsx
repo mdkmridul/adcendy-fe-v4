@@ -14,6 +14,8 @@ import { authApi } from '@/src/lib/api/auth';
 import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
 import { X } from 'lucide-react';
 import Loading from './loading';
+import { useLandingDesignVariant } from '@/features/landing/hooks/useLandingDesignVariant';
+import { AuthV2Shell } from '@/components/auth/auth-v2-shell';
 
 function LoginContent() {
   const router = useRouter();
@@ -28,6 +30,8 @@ function LoginContent() {
     password: '',
   });
   const isAdminLoginFlow = pathname === '/admin/login';
+  const variant = useLandingDesignVariant();
+  const isV2 = variant === 'v2';
 
   useEffect(() => {
     let isCancelled = false;
@@ -120,23 +124,27 @@ function LoginContent() {
     }
   };
 
-  return (
-    <Card className="w-full max-w-md p-8 space-y-6 border border-border bg-card relative">
-      {/* Close button to go back to landing page */}
-      <Link 
-        href="/"
-        className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label="Back to home"
-      >
-        <X className="w-5 h-5" />
-      </Link>
+  const form = (
+    <>
+      {!isV2 && (
+        <>
+          {/* Close button to go back to landing page */}
+          <Link 
+            href="/"
+            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Back to home"
+          >
+            <X className="w-5 h-5" />
+          </Link>
 
-      <div className="text-center space-y-2">
-        <h1 className="font-space-grotesk text-2xl font-bold">Welcome to AdCendy</h1>
-        <p className="text-sm text-muted-foreground">
-          {isAdminLoginFlow ? 'Sign in to the admin console' : 'Sign in to your account'}
-        </p>
-      </div>
+          <div className="text-center space-y-2">
+            <h1 className="font-space-grotesk text-2xl font-bold">Welcome to AdCendy</h1>
+            <p className="text-sm text-muted-foreground">
+              {isAdminLoginFlow ? 'Sign in to the admin console' : 'Sign in to your account'}
+            </p>
+          </div>
+        </>
+      )}
 
       <form
         className="space-y-4"
@@ -157,6 +165,7 @@ function LoginContent() {
             placeholder="your@email.com" 
             value={formData.email}
             onChange={handleInputChange}
+            className={isV2 ? 'h-11 bg-[rgba(8,12,14,0.92)] border-[rgba(237,232,220,0.12)] text-[rgba(237,232,220,0.9)] placeholder:text-[rgba(237,232,220,0.45)] focus-visible:ring-[rgba(212,168,83,0.35)] focus-visible:border-[rgba(212,168,83,0.5)]' : ''}
             required 
           />
         </div>
@@ -166,7 +175,7 @@ function LoginContent() {
             <Label htmlFor="password">Password</Label>
             <Link 
               href="/auth/forgot-password" 
-              className="text-xs text-primary hover:underline"
+              className={isV2 ? 'text-xs text-[rgba(237,232,220,0.68)] hover:text-[rgba(212,168,83,0.9)] transition-colors' : 'text-xs text-primary hover:underline'}
             >
               Forgot password?
             </Link>
@@ -178,33 +187,54 @@ function LoginContent() {
             placeholder="••••••••" 
             value={formData.password}
             onChange={handleInputChange}
+            className={isV2 ? 'h-11 bg-[rgba(8,12,14,0.92)] border-[rgba(237,232,220,0.12)] text-[rgba(237,232,220,0.9)] placeholder:text-[rgba(237,232,220,0.45)] focus-visible:ring-[rgba(212,168,83,0.35)] focus-visible:border-[rgba(212,168,83,0.5)]' : ''}
             required 
           />
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button type="submit" className={isV2 ? 'w-full h-11 bg-[#cfa35b] text-[#11181a] hover:bg-[#d8af67] font-medium' : 'w-full'} disabled={isLoading}>
           {isLoading ? 'Signing in...' : 'Sign In'}
         </Button>
       </form>
 
       {!isAdminLoginFlow && (
-        <div className="text-center text-sm text-muted-foreground">
+        <div className={isV2 ? 'text-center text-sm text-[rgba(237,232,220,0.58)]' : 'text-center text-sm text-muted-foreground'}>
           Don't have an account?{' '}
-          <Link href={`/auth/signup${signupQuery}`} className="text-primary hover:underline">
+          <Link href={`/auth/signup${signupQuery}`} className={isV2 ? 'text-[rgba(212,168,83,0.9)] hover:underline' : 'text-primary hover:underline'}>
             Sign up
           </Link>
         </div>
       )}
+    </>
+  );
+
+  if (isV2) {
+    return (
+      <AuthV2Shell
+        title={isAdminLoginFlow ? 'Admin sign in' : 'Sign in'}
+        subtitle={isAdminLoginFlow ? 'Access the admin console' : 'Continue your intelligence journey'}
+        modal
+      >
+        {form}
+      </AuthV2Shell>
+    );
+  }
+
+  return (
+    <Card className="w-full max-w-md p-8 space-y-6 border border-border bg-card relative">
+      {form}
     </Card>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
+    <div className="min-h-screen text-foreground">
       <Suspense fallback={<Loading />}>
         <LoginContent />
       </Suspense>
     </div>
   );
 }
+
+

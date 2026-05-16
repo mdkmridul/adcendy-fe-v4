@@ -44,9 +44,11 @@ export function useWizardPreview(campaignId: ID) {
 }
 
 export function useWizardCommit(campaignId: ID) {
+  type WizardCommitPayload = Parameters<typeof wizardRepository.commitAndGenerate>[1];
+
   const commit = useMemo(
-    () => async () => {
-      return wizardRepository.commitAndGenerate(campaignId);
+    () => async (payload: WizardCommitPayload) => {
+      return wizardRepository.commitAndGenerate(campaignId, payload);
     },
     [campaignId]
   );

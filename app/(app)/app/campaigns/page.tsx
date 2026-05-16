@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { useLastCampaign } from '@/hooks/useLastCampaign';
 import { CampaignListItem } from '@/shared/components/campaigns/CampaignListItem';
-import { CampaignWizardModal, resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
+import { CampaignWizardModal, resolveWizardResumeStep, resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
+import { wizardRepository } from '@/shared/api/repositories';
 import {
   formatBusinessModel,
   formatBusinessType,
@@ -19,7 +20,7 @@ import {
 
 interface WizardModalState {
   campaignId?: string | null;
-  initialStep: 1 | 2 | 3 | 4 | 5;
+  initialStep: 1 | 2 | 3 | 4 | 5 | 6 | 7;
 }
 
 export default function CampaignsPage() {
@@ -60,9 +61,17 @@ export default function CampaignsPage() {
     });
   };
 
-  const openDraftWizard = (campaign: Campaign) => {
+  const openDraftWizard = async (campaign: Campaign) => {
     setLastCampaignId(campaign.id);
-    const step = resolveWizardStep(campaign.currentStep);
+    let step = resolveWizardStep(campaign.currentStep);
+
+    try {
+      const wizardState = await wizardRepository.getWizardState(campaign.id);
+      step = resolveWizardResumeStep(wizardState.lastCompletedStep);
+    } catch {
+      // Fall back to legacy currentStep when wizard state cannot be fetched.
+    }
+
     setWizardModalState({
       campaignId: campaign.id,
       initialStep: step,
@@ -78,15 +87,51 @@ export default function CampaignsPage() {
       return;
     }
 
-    const initialStep =
-      wizardStepParam === 2 || wizardStepParam === 3 || wizardStepParam === 4 || wizardStepParam === 5
-        ? wizardStepParam
-        : 1;
+    const hasExplicitStep =
+      wizardStepParam === 1 ||
+      wizardStepParam === 2 ||
+      wizardStepParam === 3 ||
+      wizardStepParam === 4 ||
+      wizardStepParam === 5 ||
+      wizardStepParam === 6 ||
+      wizardStepParam === 7;
 
-    setWizardModalState({
-      campaignId: draftCampaignId,
-      initialStep,
-    });
+    if (hasExplicitStep) {
+      setWizardModalState({
+        campaignId: draftCampaignId,
+        initialStep: wizardStepParam,
+      });
+      return;
+    }
+
+    let isCancelled = false;
+
+    const resolveResumeStep = async () => {
+      try {
+        const wizardState = await wizardRepository.getWizardState(draftCampaignId);
+        if (isCancelled) {
+          return;
+        }
+        setWizardModalState({
+          campaignId: draftCampaignId,
+          initialStep: resolveWizardResumeStep(wizardState.lastCompletedStep),
+        });
+      } catch {
+        if (isCancelled) {
+          return;
+        }
+        setWizardModalState({
+          campaignId: draftCampaignId,
+          initialStep: 1,
+        });
+      }
+    };
+
+    void resolveResumeStep();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [searchParams]);
 
   if (error) {

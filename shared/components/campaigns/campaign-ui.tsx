@@ -22,7 +22,7 @@ export interface DerivedCampaignState {
   websiteHost: string | null;
 }
 
-const TOTAL_SETUP_STEPS = 4;
+const TOTAL_SETUP_STEPS = 7;
 
 function clampStep(step: number | null | undefined) {
   return Math.min(Math.max(step ?? 0, 0), TOTAL_SETUP_STEPS);
@@ -61,7 +61,20 @@ export function getCampaignSetupHref(campaign: Campaign) {
 
 export function getCampaignWizardModalHref(campaign: Campaign) {
   const currentStep = clampStep(campaign.currentStep);
-  const wizardStep = currentStep <= 1 ? 1 : currentStep === 2 ? 2 : currentStep === 3 ? 3 : 4;
+  const wizardStep =
+    currentStep <= 1
+      ? 1
+      : currentStep === 2
+        ? 2
+        : currentStep === 3
+          ? 3
+          : currentStep === 4
+            ? 4
+            : currentStep === 5
+              ? 5
+              : currentStep === 6
+                ? 6
+                : 7;
   return `/app/campaigns?draftCampaignId=${campaign.id}&wizardStep=${wizardStep}`;
 }
 
@@ -206,7 +219,7 @@ export function deriveCampaignState(campaign: Campaign): DerivedCampaignState {
     return {
       statusLabel: 'In Setup',
       statusTone: 'setup',
-      progressLabel: 'Setup 0/4 complete',
+      progressLabel: 'Setup 0/7 complete',
       progressValue: 8,
       primaryActionLabel: 'Continue Setup',
       primaryActionHref: getCampaignSetupHref(campaign),
@@ -220,7 +233,7 @@ export function deriveCampaignState(campaign: Campaign): DerivedCampaignState {
     return {
       statusLabel: 'In Setup',
       statusTone: 'setup',
-      progressLabel: `Setup ${currentStep}/4 complete`,
+      progressLabel: `Setup ${currentStep}/7 complete`,
       progressValue: Math.round((currentStep / TOTAL_SETUP_STEPS) * 100),
       primaryActionLabel: 'Continue Setup',
       primaryActionHref: getCampaignSetupHref(campaign),

@@ -14,6 +14,8 @@ import { setAuthSession } from '@/features/auth/auth';
 import { authApi } from '@/src/lib/api/auth';
 import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
 import { X, ArrowLeft, Mail, Clock } from 'lucide-react';
+import { useLandingDesignVariant } from '@/features/landing/hooks/useLandingDesignVariant';
+import { AuthV2Shell } from '@/components/auth/auth-v2-shell';
 
 type SignupStep = 'credentials' | 'verify-otp';
 
@@ -44,6 +46,8 @@ function SignupContent() {
   const [error, setError] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const verifyingRef = useRef(false); // Prevent duplicate API calls
+  const variant = useLandingDesignVariant();
+  const isV2 = variant === 'v2';
 
   // Timer for OTP expiration
   useEffect(() => {
@@ -204,9 +208,10 @@ function SignupContent() {
     return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
   };
 
-  return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
-      <Card className="w-full max-w-md p-8 space-y-6 border border-border bg-card relative">
+  const content = (
+    <>
+        {!isV2 && (
+          <>
         {/* Close button to go back to landing page */}
         <Link 
           href="/"
@@ -215,14 +220,11 @@ function SignupContent() {
         >
           <X className="w-5 h-5" />
         </Link>
+          </>
+        )}
 
         {step === 'credentials' ? (
           <>
-            <div className="text-center space-y-2">
-              <h1 className="font-space-grotesk text-2xl font-bold">Create Account</h1>
-              <p className="text-sm text-muted-foreground">Join AdCendy today</p>
-            </div>
-
             <form className="space-y-4" onSubmit={handleStartSignup}>
               {error && (
                 <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-md">
@@ -268,14 +270,14 @@ function SignupContent() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className={isV2 ? 'w-full h-11 bg-[#cfa35b] text-[#11181a] hover:bg-[#d8af67] font-medium' : 'w-full'} disabled={isLoading}>
                 {isLoading ? 'Sending OTP...' : 'Continue'}
               </Button>
             </form>
 
-            <div className="text-center text-sm text-muted-foreground">
+            <div className={isV2 ? 'text-center text-sm text-[rgba(237,232,220,0.58)]' : 'text-center text-sm text-muted-foreground'}>
               Already have an account?{' '}
-              <Link href={`/auth/login${loginQuery}`} className="text-primary hover:underline">
+              <Link href={`/auth/login${loginQuery}`} className={isV2 ? 'text-[rgba(212,168,83,0.9)] hover:underline' : 'text-primary hover:underline'}>
                 Sign in
               </Link>
             </div>
@@ -292,16 +294,28 @@ function SignupContent() {
                 Back
               </button>
 
-              <div className="text-center space-y-2">
-                <h1 className="font-space-grotesk text-2xl font-bold">Verify Your Email</h1>
-                <p className="text-sm text-muted-foreground">
-                  We've sent a 6-digit code to
-                </p>
-                <div className="flex items-center justify-center gap-2 text-sm font-medium">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  {verificationState && maskEmail(verificationState.email)}
+              {isV2 ? (
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-[rgba(237,232,220,0.62)]">
+                    We've sent a 6-digit code to
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-sm font-medium text-[rgba(237,232,220,0.84)]">
+                    <Mail className="w-4 h-4 text-[rgba(237,232,220,0.56)]" />
+                    {verificationState && maskEmail(verificationState.email)}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center space-y-2">
+                  <h1 className="font-space-grotesk text-2xl font-bold">Verify Your Email</h1>
+                  <p className="text-sm text-muted-foreground">
+                    We've sent a 6-digit code to
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-sm font-medium">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    {verificationState && maskEmail(verificationState.email)}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -366,6 +380,25 @@ function SignupContent() {
             </div>
           </>
         )}
+    </>
+  );
+
+  if (variant === 'v2') {
+    return (
+      <AuthV2Shell
+        title={step === 'credentials' ? 'Create account' : 'Verify your email'}
+        subtitle={step === 'credentials' ? 'Start your intelligence journey' : 'Confirm your account to continue'}
+        modal
+      >
+        {content}
+      </AuthV2Shell>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
+      <Card className="w-full max-w-md p-8 space-y-6 border border-border bg-card relative">
+        {content}
       </Card>
     </div>
   );

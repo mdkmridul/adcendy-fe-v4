@@ -4,13 +4,14 @@ import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCampaign } from '@/hooks/useCampaigns';
+import { wizardRepository } from '@/shared/api/repositories';
 import {
   getCampaignWorkspaceHref,
 } from '@/shared/components/campaigns/campaign-ui';
-import { resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
+import { resolveWizardResumeStep, resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
 
 interface DraftWizardModalRedirectProps {
-  step?: 1 | 2 | 3 | 4 | 5;
+  step?: 1 | 2 | 3 | 4 | 5 | 6 | 7;
 }
 
 export function DraftWizardModalRedirect({ step }: DraftWizardModalRedirectProps) {
@@ -29,8 +30,36 @@ export function DraftWizardModalRedirect({ step }: DraftWizardModalRedirectProps
       return;
     }
 
-    const wizardStep = step ?? resolveWizardStep(campaign.currentStep);
-    router.replace(`/app/campaigns?draftCampaignId=${campaign.id}&wizardStep=${wizardStep}`);
+    let isCancelled = false;
+
+    const redirectToWizard = async () => {
+      if (step) {
+        router.replace(`/app/campaigns?draftCampaignId=${campaign.id}&wizardStep=${step}`);
+        return;
+      }
+
+      try {
+        const wizardState = await wizardRepository.getWizardState(campaign.id);
+        if (isCancelled) {
+          return;
+        }
+
+        const resumeStep = resolveWizardResumeStep(wizardState.lastCompletedStep);
+        router.replace(`/app/campaigns?draftCampaignId=${campaign.id}&wizardStep=${resumeStep}`);
+      } catch {
+        if (isCancelled) {
+          return;
+        }
+        const fallbackStep = resolveWizardStep(campaign.currentStep);
+        router.replace(`/app/campaigns?draftCampaignId=${campaign.id}&wizardStep=${fallbackStep}`);
+      }
+    };
+
+    void redirectToWizard();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [campaign, isLoading, router, step]);
 
   return (

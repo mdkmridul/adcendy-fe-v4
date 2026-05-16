@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -93,11 +94,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="border-b border-border bg-card/95">
           <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
             <div className="flex items-center gap-3">
-              <Link href="/app/campaigns" className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-                  AC
-                </div>
-                <span className="font-space-grotesk font-semibold text-foreground">AdCendy</span>
+              <Link
+                href="/app/campaigns"
+                className="inline-flex items-center"
+              >
+                <Image
+                  src="/Adcendy-logo-tight.svg"
+                  alt="Adcendy"
+                  width={340}
+                  height={56}
+                  className="h-10 w-[340px]"
+                  style={{ transform: 'translateX(-46px) scaleX(1.22)', transformOrigin: 'left center' }}
+                  priority
+                />
               </Link>
             </div>
 
@@ -129,10 +138,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background">
       <aside className="hidden w-64 flex-col border-r border-border bg-card md:flex">
         <div className="flex items-center gap-2 border-b border-border px-6 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            AC
-          </div>
-          <span className="font-space-grotesk font-semibold text-foreground">AdCendy</span>
+          <Image
+            src="/Adcendy-logo-tight.svg"
+            alt="Adcendy"
+            width={300}
+            height={50}
+            className="h-9 w-[300px]"
+            style={{ transform: 'translateX(-40px) scaleX(1.2)', transformOrigin: 'left center' }}
+            priority
+          />
         </div>
         <nav className="flex-1 space-y-2 px-4 py-6">
           {visibleNavItems.map((item) => (
@@ -166,10 +180,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 md:hidden">
           <div className="flex flex-1 items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              AC
-            </div>
-            <span className="font-space-grotesk font-semibold text-foreground">AdCendy</span>
+            <Image
+              src="/Adcendy-logo-tight.svg"
+              alt="Adcendy"
+              width={260}
+              height={44}
+              className="h-8 w-[260px]"
+              style={{ transform: 'translateX(-36px) scaleX(1.18)', transformOrigin: 'left center' }}
+              priority
+            />
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -181,10 +200,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
                 <div className="flex items-center gap-2 border-b border-border px-6 py-4">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-                    AC
-                  </div>
-                  <span className="font-space-grotesk font-semibold text-foreground">AdCendy</span>
+                  <Image
+                    src="/Adcendy-logo-tight.svg"
+                    alt="Adcendy"
+                    width={300}
+                    height={50}
+                    className="h-9 w-[300px]"
+                    style={{ transform: 'translateX(-40px) scaleX(1.2)', transformOrigin: 'left center' }}
+                    priority
+                  />
                 </div>
                 <nav className="space-y-2 px-4 py-6">
                   {visibleNavItems.map((item) => (

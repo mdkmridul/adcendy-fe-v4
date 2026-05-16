@@ -181,9 +181,7 @@ function buildStrands(count: number): StrandDef[] {
     }
     const width = wBase + fhash(i, 6) * wRange;
 
-    const pRoll = fhash(i, 7);
-    const particleCount =
-      strength >= 0.7 ? (pRoll < 0.68 ? 3 : 2) : (pRoll < 0.35 ? 3 : 2);
+    const particleCount = 50;
 
     return {
       kind,

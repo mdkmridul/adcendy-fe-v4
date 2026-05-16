@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 
 const MONO: React.CSSProperties = {
@@ -18,21 +20,20 @@ const NAV_LINKS = [
 
 export function IntelligenceStreamNav() {
   const { status } = useMarketingAuth();
-  const [scrolled, setScrolled] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    router.prefetch('/auth/login');
+    router.prefetch('/auth/signup');
+  }, [router]);
 
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-400"
       style={{
-        background: scrolled ? 'rgba(8,8,7,0.92)' : 'rgba(8,8,7,0.15)',
+        background: 'rgba(8,8,7,0.92)',
         borderBottom: '1px solid rgba(237,232,220,0.07)',
-        backdropFilter: scrolled ? 'blur(14px)' : 'none',
+        backdropFilter: 'blur(14px)',
       }}
     >
       <div
@@ -41,17 +42,20 @@ export function IntelligenceStreamNav() {
       >
         <Link
           href="/"
+          className="inline-flex items-center"
           style={{
-            fontFamily: 'Georgia, "Times New Roman", serif',
-            fontWeight: 400,
-            letterSpacing: '0.12em',
-            color: 'rgba(237,232,220,0.88)',
-            fontSize: '15px',
-            textTransform: 'uppercase',
             textDecoration: 'none',
           }}
         >
-          Adcendy
+          <Image
+            src="/Adcendy-logo-tight.svg"
+            alt="Adcendy"
+            width={340}
+            height={56}
+            className="h-10 w-[340px]"
+            style={{ transform: 'translateX(-162px) scaleX(1.28)', transformOrigin: 'left center' }}
+            priority
+          />
         </Link>
 
         <div className="hidden md:flex items-center" style={{ gap: '44px' }}>

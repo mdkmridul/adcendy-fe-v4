@@ -12,7 +12,6 @@ import type {
 } from '@/shared/types/campaign';
 
 type CampaignDto = components['schemas']['CampaignDto'];
-type CampaignListResponseDto = components['schemas']['CampaignListResponseDto'];
 
 type CampaignDtoWithClassification = CampaignDto & {
   businessModel?: BusinessModel | null;
@@ -43,16 +42,55 @@ function coerceCampaignStatus(value: unknown) {
   return typeof value === 'string' ? (value as CampaignStatus) : 'DRAFT';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function extractCampaignItems(payload: unknown): CampaignDto[] {
+  if (Array.isArray(payload)) {
+    return payload as CampaignDto[];
+  }
+
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  if (Array.isArray(payload.items)) {
+    return payload.items as CampaignDto[];
+  }
+
+  if (Array.isArray(payload.campaigns)) {
+    return payload.campaigns as CampaignDto[];
+  }
+
+  if ('data' in payload) {
+    return extractCampaignItems(payload.data);
+  }
+
+  return [];
+}
+
 /**
  * Map backend CampaignDto to frontend Campaign type
  */
 function mapCampaignDtoToCampaign(dto: CampaignDto): Campaign {
   const campaignDto = dto as CampaignDtoWithClassification;
+  const campaignRecord = campaignDto as unknown as Record<string, unknown>;
+  const campaignName =
+    coerceString(campaignDto.title) ||
+    coerceString(campaignRecord.name) ||
+    coerceString(campaignRecord.campaignTitle) ||
+    coerceString(campaignRecord.focusName) ||
+    'Untitled Campaign';
+  const campaignCity =
+    coerceString(campaignDto.marketLocation) ||
+    coerceString(campaignRecord.primaryMarket) ||
+    coerceString(campaignRecord.city);
 
   return {
     id: campaignDto.id,
-    name: coerceString(campaignDto.title),
-    city: coerceString(campaignDto.marketLocation),
+    name: campaignName,
+    city: campaignCity,
     niche: coerceString(campaignDto.detectedCategoryKeyword),
     businessType: coerceBusinessType(campaignDto.businessType),
     businessModel: coerceBusinessModel(campaignDto.businessModel),
@@ -67,8 +105,8 @@ function mapCampaignDtoToCampaign(dto: CampaignDto): Campaign {
 
 export const campaignsRealAdapter = {
   async listCampaigns(): Promise<Campaign[]> {
-    const response = await http<ApiResponse<CampaignListResponseDto>>('/v1/campaigns');
-    return response.data.items.map(mapCampaignDtoToCampaign);
+    const response = await http<unknown>('/api/v2/campaigns');
+    return extractCampaignItems(response).map(mapCampaignDtoToCampaign);
   },
 
   async getCampaign(id: string): Promise<Campaign> {
