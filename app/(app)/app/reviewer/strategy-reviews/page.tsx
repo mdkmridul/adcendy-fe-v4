@@ -1,117 +1,333 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, Inbox } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AlertCircle, Inbox, RefreshCw } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/useAuth';
-import { useAssignedStrategyReviews } from '@/hooks/useStrategyReviews';
+import { useToast } from '@/hooks/use-toast';
+import { useOpsReviewerTasks, useOpsSectionReviews, useStartOpsSectionReview } from '@/hooks/useOpsV2';
 import { ReviewStatusBadge } from '@/shared/components/reviews/ReviewStatusBadge';
+import type { Role } from '@/features/auth/types';
+import {
+  getSectionReviewForbiddenMessage,
+  inferSectionReviewForbiddenReason,
+} from '@/shared/components/ops/reviewAccess';
+import {
+  formatCampaignOpsStatus,
+  formatOpsDateTime,
+  formatOpsStatus,
+  formatOpsStep,
+} from '@/shared/components/ops/opsUtils';
+import type { OpsListFilters, ReviewerTaskItem, SectionReviewItem } from '@/shared/types/opsV2';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { StrategyReviewInboxItem } from '@/shared/types/reviews';
 
-type ReviewBucket = 'PENDING' | 'IN_REVIEW' | 'CHANGES_REQUESTED' | 'APPROVED';
+type SortBy = 'updatedAt' | 'createdAt';
+type SortOrder = 'asc' | 'desc';
 
-function formatDate(value?: string | null) {
-  if (!value) {
-    return 'Not available';
+const STATUS_OPTIONS = [
+  'ALL',
+  'PENDING',
+  'ANSWERED',
+  'APPROVED',
+  'REVISION_REQUESTED',
+  'RUNNING',
+  'FAILED',
+] as const;
+
+const LIMIT_OPTIONS = [10, 20, 50, 100] as const;
+const OPEN_DETAIL_BUTTON_CLASS =
+  'bg-sky-600 text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-md';
+const RUN_CONTEXT_BUTTON_CLASS =
+  'bg-emerald-600 text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md';
+const REVIEWER_TASK_CAMPAIGN_MAP_KEY = 'adcendy_reviewer_task_campaign_map_v1';
+
+function rememberTaskCampaign(taskId: string, campaignId?: string | null) {
+  if (typeof window === 'undefined') {
+    return;
   }
 
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(value));
-}
+  const normalizedCampaignId = typeof campaignId === 'string' ? campaignId.trim() : '';
+  if (!normalizedCampaignId) {
+    return;
+  }
 
-function toBucket(status: string): ReviewBucket {
-  const normalized = status.toUpperCase();
-  if (normalized === 'PENDING_REVIEW' || normalized === 'PENDING') return 'PENDING';
-  if (normalized.includes('APPROV')) return 'APPROVED';
-  if (normalized.includes('CHANGE')) return 'CHANGES_REQUESTED';
-  if (normalized.includes('REVIEW')) return 'IN_REVIEW';
-  return 'PENDING';
-}
+  try {
+    const existingRaw = window.localStorage.getItem(REVIEWER_TASK_CAMPAIGN_MAP_KEY);
+    const existingParsed: unknown = existingRaw ? JSON.parse(existingRaw) : {};
+    const existingMap =
+      existingParsed && typeof existingParsed === 'object' && !Array.isArray(existingParsed)
+        ? (existingParsed as Record<string, unknown>)
+        : {};
 
-function ReviewCards({ items }: { items: StrategyReviewInboxItem[] }) {
-  if (items.length === 0) {
-    return (
-      <Card className="border-border bg-card">
-        <CardContent className="py-10">
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Inbox className="size-5" />
-              </EmptyMedia>
-              <EmptyTitle>No assigned reviews in this state</EmptyTitle>
-              <EmptyDescription>
-                New strategy reviews will appear here as soon as they are assigned.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </CardContent>
-      </Card>
+    const nextMap: Record<string, string> = Object.fromEntries(
+      Object.entries(existingMap)
+        .filter(([key, value]) => typeof key === 'string' && typeof value === 'string' && key.trim() && value.trim())
+        .map(([key, value]) => [key, (value as string).trim()]),
     );
+    nextMap[taskId] = normalizedCampaignId;
+    window.localStorage.setItem(REVIEWER_TASK_CAMPAIGN_MAP_KEY, JSON.stringify(nextMap));
+  } catch {
+    // Ignore storage failures.
   }
+}
+
+function ReviewerTaskRow({ task }: { task: ReviewerTaskItem }) {
+  const clientName = task.clientName || task.campaignTitle || task.campaignId || 'Unknown Client';
+  const marketLabel = task.marketId || 'Unknown Market';
+  const detailHref = task.campaignId
+    ? `/app/reviewer/tasks/${task.id}?campaignId=${encodeURIComponent(task.campaignId)}`
+    : `/app/reviewer/tasks/${task.id}`;
+  const persistContext = () => rememberTaskCampaign(task.id, task.campaignId);
 
   return (
-    <div className="grid gap-4">
-      {items.map((review) => (
-        <Card key={review.campaignId} className="border-border bg-card">
-          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-semibold">{review.campaignTitle}</h2>
-                <ReviewStatusBadge status={review.status} />
-              </div>
-              <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.16em]">Created</p>
-                  <p className="mt-1 text-foreground">{formatDate(review.createdAt)}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.16em]">Updated</p>
-                  <p className="mt-1 text-foreground">{formatDate(review.updatedAt)}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.16em]">Approved at</p>
-                  <p className="mt-1 text-foreground">{formatDate(review.approvedAt)}</p>
-                </div>
-              </div>
-              {review.requestedChangesNote && (
-                <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    Requested changes
-                  </p>
-                  <p className="mt-2 text-foreground">{review.requestedChangesNote}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex shrink-0 flex-col gap-2">
-              <Link href={`/app/reviewer/campaigns/${review.campaignId}/review`}>
-                <Button className="w-full lg:w-auto">Open Review</Button>
+    <Card className="border-border bg-card">
+      <CardContent className="flex flex-col gap-4 p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <Link href={detailHref} onClick={persistContext} className="text-base font-semibold text-foreground underline-offset-4 hover:underline">
+              {`${clientName} - ${marketLabel}`}
+            </Link>
+            {task.marketId ? <p className="text-xs text-muted-foreground">Market: {task.marketId}</p> : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href={detailHref} onClick={persistContext}>
+              <Button size="sm" className={OPEN_DETAIL_BUTTON_CLASS}>Open Detail</Button>
+            </Link>
+            {task.pipelineRunId && (
+              <Link href={`/app/reviewer/runs/${task.pipelineRunId}`}>
+                <Button size="sm" className={RUN_CONTEXT_BUTTON_CLASS}>
+                  Run Context
+                </Button>
               </Link>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <ReviewStatusBadge status={task.status} label={formatOpsStatus(task.status)} />
+          <ReviewStatusBadge status={task.runStatus} label={`Run ${formatOpsStatus(task.runStatus)}`} />
+          <ReviewStatusBadge
+            status={task.campaignStatus}
+            label={formatCampaignOpsStatus(task.campaignStatus)}
+          />
+          <ReviewStatusBadge status={String(task.currentStep ?? 'UNKNOWN')} label={formatOpsStep(task.currentStep)} />
+        </div>
+
+        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+          <p>Campaign: {task.campaignTitle || task.campaignId || 'Not available'}</p>
+          <p>Updated: {formatOpsDateTime(task.updatedAt)}</p>
+          <p>Created: {formatOpsDateTime(task.createdAt)}</p>
+          <p>Attempt: {typeof task.attemptNumber === 'number' ? task.attemptNumber : 'Not available'}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionReviewRow({ review, role }: { review: SectionReviewItem; role: Extract<Role, 'REVIEWER' | 'ADMIN'> }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const startReviewMutation = useStartOpsSectionReview(review.pipelineRunId ?? null);
+
+  const workspacePath =
+    review.pipelineRunId
+      ? role === 'ADMIN'
+        ? `/app/admin/runs/${review.pipelineRunId}`
+        : `/app/reviewer/runs/${review.pipelineRunId}`
+      : null;
+
+  const openWorkspace = async () => {
+    if (!review.pipelineRunId || !workspacePath) {
+      toast({
+        title: 'Run ID missing',
+        description: 'This section review task does not include a pipeline run id.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (role === 'ADMIN') {
+      router.push(workspacePath);
+      return;
+    }
+
+    try {
+      await startReviewMutation.mutateAsync();
+      toast({
+        title: 'Review started',
+        description: 'Workspace is now unlocked for this run.',
+      });
+      router.push(workspacePath);
+    } catch (error) {
+      const reason = inferSectionReviewForbiddenReason(error);
+      if (reason) {
+        const message = getSectionReviewForbiddenMessage(role, reason);
+        toast({
+          title: message.title,
+          description: message.description,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Unable to start review',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <Card className="border-border bg-card">
+      <CardContent className="flex flex-col gap-4 p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            {role === 'ADMIN' ? (
+              <Link
+                href={`/app/reviewer/section-reviews/${review.id}`}
+                className="text-base font-semibold text-foreground underline-offset-4 hover:underline"
+              >
+                {review.sectionTitle || review.sectionId || `Section Review ${review.id}`}
+              </Link>
+            ) : (
+              <p className="text-base font-semibold text-foreground">
+                {review.sectionTitle || review.sectionId || `Section Review ${review.id}`}
+              </p>
+            )}
+            {review.marketId ? <p className="text-xs text-muted-foreground">Market: {review.marketId}</p> : null}
+          </div>
+          <div className="flex items-center gap-2">
+            {role === 'REVIEWER' ? (
+              <Button
+                size="sm"
+                className={RUN_CONTEXT_BUTTON_CLASS}
+                onClick={() => void openWorkspace()}
+                disabled={startReviewMutation.isPending || !review.pipelineRunId}
+              >
+                {startReviewMutation.isPending ? 'Starting...' : 'Review'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className={RUN_CONTEXT_BUTTON_CLASS}
+                onClick={() => void openWorkspace()}
+                disabled={!review.pipelineRunId}
+              >
+                Open Workspace
+              </Button>
+            )}
+            {role === 'ADMIN' && (
+              <Link href={`/app/reviewer/section-reviews/${review.id}`}>
+                <Button size="sm" className={OPEN_DETAIL_BUTTON_CLASS}>Open Detail</Button>
+              </Link>
+            )}
+            {workspacePath && (
+              <Link href={workspacePath}>
+                <Button size="sm" variant="outline">
+                  Run Context
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <ReviewStatusBadge status={review.status} label={formatOpsStatus(review.status)} />
+          <ReviewStatusBadge status={review.runStatus} label={`Run ${formatOpsStatus(review.runStatus)}`} />
+          <ReviewStatusBadge
+            status={review.campaignStatus}
+            label={formatCampaignOpsStatus(review.campaignStatus)}
+          />
+          <ReviewStatusBadge
+            status={String(review.currentStep ?? 'UNKNOWN')}
+            label={formatOpsStep(review.currentStep)}
+          />
+        </div>
+
+        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+          <p>Campaign: {review.campaignTitle || review.campaignId || 'Not available'}</p>
+          <p>Revision Count: {typeof review.revisionCount === 'number' ? review.revisionCount : 0}</p>
+          <p>Latest Revision: {review.latestRevisionSummary || 'None'}</p>
+          <p>Updated: {formatOpsDateTime(review.updatedAt)}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InboxEmpty({ title, description }: { title: string; description: string }) {
+  return (
+    <Card className="border-border bg-card">
+      <CardContent className="py-10">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Inbox className="size-5" />
+            </EmptyMedia>
+            <EmptyTitle>{title}</EmptyTitle>
+            <EmptyDescription>{description}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function ReviewerStrategyReviewsPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const reviewsQuery = useAssignedStrategyReviews(user?.role === 'REVIEWER');
+  const isAdmin = user?.role === 'ADMIN';
+  const searchParams = useSearchParams();
+
+  const [status, setStatus] = useState(searchParams.get('status')?.toUpperCase() ?? 'ALL');
+  const [pipelineRunId, setPipelineRunId] = useState(searchParams.get('pipelineRunId') ?? '');
+  const [marketId, setMarketId] = useState(searchParams.get('marketId') ?? '');
+  const [sortBy, setSortBy] = useState<SortBy>(
+    searchParams.get('sortBy') === 'createdAt' ? 'createdAt' : 'updatedAt',
+  );
+  const [sortOrder, setSortOrder] = useState<SortOrder>(
+    searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc',
+  );
+  const [limit, setLimit] = useState<number>(() => {
+    const raw = Number(searchParams.get('limit'));
+    return Number.isFinite(raw) && raw > 0 ? raw : 20;
+  });
+
+  const isOpsRole = user?.role === 'REVIEWER' || user?.role === 'ADMIN';
+
+  const filters = useMemo<OpsListFilters>(
+    () => ({
+      status: status === 'ALL' ? undefined : status,
+      pipelineRunId: pipelineRunId.trim() || undefined,
+      marketId: marketId.trim() || undefined,
+      sortBy,
+      sortOrder,
+      limit,
+    }),
+    [limit, marketId, pipelineRunId, sortBy, sortOrder, status],
+  );
+
+  const reviewerTasksQuery = useOpsReviewerTasks(filters, isOpsRole);
+  const sectionReviewsQuery = useOpsSectionReviews(filters, isOpsRole);
 
   if (isAuthLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading reviewer inbox...</div>;
   }
 
-  if (user?.role !== 'REVIEWER') {
+  if (!isOpsRole) {
     return (
       <div className="p-6">
         <Card className="border-destructive/40 bg-destructive/5">
@@ -120,7 +336,7 @@ export default function ReviewerStrategyReviewsPage() {
             <div className="space-y-1">
               <p className="text-lg font-semibold">Permission denied</p>
               <p className="text-sm text-muted-foreground">
-                This inbox is only available to reviewer users.
+                This workspace is available to reviewer and admin users.
               </p>
             </div>
           </CardContent>
@@ -129,90 +345,190 @@ export default function ReviewerStrategyReviewsPage() {
     );
   }
 
-  if (reviewsQuery.isLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading assigned reviews...</div>;
-  }
-
-  if (reviewsQuery.error) {
-    return (
-      <div className="p-6">
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardContent className="py-8 text-sm text-destructive">
-            {reviewsQuery.error instanceof Error ? reviewsQuery.error.message : 'Failed to load reviewer inbox.'}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const reviews = reviewsQuery.data ?? [];
-  const buckets: Record<ReviewBucket, StrategyReviewInboxItem[]> = {
-    PENDING: reviews.filter((review) => toBucket(review.status) === 'PENDING'),
-    IN_REVIEW: reviews.filter((review) => toBucket(review.status) === 'IN_REVIEW'),
-    CHANGES_REQUESTED: reviews.filter((review) => toBucket(review.status) === 'CHANGES_REQUESTED'),
-    APPROVED: reviews.filter((review) => toBucket(review.status) === 'APPROVED'),
-  };
-
   return (
     <div className="space-y-6 p-6">
       <div className="space-y-2">
-        <h1 className="font-space-grotesk text-3xl font-bold text-foreground">Reviewer Inbox</h1>
+        <h1 className="font-space-grotesk text-3xl font-bold text-foreground">Reviewer Ops Inbox</h1>
         <p className="text-muted-foreground">
-          Track assigned strategy reviews and move directly into section-level decisions.
+          Unified queue for intelligence blockers and mandatory strategy review approvals.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {Object.entries(buckets).map(([key, items]) => (
-          <Card key={key} className="border-border bg-card">
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                {key.replace('_', ' ')}
-              </p>
-              <p className="mt-2 text-2xl font-semibold">{items.length}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card className="border-border bg-card">
+        <CardContent className="grid gap-4 p-5 md:grid-cols-2 lg:grid-cols-6">
+          <div className="space-y-2">
+            <Label htmlFor="status-filter">Status</Label>
+            <Select value={status} onValueChange={(value) => setStatus(value)}>
+              <SelectTrigger id="status-filter">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option === 'ALL' ? 'All statuses' : formatOpsStatus(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pipeline-run-filter">Pipeline Run</Label>
+            <Input
+              id="pipeline-run-filter"
+              value={pipelineRunId}
+              onChange={(event) => setPipelineRunId(event.target.value)}
+              placeholder="run id"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="market-filter">Market</Label>
+            <Input
+              id="market-filter"
+              value={marketId}
+              onChange={(event) => setMarketId(event.target.value)}
+              placeholder="market id"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sort-by-filter">Sort By</Label>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
+              <SelectTrigger id="sort-by-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="updatedAt">Updated Time</SelectItem>
+                <SelectItem value="createdAt">Created Time</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sort-order-filter">Order</Label>
+            <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
+              <SelectTrigger id="sort-order-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Newest First</SelectItem>
+                <SelectItem value="asc">Oldest First</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="limit-filter">Page Size</Label>
+            <div className="flex gap-2">
+              <Select value={String(limit)} onValueChange={(value) => setLimit(Number(value))}>
+                <SelectTrigger id="limit-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LIMIT_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  void reviewerTasksQuery.refetch();
+                  void sectionReviewsQuery.refetch();
+                }}
+                disabled={reviewerTasksQuery.isFetching || sectionReviewsQuery.isFetching}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {reviews.length === 0 ? (
-        <Card className="border-border bg-card">
-          <CardContent className="py-12">
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Inbox className="size-5" />
-                </EmptyMedia>
-                <EmptyTitle>No assigned strategy reviews</EmptyTitle>
-                <EmptyDescription>
-                  Reviews assigned to you will appear here with their current review state.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </CardContent>
-        </Card>
-      ) : (
-        <Tabs defaultValue="PENDING" className="space-y-4">
-          <TabsList className="flex w-full flex-wrap">
-            <TabsTrigger value="PENDING">Pending Review</TabsTrigger>
-            <TabsTrigger value="IN_REVIEW">In Review</TabsTrigger>
-            <TabsTrigger value="CHANGES_REQUESTED">Changes Requested</TabsTrigger>
-            <TabsTrigger value="APPROVED">Approved</TabsTrigger>
-          </TabsList>
-          <TabsContent value="PENDING">
-            <ReviewCards items={buckets.PENDING} />
-          </TabsContent>
-          <TabsContent value="IN_REVIEW">
-            <ReviewCards items={buckets.IN_REVIEW} />
-          </TabsContent>
-          <TabsContent value="CHANGES_REQUESTED">
-            <ReviewCards items={buckets.CHANGES_REQUESTED} />
-          </TabsContent>
-          <TabsContent value="APPROVED">
-            <ReviewCards items={buckets.APPROVED} />
-          </TabsContent>
-        </Tabs>
-      )}
+      <Tabs defaultValue="reviewerTasks" className="space-y-4">
+        <TabsList className="h-auto w-full justify-start gap-1 rounded-xl border border-amber-300/80 bg-amber-100/80 p-1 dark:border-amber-500/40 dark:bg-amber-500/20">
+          <TabsTrigger
+            value="reviewerTasks"
+            className="flex-none rounded-md border border-transparent bg-transparent px-4 text-amber-900/90 transition-colors hover:bg-amber-200/70 data-[state=active]:border-amber-400 data-[state=active]:bg-amber-400 data-[state=active]:text-amber-950 data-[state=active]:shadow-sm dark:text-amber-200 dark:hover:bg-amber-500/20 dark:data-[state=active]:border-amber-300 dark:data-[state=active]:bg-amber-300 dark:data-[state=active]:text-amber-950"
+          >
+            Intelligence Blockers ({reviewerTasksQuery.data?.length ?? 0})
+          </TabsTrigger>
+          <TabsTrigger
+            value="sectionReviews"
+            className="flex-none rounded-md border border-transparent bg-transparent px-4 text-amber-900/90 transition-colors hover:bg-amber-200/70 data-[state=active]:border-amber-400 data-[state=active]:bg-amber-400 data-[state=active]:text-amber-950 data-[state=active]:shadow-sm dark:text-amber-200 dark:hover:bg-amber-500/20 dark:data-[state=active]:border-amber-300 dark:data-[state=active]:bg-amber-300 dark:data-[state=active]:text-amber-950"
+          >
+            Strategy Review ({sectionReviewsQuery.data?.length ?? 0})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="reviewerTasks" className="space-y-4">
+          {reviewerTasksQuery.isLoading ? (
+            <Card className="border-border bg-card">
+              <CardContent className="p-5 text-sm text-muted-foreground">
+                Loading reviewer tasks...
+              </CardContent>
+            </Card>
+          ) : reviewerTasksQuery.error ? (
+            <Card className="border-destructive/40 bg-destructive/5">
+              <CardContent className="p-5 text-sm text-destructive">
+                {reviewerTasksQuery.error instanceof Error
+                  ? reviewerTasksQuery.error.message
+                  : 'Failed to load reviewer tasks.'}
+              </CardContent>
+            </Card>
+          ) : (reviewerTasksQuery.data ?? []).length === 0 ? (
+            <InboxEmpty
+              title="No intelligence blockers in this filter"
+              description="When intelligence blockers require reviewer input, tasks will appear here."
+            />
+          ) : (
+            <div className="space-y-3">
+              {(reviewerTasksQuery.data ?? []).map((task) => (
+                <ReviewerTaskRow key={task.id} task={task} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="sectionReviews" className="space-y-4">
+          <div className="flex justify-end">
+            <Link href="/app/reviewer/section-reviews">
+              <Button variant="outline" size="sm">
+                Open Full Strategy Review Inbox
+              </Button>
+            </Link>
+          </div>
+          {sectionReviewsQuery.isLoading ? (
+            <Card className="border-border bg-card">
+              <CardContent className="p-5 text-sm text-muted-foreground">
+                Loading section review tasks...
+              </CardContent>
+            </Card>
+          ) : sectionReviewsQuery.error ? (
+            <Card className="border-destructive/40 bg-destructive/5">
+              <CardContent className="p-5 text-sm text-destructive">
+                {sectionReviewsQuery.error instanceof Error
+                  ? sectionReviewsQuery.error.message
+                  : 'Failed to load section review tasks.'}
+              </CardContent>
+            </Card>
+          ) : (sectionReviewsQuery.data ?? []).length === 0 ? (
+            <InboxEmpty
+              title="No strategy review tasks in this filter"
+              description="Mandatory section approvals and revision requests will show up here."
+            />
+          ) : (
+            <div className="space-y-3">
+              {(sectionReviewsQuery.data ?? []).map((review) => (
+                <SectionReviewRow
+                  key={review.id}
+                  review={review}
+                  role={isAdmin ? 'ADMIN' : 'REVIEWER'}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

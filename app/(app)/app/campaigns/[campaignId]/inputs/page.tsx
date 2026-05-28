@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCampaignLifecycle } from '@/hooks/useCampaignLifecycle';
@@ -42,11 +42,6 @@ export default function CampaignInputsPage() {
       <Card className="mx-auto max-w-3xl border-border bg-card">
         <CardContent className="py-10 text-center">
           <p className="text-sm text-muted-foreground">Submitted inputs are only shown while this campaign is in review.</p>
-          <div className="mt-4">
-            <Button asChild variant="outline">
-              <Link href={`/app/campaigns/${campaignId}/overview`}>Back to Overview</Link>
-            </Button>
-          </div>
         </CardContent>
       </Card>
     );
@@ -57,7 +52,7 @@ export default function CampaignInputsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <Card className="border-border bg-card">
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <CardTitle className="font-space-grotesk text-lg">Submitted Inputs</CardTitle>
             <CardDescription>
@@ -66,12 +61,6 @@ export default function CampaignInputsPage() {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-            <Button asChild variant="outline">
-              <Link href={`/app/campaigns/${campaignId}/overview`}>
-                Back to Overview
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
             {filesAvailable ? (
               <Button asChild variant="ghost">
                 <Link href={`/app/campaigns/${campaignId}/files`}>

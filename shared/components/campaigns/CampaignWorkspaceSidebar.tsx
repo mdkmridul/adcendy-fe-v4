@@ -68,11 +68,6 @@ function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage):
             },
           ]
         : []),
-      {
-        label: 'Settings',
-        href: `/app/campaigns/${campaign.id}/settings`,
-        isActive: (pathname) => pathname.includes('/settings'),
-      },
     ];
   }
 
@@ -97,11 +92,6 @@ function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage):
             },
           ]
         : []),
-      {
-        label: 'Settings',
-        href: `/app/campaigns/${campaign.id}/settings`,
-        isActive: (pathname) => pathname.includes('/settings'),
-      },
     ];
   }
 
@@ -136,11 +126,6 @@ function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage):
           },
         ]
       : []),
-    {
-      label: 'Settings',
-      href: `/app/campaigns/${campaign.id}/settings`,
-      isActive: (pathname) => pathname.includes('/settings'),
-    },
   ];
 }
 

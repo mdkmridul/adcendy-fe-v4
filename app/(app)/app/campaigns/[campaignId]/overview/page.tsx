@@ -202,19 +202,11 @@ export default function OverviewPage() {
         </div>
 
         <Card className="border-border bg-card">
-          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <CardTitle className="font-space-grotesk text-lg">Submitted Inputs Summary</CardTitle>
-              <CardDescription>
-                A concise view of the most important details currently under review.
-              </CardDescription>
-            </div>
-            <Button asChild variant="outline">
-              <Link href={`/app/campaigns/${campaignId}/inputs`}>
-                View full inputs
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+          <CardHeader>
+            <CardTitle className="font-space-grotesk text-lg">Submitted Inputs Summary</CardTitle>
+            <CardDescription>
+              A concise view of the most important details currently under review.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <SubmittedInputsSummary campaign={campaign} preview={preview} />

@@ -94,6 +94,36 @@ export const queryKeys = {
         : [...queryKeys.adminReview.all, 'aiCallsList'] as const,
     aiCall: (callId: string) => [...queryKeys.adminReview.all, 'aiCall', callId] as const,
   },
+  opsV2: {
+    all: ['opsV2'] as const,
+    campaigns: () => [...queryKeys.opsV2.all, 'campaigns'] as const,
+    reviewerTasks: (filters?: Record<string, any>) =>
+      filters
+        ? [...queryKeys.opsV2.all, 'reviewerTasks', filters] as const
+        : [...queryKeys.opsV2.all, 'reviewerTasks'] as const,
+    reviewerTask: (taskId: string) => [...queryKeys.opsV2.all, 'reviewerTask', taskId] as const,
+    sectionReviews: (filters?: Record<string, any>) =>
+      filters
+        ? [...queryKeys.opsV2.all, 'sectionReviews', filters] as const
+        : [...queryKeys.opsV2.all, 'sectionReviews'] as const,
+    sectionReviewsByRun: (runId: string, filters?: Record<string, any>) =>
+      filters
+        ? [...queryKeys.opsV2.all, 'sectionReviewsByRun', runId, filters] as const
+        : [...queryKeys.opsV2.all, 'sectionReviewsByRun', runId] as const,
+    sectionReviewTask: (sectionReviewTaskId: string) =>
+      [...queryKeys.opsV2.all, 'sectionReviewTask', sectionReviewTaskId] as const,
+    sectionReviewWorkspace: (runId: string) =>
+      [...queryKeys.opsV2.all, 'sectionReviewWorkspace', runId] as const,
+    campaignHealth: (params?: { limit?: number; onlyUnhealthy?: boolean }) =>
+      params
+        ? [...queryKeys.opsV2.all, 'campaignHealth', params] as const
+        : [...queryKeys.opsV2.all, 'campaignHealth'] as const,
+    runEvents: (runId: string) => [...queryKeys.opsV2.all, 'runEvents', runId] as const,
+    runPhaseRollups: (runId: string) => [...queryKeys.opsV2.all, 'runPhaseRollups', runId] as const,
+    runAggregate: (runId: string) => [...queryKeys.opsV2.all, 'runAggregate', runId] as const,
+    reviewerOutcomes: () => [...queryKeys.opsV2.all, 'reviewerOutcomes'] as const,
+    costsSummary: () => [...queryKeys.opsV2.all, 'costsSummary'] as const,
+  },
   wizard: {
     all: ['wizard'] as const,
     options: (campaignId?: string) =>

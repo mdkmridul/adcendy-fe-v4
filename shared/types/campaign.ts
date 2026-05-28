@@ -105,6 +105,8 @@ export function formatCampaignStatus(value: CampaignStatus | string | null | und
 
 export interface Campaign {
   id: ID;
+  title: string;
+  // Legacy alias retained for existing UI and wizard flows.
   name: string;
   city: string;
   niche: string;
@@ -116,6 +118,13 @@ export interface Campaign {
   currentStep: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+  v2SourceType?: string | null;
+  v2PrimaryMarket?: string | null;
+  v2TargetMarkets?: string[];
+  v2BusinessName?: string | null;
+  v2IndustryCategory?: string | null;
+  v2PrimaryOfferings?: string[];
+  v2PrimaryGoal?: string | null;
 }
 
 export interface CreateCampaignPayload {

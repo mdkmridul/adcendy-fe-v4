@@ -10,6 +10,7 @@ import {
   FileStack,
   FolderKanban,
   Sparkles,
+  Stethoscope,
   TriangleAlert,
   UserPlus2,
   Workflow,
@@ -121,7 +122,25 @@ export default function AdminPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Stethoscope className="h-5 w-5" />
+              Campaign Health
+            </CardTitle>
+            <CardDescription>Telemetry-led stuck/error diagnostics across campaigns.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/admin/health">
+              <Button variant="outline" className="w-full justify-between">
+                Open Health Dashboard
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">

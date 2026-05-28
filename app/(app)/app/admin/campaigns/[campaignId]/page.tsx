@@ -10,7 +10,6 @@ import {
   useAdminCampaignDetail,
   useRefreshAdminCampaignIntelligence,
 } from '@/hooks/useAdminReview';
-import { useStrategyReview } from '@/hooks/useStrategyReviews';
 import { useToast } from '@/hooks/use-toast';
 import { adminReviewRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
@@ -61,7 +60,6 @@ export default function AdminCampaignDetailPage() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const campaignDetailQuery = useAdminCampaignDetail(campaignId, user?.role === 'ADMIN');
-  const reviewQuery = useStrategyReview(campaignId);
   const refreshMutation = useRefreshAdminCampaignIntelligence(campaignId);
   const jobsQuery = useQuery({
     queryKey: queryKeys.adminReview.jobsByEntity('CAMPAIGN', campaignId, 6),
@@ -107,6 +105,8 @@ export default function AdminCampaignDetailPage() {
   }
 
   const campaignDetail = campaignDetailQuery.data;
+  const latestRunId = campaignDetail?.latestRun?.id ?? null;
+  const reviewWorkspaceHref = latestRunId ? `/app/admin/runs/${latestRunId}` : null;
 
   return (
     <div className="space-y-6 p-6">
@@ -127,7 +127,7 @@ export default function AdminCampaignDetailPage() {
             {campaignDetail?.campaign.title ?? `Campaign ${campaignId}`}
           </h1>
           <p className="text-muted-foreground">
-            Admin detail backed by `GET /v1/admin/campaigns/:id` with review visibility layered in.
+            Admin detail backed by `GET /v1/admin/campaigns/:id` with run and telemetry visibility.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -153,11 +153,43 @@ export default function AdminCampaignDetailPage() {
             <RefreshCcw className="mr-2 h-4 w-4" />
             {refreshMutation.isPending ? 'Queuing...' : 'Refresh Intelligence'}
           </Button>
-          <Link href={`/admin/campaigns/${campaignId}/review`}>
-            <Button>Open Review Overview</Button>
-          </Link>
+          {latestRunId ? (
+            <Link href={`/app/admin/runs/${latestRunId}`}>
+              <Button>Open Run Workspace</Button>
+            </Link>
+          ) : (
+            <Button disabled>No Run Workspace Yet</Button>
+          )}
         </div>
       </div>
+
+      <Card className="border-border bg-card">
+        <CardContent className="flex flex-wrap items-center gap-2 p-3">
+          <Button size="sm">Overview</Button>
+          {reviewWorkspaceHref ? (
+            <Link href={`${reviewWorkspaceHref}?tab=input-details`}>
+              <Button size="sm" variant="outline">
+                Input Details
+              </Button>
+            </Link>
+          ) : (
+            <Button size="sm" variant="outline" disabled>
+              Input Details
+            </Button>
+          )}
+          {reviewWorkspaceHref ? (
+            <Link href={`${reviewWorkspaceHref}?tab=strategy`}>
+              <Button size="sm" variant="outline">
+                Strategy
+              </Button>
+            </Link>
+          ) : (
+            <Button size="sm" variant="outline" disabled>
+              Strategy
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       {campaignDetailQuery.isLoading ? (
         <div className="text-sm text-muted-foreground">Loading campaign detail...</div>
@@ -327,38 +359,24 @@ export default function AdminCampaignDetailPage() {
 
             <Card className="border-border bg-card">
               <CardHeader>
-                <CardTitle>Review Workflow</CardTitle>
-                <CardDescription>Review visibility from `GET /v1/campaigns/:id/strategy-review`.</CardDescription>
+                <CardTitle>Run Workspace</CardTitle>
+                <CardDescription>
+                  Strategy review inputs and sections are available from the v2 run workspace route.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {reviewQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading review state...</p>
-                ) : reviewQuery.error ? (
-                  <p className="text-sm text-muted-foreground">No strategy review exists yet for this campaign.</p>
-                ) : reviewQuery.data ? (
+              <CardContent className="space-y-3">
+                {latestRunId ? (
                   <>
-                    <div className="rounded-lg border border-border bg-background p-4">
-                      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Overall review status</p>
-                      <div className="mt-2">
-                        <ReviewStatusBadge status={reviewQuery.data.status} />
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border bg-background p-4">
-                      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Assigned reviewer</p>
-                      <p className="mt-2 font-medium">
-                        {reviewQuery.data.assignedReviewer?.displayName ?? reviewQuery.data.assignedReviewer?.email ?? 'Unassigned'}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      {reviewQuery.data.deliverables.map((deliverable) => (
-                        <div key={deliverable.key} className="flex items-center justify-between rounded-lg border border-border bg-background p-3">
-                          <p className="text-sm font-medium">{deliverable.label}</p>
-                          <ReviewStatusBadge status={deliverable.status} />
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-sm text-muted-foreground">Latest run id: {latestRunId}</p>
+                    <Link href={`/app/admin/runs/${latestRunId}`}>
+                      <Button className="w-full">Open Admin Run Workspace</Button>
+                    </Link>
                   </>
-                ) : null}
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No latest run is available for this campaign yet.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>

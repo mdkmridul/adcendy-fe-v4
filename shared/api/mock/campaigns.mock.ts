@@ -5,6 +5,7 @@ export const mockCampaignState = {
   campaigns: [
     {
       id: 'campaign-001',
+      title: 'SaaS Product Launch',
       name: 'SaaS Product Launch',
       city: 'San Francisco',
       niche: 'B2B SaaS',
@@ -16,9 +17,17 @@ export const mockCampaignState = {
       currentStep: 2,
       createdAt: '2024-01-15T10:00:00Z',
       updatedAt: '2024-01-20T14:30:00Z',
+      v2SourceType: 'website',
+      v2PrimaryMarket: 'San Francisco',
+      v2TargetMarkets: ['San Francisco', 'United States'],
+      v2BusinessName: 'Example SaaS',
+      v2IndustryCategory: 'B2B SaaS',
+      v2PrimaryOfferings: ['Team productivity software'],
+      v2PrimaryGoal: 'lead_generation',
     },
     {
       id: 'campaign-002',
+      title: 'Local Fitness Studio',
       name: 'Local Fitness Studio',
       city: 'Austin',
       niche: 'Fitness',
@@ -30,6 +39,13 @@ export const mockCampaignState = {
       currentStep: 4,
       createdAt: '2024-02-01T09:15:00Z',
       updatedAt: '2024-02-10T16:45:00Z',
+      v2SourceType: 'digital_presence_only',
+      v2PrimaryMarket: 'Austin',
+      v2TargetMarkets: ['Austin'],
+      v2BusinessName: 'Local Fitness Studio',
+      v2IndustryCategory: 'Fitness',
+      v2PrimaryOfferings: ['Personal training', 'Group classes'],
+      v2PrimaryGoal: 'revenue_growth',
     },
   ] as Campaign[],
 };
@@ -57,6 +73,7 @@ export const campaignsMockAdapter = {
     await delay(300);
     const campaign: Campaign = {
       id: `campaign-${Date.now()}`,
+      title: 'Untitled Campaign',
       name: 'Untitled Campaign',
       city: '',
       niche: '',
@@ -68,6 +85,13 @@ export const campaignsMockAdapter = {
       currentStep: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      v2SourceType: null,
+      v2PrimaryMarket: null,
+      v2TargetMarkets: [],
+      v2BusinessName: null,
+      v2IndustryCategory: null,
+      v2PrimaryOfferings: [],
+      v2PrimaryGoal: null,
     };
     mockCampaignState.campaigns.push(campaign);
     return campaign;
@@ -77,6 +101,7 @@ export const campaignsMockAdapter = {
     await delay(300);
     const campaign: Campaign = {
       id: `campaign-${Date.now()}`,
+      title: payload.title,
       name: payload.title,
       city: payload.marketLocation,
       niche: '',
@@ -88,6 +113,13 @@ export const campaignsMockAdapter = {
       currentStep: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      v2SourceType: null,
+      v2PrimaryMarket: payload.marketLocation,
+      v2TargetMarkets: payload.marketLocation ? [payload.marketLocation] : [],
+      v2BusinessName: payload.title,
+      v2IndustryCategory: null,
+      v2PrimaryOfferings: [],
+      v2PrimaryGoal: null,
     };
     mockCampaignState.campaigns.push(campaign);
     return campaign;
@@ -101,8 +133,16 @@ export const campaignsMockAdapter = {
     }
     const updated = {
       ...mockCampaignState.campaigns[idx],
-      ...(payload.title !== undefined ? { name: payload.title } : {}),
-      ...(payload.marketLocation !== undefined ? { city: payload.marketLocation } : {}),
+      ...(payload.title !== undefined
+        ? { title: payload.title, name: payload.title, v2BusinessName: payload.title }
+        : {}),
+      ...(payload.marketLocation !== undefined
+        ? {
+            city: payload.marketLocation,
+            v2PrimaryMarket: payload.marketLocation,
+            v2TargetMarkets: payload.marketLocation ? [payload.marketLocation] : [],
+          }
+        : {}),
       ...(payload.businessType !== undefined ? { businessType: payload.businessType } : {}),
       ...(payload.businessModel !== undefined ? { businessModel: payload.businessModel } : {}),
       ...(payload.marketScope !== undefined ? { marketScope: payload.marketScope } : {}),
@@ -154,8 +194,16 @@ export function updateMockCampaignClassification(
 
   mockCampaignState.campaigns[idx] = {
     ...mockCampaignState.campaigns[idx],
-    ...(payload.title !== undefined ? { name: payload.title } : {}),
-    ...(payload.marketLocation !== undefined ? { city: payload.marketLocation } : {}),
+    ...(payload.title !== undefined
+      ? { title: payload.title, name: payload.title, v2BusinessName: payload.title }
+      : {}),
+    ...(payload.marketLocation !== undefined
+      ? {
+          city: payload.marketLocation,
+          v2PrimaryMarket: payload.marketLocation,
+          v2TargetMarkets: payload.marketLocation ? [payload.marketLocation] : [],
+        }
+      : {}),
     ...(payload.businessType !== undefined ? { businessType: payload.businessType } : {}),
     ...(payload.businessModel !== undefined ? { businessModel: payload.businessModel } : {}),
     ...(payload.marketScope !== undefined ? { marketScope: payload.marketScope } : {}),

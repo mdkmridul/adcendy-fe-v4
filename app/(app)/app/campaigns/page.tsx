@@ -39,7 +39,17 @@ export default function CampaignsPage() {
     const query = searchQuery.toLowerCase();
     return campaigns.filter((campaign) =>
       [
+        campaign.title,
         campaign.name,
+        campaign.status,
+        String(campaign.currentStep),
+        campaign.v2SourceType,
+        campaign.v2PrimaryMarket,
+        ...(campaign.v2TargetMarkets ?? []),
+        campaign.v2BusinessName,
+        campaign.v2IndustryCategory,
+        ...(campaign.v2PrimaryOfferings ?? []),
+        campaign.v2PrimaryGoal,
         campaign.city,
         campaign.niche,
         campaign.businessType,
@@ -84,6 +94,23 @@ export default function CampaignsPage() {
     const wizardStepParam = Number(searchParams.get('wizardStep'));
 
     if (!draftCampaignId) {
+      return;
+    }
+
+    if (isLoading) {
+      return;
+    }
+
+    const targetedCampaign = campaigns.find((campaign) => campaign.id === draftCampaignId);
+    if (!targetedCampaign) {
+      setWizardModalState(null);
+      router.replace('/app/campaigns');
+      return;
+    }
+
+    if (targetedCampaign.status !== 'DRAFT') {
+      setWizardModalState(null);
+      router.replace(`/app/campaigns/${targetedCampaign.id}`);
       return;
     }
 
@@ -132,7 +159,7 @@ export default function CampaignsPage() {
     return () => {
       isCancelled = true;
     };
-  }, [searchParams]);
+  }, [campaigns, isLoading, router, searchParams]);
 
   if (error) {
     return (
@@ -160,7 +187,7 @@ export default function CampaignsPage() {
           <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 sm:min-w-[320px]">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by campaign, market, type, or niche"
+              placeholder="Search by title, source, market, business, goal, or status"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="h-auto border-0 bg-transparent px-0 focus-visible:ring-0"

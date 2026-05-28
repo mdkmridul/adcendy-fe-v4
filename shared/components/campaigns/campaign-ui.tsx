@@ -143,7 +143,7 @@ export function getCampaignLifecycleStatus(stage: CampaignLifecycleStage, campai
 export function deriveCampaignState(campaign: Campaign): DerivedCampaignState {
   const currentStep = clampStep(campaign.currentStep);
   const websiteHost = extractWebsiteHost(campaign.website);
-  const marketLabel = campaign.city || campaign.niche || 'Market not set';
+  const marketLabel = campaign.v2PrimaryMarket || campaign.city || campaign.niche || 'Market not set';
 
   if (campaign.status === 'ARCHIVED') {
     return {

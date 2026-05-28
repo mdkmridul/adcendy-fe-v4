@@ -1,20 +1,37 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ExternalLink, MapPin } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { Card } from '@/components/ui/card';
-import {
-  formatBusinessModel,
-  formatBusinessType,
-  formatMarketScope,
-  type Campaign,
-} from '@/shared/types/campaign';
-import {
-  CampaignProgressSummary,
-  CampaignStatusBadge,
-  deriveCampaignState,
-} from './campaign-ui';
+import { type Campaign } from '@/shared/types/campaign';
+
+function formatTokenLabel(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatListLabel(values?: string[]) {
+  if (!values?.length) {
+    return null;
+  }
+
+  return values.map((value) => value.trim()).filter(Boolean).join(', ');
+}
+
+function withFallback(value?: string | null) {
+  return value && value.trim().length > 0 ? value : '-';
+}
+
+const TOP_ROW_PILL_CLASSES = [
+  'border-sky-200 bg-sky-50 text-sky-800',
+  'border-emerald-200 bg-emerald-50 text-emerald-800',
+  'border-amber-200 bg-amber-50 text-amber-800',
+];
 
 export function CampaignListItem({
   campaign,
@@ -26,13 +43,8 @@ export function CampaignListItem({
   onOpenDraftWizard?: (campaign: Campaign) => void;
 }) {
   const router = useRouter();
-  const state = deriveCampaignState(campaign);
   const entryHref = `/app/campaigns/${campaign.id}`;
-  const classificationMeta = [
-    formatBusinessType(campaign.businessType),
-    formatBusinessModel(campaign.businessModel),
-    formatMarketScope(campaign.marketScope),
-  ].filter(Boolean);
+
   const openCampaign = () => {
     onOpen?.(campaign.id);
     if (campaign.status === 'DRAFT' && onOpenDraftWizard) {
@@ -41,6 +53,24 @@ export function CampaignListItem({
     }
     router.push(entryHref);
   };
+
+  const targetMarkets =
+    formatListLabel(campaign.v2TargetMarkets) ||
+    campaign.v2PrimaryMarket ||
+    campaign.city ||
+    null;
+
+  const topRowValues = [
+    formatTokenLabel(campaign.status),
+    `Step ${campaign.currentStep}`,
+    targetMarkets,
+  ];
+
+  const secondRowValues = [
+    formatTokenLabel(campaign.v2SourceType),
+    campaign.v2IndustryCategory || campaign.niche || null,
+    formatListLabel(campaign.v2PrimaryOfferings),
+  ];
 
   return (
     <Card
@@ -55,46 +85,40 @@ export function CampaignListItem({
         }
       }}
     >
-      <div className="min-w-0 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0">
-            <h2 className="truncate font-space-grotesk text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
-              {campaign.name}
-            </h2>
-          </div>
-          <CampaignStatusBadge campaign={campaign} />
+      <div className="min-w-0 space-y-3">
+        <div className="inline-flex max-w-full rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5">
+          <h2 className="truncate font-space-grotesk text-2xl font-extrabold tracking-tight text-foreground transition-colors group-hover:text-primary">
+            {campaign.title || campaign.name}
+          </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="h-4 w-4" />
-            {state.marketLabel}
-          </span>
-          {campaign.niche ? <span>{campaign.niche}</span> : null}
-          {classificationMeta.map((value, index) => (
-            <span key={`${value}-${index}`}>{value}</span>
-          ))}
-          {state.websiteHost ? (
-            <span className="inline-flex items-center gap-1.5">
-              {state.websiteHost}
-              {campaign.website ? (
-                <a
-                  href={campaign.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(event) => event.stopPropagation()}
-                  className="text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label={`Open ${state.websiteHost}`}
+        <div className="flex flex-wrap items-center gap-2">
+          {topRowValues.map((value, index) => {
+            const isLast = index === topRowValues.length - 1;
+            return (
+              <div key={`top-${index}`} className="inline-flex items-center gap-2">
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${TOP_ROW_PILL_CLASSES[index % TOP_ROW_PILL_CLASSES.length]}`}
                 >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              ) : null}
-            </span>
-          ) : null}
-          <span>Updated {formatDistanceToNow(new Date(campaign.updatedAt), { addSuffix: true })}</span>
+                  {withFallback(value)}
+                </span>
+                {!isLast ? <span className="text-xs text-muted-foreground/70">|</span> : null}
+              </div>
+            );
+          })}
         </div>
 
-        <CampaignProgressSummary campaign={campaign} />
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+          {secondRowValues.map((value, index) => {
+            const isLast = index === secondRowValues.length - 1;
+            return (
+              <div key={`bottom-${index}`} className="inline-flex items-center gap-3">
+                <span>{withFallback(value)}</span>
+                {!isLast ? <span className="text-xs text-muted-foreground/70">|</span> : null}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </Card>
   );

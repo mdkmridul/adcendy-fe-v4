@@ -21,8 +21,9 @@ interface NavItem {
 }
 
 const allNavItems: NavItem[] = [
-  { href: '/app/reviewer/strategy-reviews', label: 'Reviewer Inbox', minimumRole: 'REVIEWER', visibleFor: ['REVIEWER'] },
+  { href: '/app/reviewer/strategy-reviews', label: 'Reviewer Inbox', minimumRole: 'REVIEWER', visibleFor: ['REVIEWER', 'ADMIN'] },
   { href: '/admin', label: 'Admin', minimumRole: 'ADMIN', visibleFor: ['ADMIN'] },
+  { href: '/admin/health', label: 'Campaign Health', minimumRole: 'ADMIN', visibleFor: ['ADMIN'] },
   { href: '/admin/campaigns', label: 'Admin Campaigns', minimumRole: 'ADMIN', visibleFor: ['ADMIN'] },
   { href: '/admin/reviewers', label: 'Reviewers', minimumRole: 'ADMIN', visibleFor: ['ADMIN'] },
   { href: '/admin/jobs', label: 'Jobs', minimumRole: 'ADMIN', visibleFor: ['ADMIN'] },
@@ -80,12 +81,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push('/auth/login');
   };
 
+  const normalizeAppPath = (value: string) => (value.startsWith('/app/') ? value.slice(4) : value);
+  const matchesSection = (currentPath: string, sectionPath: string) =>
+    currentPath === sectionPath || currentPath.startsWith(`${sectionPath}/`);
+
   const isActive = (href: string) => {
-    if (href === '/admin') {
-      return pathname === href;
+    const currentPath = normalizeAppPath(pathname);
+    const sectionPath = normalizeAppPath(href);
+
+    if (sectionPath === '/reviewer/strategy-reviews') {
+      return (
+        matchesSection(currentPath, '/reviewer/strategy-reviews') ||
+        matchesSection(currentPath, '/reviewer/section-reviews') ||
+        matchesSection(currentPath, '/reviewer/tasks') ||
+        matchesSection(currentPath, '/reviewer/runs') ||
+        matchesSection(currentPath, '/admin/runs') ||
+        /^\/admin\/campaigns\/[^/]+\/review(?:\/|$)/.test(currentPath)
+      );
     }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    if (sectionPath === '/admin') {
+      return currentPath === sectionPath;
+    }
+
+    return matchesSection(currentPath, sectionPath);
   };
 
   if (isClientShell) {

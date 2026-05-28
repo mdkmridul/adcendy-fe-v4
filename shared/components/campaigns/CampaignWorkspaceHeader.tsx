@@ -34,7 +34,7 @@ export function CampaignWorkspaceHeader({
   const campaignState = deriveCampaignState(campaign);
   const draftSetupHref = getCampaignSetupHref(campaign);
   const draftAtPreview = draftSetupHref.endsWith('/setup/preview');
-  const showPrimaryAction = stage !== 'draft' || pathname.includes('/setup/preview');
+  const showPrimaryAction = stage === 'active' || pathname.includes('/setup/preview');
   const headerMetaItems = [
     { label: 'Market', value: campaignState.marketLabel },
     { label: 'Business Type', value: formatBusinessType(campaign.businessType) },
@@ -57,15 +57,7 @@ export function CampaignWorkspaceHeader({
             }
           : null
       : stage === 'waiting'
-        ? pathname.includes('/overview')
-          ? {
-              label: 'Open Inputs',
-              href: `/app/campaigns/${campaign.id}/inputs`,
-            }
-          : {
-              label: 'Open Overview',
-              href: `/app/campaigns/${campaign.id}/overview`,
-            }
+        ? null
       : pathname.includes('/strategy')
         ? {
             label: 'Open Weekly',

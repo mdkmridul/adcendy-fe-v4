@@ -3,6 +3,7 @@ import type { Campaign } from '@/shared/types/campaign';
 export const mockCampaignsList: Campaign[] = [
   {
     id: 'campaign-001',
+    title: 'Urban Fitness Center',
     name: 'Urban Fitness Center',
     city: 'San Francisco',
     niche: 'Health & Fitness',
@@ -14,9 +15,17 @@ export const mockCampaignsList: Campaign[] = [
     currentStep: 1,
     createdAt: '2024-01-15T10:00:00Z',
     updatedAt: '2024-01-20T14:30:00Z',
+    v2SourceType: 'website',
+    v2PrimaryMarket: 'San Francisco',
+    v2TargetMarkets: ['San Francisco'],
+    v2BusinessName: 'Urban Fitness Center',
+    v2IndustryCategory: 'Health & Fitness',
+    v2PrimaryOfferings: ['Personal training'],
+    v2PrimaryGoal: 'lead_generation',
   },
   {
     id: 'campaign-002',
+    title: 'Tech Startup Consulting',
     name: 'Tech Startup Consulting',
     city: 'New York',
     niche: 'B2B Services',
@@ -28,5 +37,12 @@ export const mockCampaignsList: Campaign[] = [
     currentStep: 4,
     createdAt: '2024-02-01T08:00:00Z',
     updatedAt: '2024-02-05T11:15:00Z',
+    v2SourceType: 'digital_presence_only',
+    v2PrimaryMarket: 'New York',
+    v2TargetMarkets: ['New York', 'United States'],
+    v2BusinessName: 'Tech Startup Consulting',
+    v2IndustryCategory: 'B2B Services',
+    v2PrimaryOfferings: ['Growth consulting', 'Market intelligence'],
+    v2PrimaryGoal: 'revenue_growth',
   },
 ];

@@ -4,8 +4,6 @@ export const ROLE_ORDER: readonly Role[] = ['CLIENT', 'REVIEWER', 'ADMIN'] as co
 
 const exactRolePathPolicies: Array<{ pattern: RegExp; exactRole: Role }> = [
   { pattern: /^\/admin(?:\/|$)/, exactRole: 'ADMIN' },
-  { pattern: /^\/app\/reviewer(?:\/|$)/, exactRole: 'REVIEWER' },
-  { pattern: /^\/app\/review(?:\/|$)/, exactRole: 'REVIEWER' },
   { pattern: /^\/app\/campaigns(?:\/|$)/, exactRole: 'CLIENT' },
   { pattern: /^\/app\/strategy(?:\/|$)/, exactRole: 'CLIENT' },
   { pattern: /^\/app\/weekly(?:\/|$)/, exactRole: 'CLIENT' },
@@ -35,6 +33,8 @@ export const routePolicies: Record<string, Role> = {
   '/admin/reviewers': 'ADMIN',
   '/admin/jobs': 'ADMIN',
   '/admin/ai': 'ADMIN',
+  '/admin/health': 'ADMIN',
+  '/admin/runs': 'ADMIN',
   '/app/campaigns': 'CLIENT',
   '/app/strategy': 'CLIENT',
   '/app/weekly': 'CLIENT',
@@ -45,8 +45,13 @@ export const routePolicies: Record<string, Role> = {
   '/app/admin/jobs': 'ADMIN',
   '/app/admin/ai': 'ADMIN',
   '/app/admin/ai-usage': 'ADMIN',
+  '/app/admin/health': 'ADMIN',
+  '/app/admin/runs': 'ADMIN',
   '/app/reviewer': 'REVIEWER',
   '/app/reviewer/strategy-reviews': 'REVIEWER',
+  '/app/reviewer/tasks': 'REVIEWER',
+  '/app/reviewer/section-reviews': 'REVIEWER',
+  '/app/reviewer/runs': 'REVIEWER',
   '/app/reviewer/campaigns': 'REVIEWER',
   '/app/review': 'REVIEWER',
 };

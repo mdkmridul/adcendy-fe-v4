@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
+import { SectionReviewRunWorkspace } from '@/shared/components/ops/SectionReviewRunWorkspace';
 import { RunStatusCard } from '@/shared/components/run/RunStatusCard';
 import { useRunPolling } from '@/shared/run/useRunPolling';
 import { strategyRepository } from '@/shared/api/repositories';
@@ -58,19 +59,23 @@ export default function StrategyRunStatusPage() {
       />
 
       {run?.status === 'SUCCEEDED' && (
-        <Card className="p-6 border border-green-500/20 bg-green-500/5 space-y-4">
-          <div>
-            <h2 className="font-semibold text-foreground">Strategy Ready</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Your market strategy has been generated and is ready for review.
-            </p>
-          </div>
-          <Link href={`/app/campaigns/${campaignId}/strategy`}>
-            <Button className="w-full gap-2" size="lg">
-              View Strategy <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </Card>
+        <div className="space-y-4">
+          <Card className="p-6 border border-green-500/20 bg-green-500/5 space-y-4">
+            <div>
+              <h2 className="font-semibold text-foreground">Strategy Ready</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your market strategy has been generated and is ready for review.
+              </p>
+            </div>
+            <Link href={`/app/campaigns/${campaignId}/strategy`}>
+              <Button className="w-full gap-2" size="lg">
+                View Strategy <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </Card>
+
+          <SectionReviewRunWorkspace runId={strategyRunId} role="CLIENT" />
+        </div>
       )}
 
       {run?.status === 'FAILED' && (

@@ -1,23 +1,49 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { AlertCircle, ChevronLeft } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { AlertCircle } from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
-import { StrategyReviewWorkspace } from '@/shared/components/reviews/StrategyReviewWorkspace';
+import { useCampaignRunWorkspace } from '@/hooks/useCampaignRunWorkspace';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function ReviewerCampaignReviewPage() {
   const params = useParams();
+  const router = useRouter();
   const campaignId = params?.campaignId as string;
   const { user, isLoading } = useAuth();
+  const isOpsRole = user?.role === 'REVIEWER' || user?.role === 'ADMIN';
+  const runWorkspace = useCampaignRunWorkspace(campaignId, isOpsRole);
 
-  if (isLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading reviewer workspace...</div>;
+  useEffect(() => {
+    if (isLoading || !isOpsRole || runWorkspace.isLoading) {
+      return;
+    }
+
+    if (user?.role === 'ADMIN') {
+      if (runWorkspace.runId) {
+        router.replace(`/app/admin/runs/${runWorkspace.runId}`);
+        return;
+      }
+
+      router.replace(`/app/admin/campaigns/${campaignId}`);
+      return;
+    }
+
+    const inboxQuery = runWorkspace.runId
+      ? `?pipelineRunId=${encodeURIComponent(runWorkspace.runId)}`
+      : '';
+
+    router.replace(`/app/reviewer/strategy-reviews${inboxQuery}`);
+  }, [campaignId, isLoading, isOpsRole, router, runWorkspace.isLoading, runWorkspace.runId, user?.role]);
+
+  if (isLoading || runWorkspace.isLoading) {
+    return <div className="p-6 text-sm text-muted-foreground">Resolving review workspace...</div>;
   }
 
-  if (user?.role !== 'REVIEWER') {
+  if (!isOpsRole) {
     return (
       <div className="p-6">
         <Card className="border-destructive/40 bg-destructive/5">
@@ -26,7 +52,7 @@ export default function ReviewerCampaignReviewPage() {
             <div className="space-y-1">
               <p className="text-lg font-semibold">Permission denied</p>
               <p className="text-sm text-muted-foreground">
-                Only reviewers can access this review workspace.
+                Only reviewer and admin users can access review workspaces.
               </p>
             </div>
           </CardContent>
@@ -35,24 +61,22 @@ export default function ReviewerCampaignReviewPage() {
     );
   }
 
-  return (
-    <div className="space-y-6 p-6">
-      <div className="space-y-3 pb-6">
+  if (runWorkspace.error) {
+    return (
+      <div className="space-y-4 p-6">
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="py-6 text-sm text-destructive">
+            {runWorkspace.error instanceof Error
+              ? runWorkspace.error.message
+              : 'Failed to resolve a run workspace for this campaign.'}
+          </CardContent>
+        </Card>
         <Link href="/app/reviewer/strategy-reviews">
-          <Button variant="ghost" className="-ml-3 w-fit">
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Back to Reviewer Inbox
-          </Button>
+          <Button variant="outline">Back to Reviewer Inbox</Button>
         </Link>
-        <div className="space-y-2">
-          <h1 className="font-space-grotesk text-3xl font-bold text-foreground">Reviewer Workspace</h1>
-          <p className="text-muted-foreground">
-            Section-by-section review surface for strategy and execution outputs.
-          </p>
-        </div>
       </div>
+    );
+  }
 
-      <StrategyReviewWorkspace campaignId={campaignId} />
-    </div>
-  );
+  return <div className="p-6 text-sm text-muted-foreground">Redirecting to the current review flow...</div>;
 }
