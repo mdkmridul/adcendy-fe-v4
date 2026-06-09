@@ -72,18 +72,87 @@ export interface HttpOptions {
   query?: Record<string, any>;
   headers?: Record<string, string>;
   skipAuth?: boolean;
+  responseType?: 'auto' | 'json' | 'blob' | 'text' | 'arrayBuffer';
 }
 
-export async function http<T>(
+export interface HttpRawResponse<T> {
+  data: T;
+  headers: Headers;
+  status: number;
+  contentType: string | null;
+}
+
+async function performRequest(
+  url: string,
+  method: NonNullable<HttpOptions['method']>,
+  headers: Record<string, string>,
+  body: any,
+) {
+  return fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+async function parseSuccessResponse<T>(
+  response: Response,
+  responseType: NonNullable<HttpOptions['responseType']>,
+): Promise<T> {
+  const contentType = response.headers.get('content-type');
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  if (responseType === 'blob') {
+    return (await response.blob()) as T;
+  }
+
+  if (responseType === 'text') {
+    return (await response.text()) as T;
+  }
+
+  if (responseType === 'arrayBuffer') {
+    return (await response.arrayBuffer()) as T;
+  }
+
+  if (contentType?.includes('application/json')) {
+    return (await response.json()) as T;
+  }
+
+  if (responseType === 'json') {
+    const text = await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  }
+
+  return undefined as T;
+}
+
+async function parseErrorResponse(response: Response) {
+  const contentType = response.headers.get('content-type');
+
+  if (contentType?.includes('application/json')) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  return {
+    message: text || response.statusText,
+  };
+}
+
+export async function httpRaw<T>(
   path: string,
   options: HttpOptions = {},
-): Promise<T> {
+): Promise<HttpRawResponse<T>> {
   const {
     method = 'GET',
     body,
     query,
     headers = {},
     skipAuth = false,
+    responseType = 'auto',
   } = options;
 
   const baseUrl = ENV.API.baseURL;
@@ -117,20 +186,7 @@ export async function http<T>(
   }
 
   try {
-    const response = await fetch(url, {
-      method,
-      headers: finalHeaders,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    // Parse response
-    let data: any;
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      data = await response.json();
-    } else if (!response.ok) {
-      data = { message: response.statusText };
-    }
+    let response = await performRequest(url, method, finalHeaders, body);
 
     // Handle 401 Unauthorized - attempt token refresh
     if (response.status === 401 && !skipAuth) {
@@ -143,29 +199,16 @@ export async function http<T>(
       if (newToken) {
         // Retry the request with the new token
         finalHeaders.Authorization = `Bearer ${newToken}`;
-        
-        const retryResponse = await fetch(url, {
-          method,
-          headers: finalHeaders,
-          body: body ? JSON.stringify(body) : undefined,
-        });
 
-        // Parse retry response
-        if (contentType?.includes('application/json')) {
-          data = await retryResponse.json();
-        } else if (!retryResponse.ok) {
-          data = { message: retryResponse.statusText };
-        }
+        response = await performRequest(url, method, finalHeaders, body);
 
-        if (!retryResponse.ok) {
-          // Retry failed, throw error
-          const errorMessage = data?.message || data?.error || data?.data?.message || retryResponse.statusText || 'API Error';
-          const error = normalizeError(errorMessage, retryResponse.status, requestId);
+        if (!response.ok) {
+          const data = await parseErrorResponse(response);
+          const errorMessage = data?.message || data?.error || data?.data?.message || response.statusText || 'API Error';
+          const error = normalizeError(errorMessage, response.status, requestId);
           error.details = data?.details || data;
           throw error;
         }
-
-        return data as T;
       } else {
         // Refresh failed, redirect to login
         if (typeof window !== 'undefined') {
@@ -183,6 +226,7 @@ export async function http<T>(
 
     // Handle other errors
     if (!response.ok) {
+      const data = await parseErrorResponse(response);
       // Extract error message from various possible formats
       const errorMessage = data?.message || data?.error || data?.data?.message || response.statusText || 'API Error';
       const error = normalizeError(errorMessage, response.status, requestId);
@@ -194,7 +238,12 @@ export async function http<T>(
       throw error;
     }
 
-    return data as T;
+    return {
+      data: await parseSuccessResponse<T>(response, responseType),
+      headers: response.headers,
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+    };
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
@@ -202,4 +251,12 @@ export async function http<T>(
     // Network error
     throw normalizeError(error, undefined, requestId);
   }
+}
+
+export async function http<T>(
+  path: string,
+  options: HttpOptions = {},
+): Promise<T> {
+  const response = await httpRaw<T>(path, options);
+  return response.data;
 }

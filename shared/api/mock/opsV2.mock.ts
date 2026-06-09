@@ -1,4 +1,5 @@
 import type {
+  AdminDownloadResponse,
   AdminCampaignTriggerType,
   AdminCostsSummary,
   CampaignHealthItem,
@@ -731,18 +732,50 @@ export const opsV2MockAdapter = {
     trigger: AdminCampaignTriggerType,
     payload?: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    const requestPayload =
-      trigger === 'pipeline' && payload && typeof payload === 'object'
-        ? Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'runId'))
-        : payload;
-
     await delay(220);
     return {
       campaignId,
       trigger,
-      payload: requestPayload ?? {},
+      payload: payload ?? {},
       status: 'QUEUED',
       queuedAt: nowIso(),
+    };
+  },
+
+  async downloadAdminCampaignOutput(
+    campaignId: string,
+    _payload?: Record<string, unknown>,
+  ): Promise<AdminDownloadResponse> {
+    await delay(220);
+    const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 1 /Kids [3 0 R] >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 54 >>
+stream
+BT /F1 18 Tf 36 96 Td (Mock output for ${campaignId}) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+trailer
+<< /Root 1 0 R >>
+%%EOF`;
+
+    return {
+      blob: new Blob([pdfContent], {
+        type: 'application/pdf',
+      }),
+      filename: `${campaignId}-output.pdf`,
+      contentType: 'application/pdf',
     };
   },
 
@@ -752,6 +785,16 @@ export const opsV2MockAdapter = {
       campaignId,
       status: 'QUEUED',
       action: 'recreate-latest-commit',
+      queuedAt: nowIso(),
+    };
+  },
+
+  async assembleAdminRunInternalOutput(runId: string): Promise<Record<string, unknown>> {
+    await delay(220);
+    return {
+      runId,
+      status: 'QUEUED',
+      action: 'assemble-internal-output',
       queuedAt: nowIso(),
     };
   },

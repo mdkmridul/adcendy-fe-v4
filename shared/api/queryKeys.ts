@@ -124,6 +124,11 @@ export const queryKeys = {
     reviewerOutcomes: () => [...queryKeys.opsV2.all, 'reviewerOutcomes'] as const,
     costsSummary: () => [...queryKeys.opsV2.all, 'costsSummary'] as const,
   },
+  legal: {
+    all: ['legal'] as const,
+    activeDocuments: () => [...queryKeys.legal.all, 'activeDocuments'] as const,
+    consentsMe: () => [...queryKeys.legal.all, 'consentsMe'] as const,
+  },
   wizard: {
     all: ['wizard'] as const,
     options: (campaignId?: string) =>

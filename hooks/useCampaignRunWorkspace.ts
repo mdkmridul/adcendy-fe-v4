@@ -14,7 +14,9 @@ interface CampaignRunWorkspaceResult {
 }
 
 export function useCampaignRunWorkspace(campaignId: ID | null, enabled = true): CampaignRunWorkspaceResult {
-  const overviewsQuery = useOpsCampaignOverviews(Boolean(campaignId) && enabled);
+  const overviewsQuery = useOpsCampaignOverviews(Boolean(campaignId) && enabled, {
+    refetchOnMount: 'always',
+  });
 
   const overview = useMemo(() => {
     if (!campaignId) {

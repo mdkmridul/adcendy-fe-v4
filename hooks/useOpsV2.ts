@@ -13,11 +13,17 @@ import type {
   SectionReviewRevisionPayload,
 } from '@/shared/types/opsV2';
 
-export function useOpsCampaignOverviews(enabled = true) {
+export function useOpsCampaignOverviews(
+  enabled = true,
+  options?: {
+    refetchOnMount?: boolean | 'always';
+  },
+) {
   return useQuery({
     queryKey: queryKeys.opsV2.campaigns(),
     queryFn: () => opsV2Repository.listCampaignOverviews(),
     enabled,
+    refetchOnMount: options?.refetchOnMount,
   });
 }
 

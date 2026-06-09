@@ -64,7 +64,15 @@ import { useLastCampaign } from '@/hooks/useLastCampaign';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/shared/api/errors';
 import { queryKeys } from '@/shared/api/queryKeys';
-import { campaignsRepository, wizardRepository } from '@/shared/api/repositories';
+import { campaignsRepository, legalRepository, wizardRepository } from '@/shared/api/repositories';
+import { resolveLegalErrorMessage } from '@/shared/legal/legal-error';
+import {
+  areWizardRequiredConsentsSatisfied,
+  buildConsentLabel,
+  buildConsentToggleState,
+  resolveConsentAction,
+  type ConsentToggleState,
+} from '@/shared/legal/legal-flow-utils';
 import {
   step1Schema,
   step2Schema,
@@ -79,6 +87,11 @@ import {
   formatBusinessType,
   formatMarketScope,
 } from '@/shared/types/campaign';
+import {
+  WIZARD_OPTIONAL_CONSENT_TYPES,
+  WIZARD_REQUIRED_CONSENT_TYPES,
+  type LegalConsentType,
+} from '@/shared/types/legal';
 import {
   DIGITAL_PRESENCE_LINK_TYPE_OPTIONS,
   AVG_CUSTOMER_RETENTION_OPTIONS,
@@ -216,6 +229,19 @@ const WIZARD_STEPS: Array<{ step: WizardModalStep; label: string; hint: string }
   { step: 5, label: 'Goals', hint: 'Goals' },
   { step: 6, label: 'Economics', hint: 'Economics' },
   { step: 7, label: 'Review', hint: 'Review & Consent' },
+];
+
+const DEFAULT_WIZARD_CONSENT_STATE: ConsentToggleState = {
+  PRIVACY_PROCESSING: false,
+  AI_PROCESSING: false,
+  BENCHMARK_DATA: false,
+  MARKETING_EMAILS: false,
+  ADS_INTEGRATION: false,
+};
+
+const WIZARD_CONSENT_ORDER: LegalConsentType[] = [
+  ...WIZARD_REQUIRED_CONSENT_TYPES,
+  ...WIZARD_OPTIONAL_CONSENT_TYPES,
 ];
 
 type WizardStringOption = {
@@ -1949,6 +1975,8 @@ export function CampaignWizardModal({
   const [confirmGoals, setConfirmGoals] = useState(false);
   const [confirmEconomics, setConfirmEconomics] = useState(false);
   const [readyToGenerate, setReadyToGenerate] = useState(false);
+  const [wizardConsentState, setWizardConsentState] = useState<ConsentToggleState>(DEFAULT_WIZARD_CONSENT_STATE);
+  const [isSyncingConsent, setIsSyncingConsent] = useState(false);
 
   const [targetMarketDraft, setTargetMarketDraft] = useState('');
   const [operationalLocationDraft, setOperationalLocationDraft] = useState('');
@@ -1979,6 +2007,7 @@ export function CampaignWizardModal({
   const isDismissClosingRef = useRef(false);
   const autoCreatedDraftIdRef = useRef<string | null>(null);
   const hasSavedStep1Ref = useRef(Boolean(campaignId));
+  const consentPersistedStateRef = useRef<ConsentToggleState>(DEFAULT_WIZARD_CONSENT_STATE);
 
   useEffect(() => {
     if (open) {
@@ -2001,6 +2030,10 @@ export function CampaignWizardModal({
     setConfirmGoals(false);
     setConfirmEconomics(false);
     setReadyToGenerate(false);
+    const resetConsentState = { ...DEFAULT_WIZARD_CONSENT_STATE };
+    setWizardConsentState(resetConsentState);
+    consentPersistedStateRef.current = resetConsentState;
+    setIsSyncingConsent(false);
     setShowCommitConfirmDialog(false);
     autoCreatedDraftIdRef.current = null;
     hasSavedStep1Ref.current = Boolean(campaignId);
@@ -2073,6 +2106,14 @@ export function CampaignWizardModal({
     queryFn: () => wizardRepository.getWizardOptions(),
     enabled: open,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: consentRecords } = useQuery({
+    queryKey: queryKeys.legal.consentsMe(),
+    queryFn: () => legalRepository.getMyConsents(),
+    enabled: open,
+    staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -2235,6 +2276,27 @@ export function CampaignWizardModal({
     control: step3Form.control,
     name: 'currentMarketingActivity',
   });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const hydrated = {
+      ...DEFAULT_WIZARD_CONSENT_STATE,
+      ...buildConsentToggleState(consentRecords ?? []),
+    };
+    setWizardConsentState(hydrated);
+    consentPersistedStateRef.current = hydrated;
+    step3Form.setValue('dataConsentOptIn', hydrated.BENCHMARK_DATA, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+    step3SnapshotRef.current = {
+      ...step3SnapshotRef.current,
+      dataConsentOptIn: hydrated.BENCHMARK_DATA,
+    };
+  }, [consentRecords, open, step3Form]);
 
   const watchedMarketingTargetType = step1Form.watch('marketingTargetType');
   const watchedSourceType = step1Form.watch('sourceType');
@@ -2700,6 +2762,93 @@ export function CampaignWizardModal({
     onChange(values.filter((_, itemIndex) => itemIndex !== index));
   };
 
+  const syncConsentChange = async (consentType: LegalConsentType, nextChecked: boolean) => {
+    const previousChecked = consentPersistedStateRef.current[consentType];
+    const action = resolveConsentAction(previousChecked, nextChecked);
+    if (action === 'none') {
+      return;
+    }
+
+    setIsSyncingConsent(true);
+
+    try {
+      if (action === 'give') {
+        await legalRepository.giveConsent({
+          consentType,
+          source: 'WIZARD',
+          campaignId: activeCampaignId ?? undefined,
+        });
+      } else {
+        await legalRepository.withdrawConsent({
+          consentType,
+          source: 'WIZARD',
+          campaignId: activeCampaignId ?? undefined,
+        });
+      }
+
+      consentPersistedStateRef.current = {
+        ...consentPersistedStateRef.current,
+        [consentType]: nextChecked,
+      };
+      await queryClient.invalidateQueries({ queryKey: queryKeys.legal.consentsMe() });
+    } catch (error: unknown) {
+      setWizardConsentState((previousState) => ({
+        ...previousState,
+        [consentType]: previousChecked,
+      }));
+      setErrorMessage(resolveLegalErrorMessage(error, 'Failed to update consent.'));
+    } finally {
+      setIsSyncingConsent(false);
+    }
+  };
+
+  const handleWizardConsentToggle = (consentType: LegalConsentType, nextChecked: boolean) => {
+    setWizardConsentState((previousState) => ({
+      ...previousState,
+      [consentType]: nextChecked,
+    }));
+    if (consentType === 'BENCHMARK_DATA') {
+      step3Form.setValue('dataConsentOptIn', nextChecked, {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+      step3SnapshotRef.current = {
+        ...step3SnapshotRef.current,
+        dataConsentOptIn: nextChecked,
+      };
+    }
+    void syncConsentChange(consentType, nextChecked);
+  };
+
+  const persistPendingConsentChanges = async () => {
+    for (const consentType of WIZARD_CONSENT_ORDER) {
+      const persistedChecked = consentPersistedStateRef.current[consentType];
+      const currentChecked = wizardConsentState[consentType];
+      if (persistedChecked === currentChecked) {
+        continue;
+      }
+
+      if (currentChecked) {
+        await legalRepository.giveConsent({
+          consentType,
+          source: 'WIZARD',
+          campaignId: activeCampaignId ?? undefined,
+        });
+      } else {
+        await legalRepository.withdrawConsent({
+          consentType,
+          source: 'WIZARD',
+          campaignId: activeCampaignId ?? undefined,
+        });
+      }
+
+      consentPersistedStateRef.current = {
+        ...consentPersistedStateRef.current,
+        [consentType]: currentChecked,
+      };
+    }
+  };
+
   const createOrSaveStep1Mutation = useMutation({
     mutationFn: async (data: Step1FormData) => {
       const normalizedTargetMarkets = normalizeListItems(data.targetMarkets);
@@ -3129,6 +3278,12 @@ export function CampaignWizardModal({
         throw new Error('Campaign not found.');
       }
 
+      if (!areWizardRequiredConsentsSatisfied(wizardConsentState)) {
+        throw new Error('STRATEGY_CONSENT_REQUIRED_V2');
+      }
+
+      await persistPendingConsentChanges();
+
       return wizardRepository.commitAndGenerate(activeCampaignId, {
         version: wizardState?.version,
         confirmFocus,
@@ -3137,10 +3292,7 @@ export function CampaignWizardModal({
         confirmGoals,
         confirmEconomics,
         readyToGenerate,
-        dataConsentOptIn: getDefaultBooleanOptionValue(
-          dataConsentOptInOptions,
-          step3Form.getValues('dataConsentOptIn') ?? step3SnapshotRef.current.dataConsentOptIn ?? true,
-        ),
+        dataConsentOptIn: wizardConsentState.BENCHMARK_DATA,
       });
     },
     onSuccess: async () => {
@@ -3152,6 +3304,7 @@ export function CampaignWizardModal({
         queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.list() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.wizard.state(activeCampaignId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.wizard.preview(activeCampaignId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.legal.consentsMe() }),
       ]);
       onOpenChange(false);
       router.push(`/app/campaigns/${activeCampaignId}/overview`);
@@ -3168,7 +3321,7 @@ export function CampaignWizardModal({
         setShowConflictDialog(true);
       }
       setSuccessMessage(null);
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to submit campaign.');
+      setErrorMessage(resolveLegalErrorMessage(error, 'Failed to submit campaign.'));
     },
   });
 
@@ -3239,7 +3392,15 @@ export function CampaignWizardModal({
       effectivePreviewStep4?.avgCustomerRetention ||
       effectivePreviewStep4?.repeatPurchaseFrequency,
   );
-  const allConfirmed = confirmFocus && confirmBusiness && confirmAudience && confirmGoals && confirmEconomics && readyToGenerate;
+  const requiredConsentsAccepted = areWizardRequiredConsentsSatisfied(wizardConsentState);
+  const allConfirmed =
+    confirmFocus &&
+    confirmBusiness &&
+    confirmAudience &&
+    confirmGoals &&
+    confirmEconomics &&
+    readyToGenerate &&
+    requiredConsentsAccepted;
 
   const firstIncompleteSection = !classificationComplete
     ? 1
@@ -3255,15 +3416,17 @@ export function CampaignWizardModal({
               ? 6
               : null;
 
-  const primaryActionLabel = commitMutation.isPending
-    ? 'Generating...'
-    : uiPreviewMode
-      ? 'Preview Only'
-    : allConfirmed
-      ? 'Generate Strategy'
-      : firstIncompleteSection
-        ? 'Fix Missing Inputs'
-        : 'Confirm Inputs';
+  const primaryActionLabel = isSyncingConsent
+    ? 'Saving Consent...'
+    : commitMutation.isPending
+      ? 'Generating...'
+      : uiPreviewMode
+        ? 'Preview Only'
+        : allConfirmed
+          ? 'Generate Strategy'
+          : firstIncompleteSection
+            ? 'Fix Missing Inputs'
+            : 'Confirm Inputs';
 
   const openPreviewSectionEditor = (
     targetStep: 1 | 2 | 3 | 4 | 5 | 6,
@@ -3357,7 +3520,17 @@ export function CampaignWizardModal({
       return;
     }
 
-    setErrorMessage('Confirm each section and mark the campaign ready to generate.');
+    if (!requiredConsentsAccepted) {
+      setErrorMessage(
+        resolveLegalErrorMessage(
+          new Error('STRATEGY_CONSENT_REQUIRED_V2'),
+          'Strategy generation requires required consents.',
+        ),
+      );
+      return;
+    }
+
+    setErrorMessage('Confirm each section, consents, and mark the campaign ready to generate.');
   };
 
   const handleClose = (nextOpen: boolean) => {
@@ -5582,13 +5755,6 @@ export function CampaignWizardModal({
                             )}
                           />
                         </div>
-                        <div className="flex items-start justify-between gap-4 rounded-xl border border-border/80 bg-muted/60 p-4">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-foreground/90">Use my inputs for better benchmark estimates</p>
-                            <p className="text-xs leading-5 text-foreground/75">This helps us frame estimates like CAC and channel dependency better.</p>
-                          </div>
-                          <Controller name="dataConsentOptIn" control={step3Form.control} render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />} />
-                        </div>
                       </div>
 
                       <div className="mt-4 space-y-2">
@@ -5936,19 +6102,31 @@ export function CampaignWizardModal({
                             label="I have reviewed the setup and am ready to generate strategy"
                           />
                           <ReviewConfirmCard
-                            id="wizard-data-consent"
-                            checked={step3Form.getValues('dataConsentOptIn') ?? true}
-                            onCheckedChange={(checked) => {
-                              step3Form.setValue('dataConsentOptIn', checked, {
-                                shouldDirty: true,
-                              });
-                              step3SnapshotRef.current = {
-                                ...step3SnapshotRef.current,
-                                dataConsentOptIn: checked,
-                              };
-                            }}
-                            label="I consent to processing the submitted business and campaign data"
+                            id="wizard-consent-privacy-processing"
+                            checked={wizardConsentState.PRIVACY_PROCESSING}
+                            onCheckedChange={(checked) => handleWizardConsentToggle('PRIVACY_PROCESSING', checked)}
+                            label={`${buildConsentLabel('PRIVACY_PROCESSING')} consent (required)`}
                           />
+                          <ReviewConfirmCard
+                            id="wizard-consent-ai-processing"
+                            checked={wizardConsentState.AI_PROCESSING}
+                            onCheckedChange={(checked) => handleWizardConsentToggle('AI_PROCESSING', checked)}
+                            label={`${buildConsentLabel('AI_PROCESSING')} consent (required)`}
+                          />
+                          <ReviewConfirmCard
+                            id="wizard-consent-benchmark-data"
+                            checked={wizardConsentState.BENCHMARK_DATA}
+                            onCheckedChange={(checked) => handleWizardConsentToggle('BENCHMARK_DATA', checked)}
+                            label={`${buildConsentLabel('BENCHMARK_DATA')} consent (optional)`}
+                          />
+                          {isSyncingConsent ? (
+                            <p className="text-xs text-muted-foreground">Saving consent preference...</p>
+                          ) : null}
+                          {!requiredConsentsAccepted ? (
+                            <p className="text-xs text-destructive">
+                              Privacy Processing and AI Processing consent are required to generate strategy.
+                            </p>
+                          ) : null}
                         </CardContent>
                       </FinalConfirmationCard>
 
@@ -6088,7 +6266,7 @@ export function CampaignWizardModal({
                   >
                     Back
                   </LightOutlineButton>
-                  <DarkPrimaryButton onClick={handlePreviewPrimaryAction} disabled={commitMutation.isPending}>
+                  <DarkPrimaryButton onClick={handlePreviewPrimaryAction} disabled={commitMutation.isPending || isSyncingConsent}>
                     {primaryActionLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </DarkPrimaryButton>

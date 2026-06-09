@@ -10,6 +10,7 @@
     "build:production": "cross-env NODE_ENV=production next build",
     "start": "next start",
     "start:production": "cross-env NODE_ENV=production next start",
+    "test": "node --test --experimental-strip-types --experimental-specifier-resolution=node tests/legal/legal-flow-utils.test.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "gen:api": "node scripts/generate-api-types.mjs",

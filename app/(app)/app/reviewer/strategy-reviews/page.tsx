@@ -53,6 +53,195 @@ const OPEN_DETAIL_BUTTON_CLASS =
 const RUN_CONTEXT_BUTTON_CLASS =
   'bg-emerald-600 text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md';
 const REVIEWER_TASK_CAMPAIGN_MAP_KEY = 'adcendy_reviewer_task_campaign_map_v1';
+const OUTPUT_CONSTRAINT_MODE = 'output_constraint_violation';
+
+type BlockedSectionPreview = {
+  issueId?: string | null;
+  sectionId?: string | null;
+  sectionLabel?: string | null;
+  marketId?: string | null;
+  audienceId?: string | null;
+  violationSummary?: string | null;
+  offendingSnippet?: string | null;
+  preferredWording?: string | null;
+  question?: string | null;
+};
+
+type OutputConstraintTaskContext = {
+  blockedSectionCount: number | null;
+  sectionId: string | null;
+  sectionLabel: string | null;
+  blockedSections: BlockedSectionPreview[];
+  hasExplicitBlockedSections: boolean;
+};
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function toRecordArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is Record<string, unknown> => toRecord(entry) !== null);
+}
+
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseBlockedSectionsCount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const intValue = Math.trunc(value);
+    return intValue >= 0 ? intValue : null;
+  }
+
+  if (typeof value === 'string') {
+    const intValue = Number.parseInt(value, 10);
+    return Number.isFinite(intValue) && intValue >= 0 ? intValue : null;
+  }
+
+  return null;
+}
+
+function normalizeBlockedSection(item: Record<string, unknown>): BlockedSectionPreview {
+  return {
+    issueId: toNonEmptyString(item.issueId) ?? toNonEmptyString(item.issue_id),
+    sectionId: toNonEmptyString(item.sectionId) ?? toNonEmptyString(item.section_id),
+    sectionLabel: toNonEmptyString(item.sectionLabel) ?? toNonEmptyString(item.section_label),
+    marketId: toNonEmptyString(item.marketId) ?? toNonEmptyString(item.market_id),
+    audienceId: toNonEmptyString(item.audienceId) ?? toNonEmptyString(item.audience_id),
+    violationSummary: toNonEmptyString(item.violationSummary) ?? toNonEmptyString(item.violation_summary),
+    offendingSnippet: toNonEmptyString(item.offendingSnippet) ?? toNonEmptyString(item.offending_snippet),
+    preferredWording: toNonEmptyString(item.preferredWording) ?? toNonEmptyString(item.preferred_wording),
+    question: toNonEmptyString(item.question) ?? toNonEmptyString(item.questionText) ?? toNonEmptyString(item.question_text),
+  };
+}
+
+function getOutputConstraintContext(task: ReviewerTaskItem): OutputConstraintTaskContext | null {
+  if (task.failureMode !== OUTPUT_CONSTRAINT_MODE) {
+    return null;
+  }
+
+  const questionContext = toRecord(toRecord(task.questionPayload)?.questionContext);
+  const questionContextQuestions = Array.isArray(questionContext?.questions)
+    ? questionContext.questions
+        .map((entry) => {
+          if (typeof entry === 'string') {
+            return toNonEmptyString(entry);
+          }
+
+          const entryRecord = toRecord(entry);
+          if (!entryRecord) {
+            return null;
+          }
+
+          return (
+            toNonEmptyString(entryRecord.question) ??
+            toNonEmptyString(entryRecord.questionText) ??
+            toNonEmptyString(entryRecord.question_text)
+          );
+        })
+        .filter((question): question is string => Boolean(question))
+    : [];
+
+  const blockedSectionsFromPayload = toRecordArray(questionContext?.blockedSections ?? questionContext?.blocked_sections).map(
+    (section, index) => {
+      const normalized = normalizeBlockedSection(section);
+      const fallbackQuestion = questionContextQuestions[index];
+
+      if (!toNonEmptyString(normalized.question)) {
+        return {
+          ...normalized,
+          question: fallbackQuestion ?? null,
+        };
+      }
+
+      return normalized;
+    },
+  );
+  const blockedSections = blockedSectionsFromPayload;
+  const hasExplicitBlockedSections = blockedSections.length > 0;
+  const blockedSectionCount = parseBlockedSectionsCount(
+    questionContext?.blockedSectionCount ??
+      questionContext?.blocked_section_count ??
+      questionContext?.blockedSectionsCount ??
+      questionContext?.blocked_sections_count,
+  );
+
+  if (!hasExplicitBlockedSections) {
+    const fallbackSectionId = toNonEmptyString(questionContext?.sectionId) ?? toNonEmptyString(questionContext?.section_id);
+    const fallbackSectionLabel =
+      toNonEmptyString(questionContext?.sectionLabel) ??
+      toNonEmptyString(questionContext?.section_label) ??
+      fallbackSectionId;
+    if (!fallbackSectionId && !fallbackSectionLabel) {
+      return null;
+    }
+
+    return {
+      blockedSectionCount: blockedSectionCount ?? 1,
+      sectionId: fallbackSectionId,
+      sectionLabel: fallbackSectionLabel,
+      blockedSections: [
+        {
+          sectionId: fallbackSectionId,
+          sectionLabel: fallbackSectionLabel,
+          violationSummary: toNonEmptyString(questionContext?.violationSummary) ?? toNonEmptyString(questionContext?.violation_summary),
+          question: questionContextQuestions[0] ?? null,
+        },
+      ],
+      hasExplicitBlockedSections,
+    };
+  }
+
+  return {
+    blockedSectionCount,
+    sectionId: toNonEmptyString(questionContext?.sectionId) ?? toNonEmptyString(questionContext?.section_id),
+    sectionLabel: toNonEmptyString(questionContext?.sectionLabel) ?? toNonEmptyString(questionContext?.section_label),
+    blockedSections,
+    hasExplicitBlockedSections,
+  };
+}
+
+function formatSectionCountLabel(count: number | null) {
+  if (!count || count <= 1) {
+    return '1 blocked section';
+  }
+
+  return `${count} blocked sections`;
+}
+
+function pluralizeBlockLabel(count: number | null, fallback: string | null): string {
+  if (fallback) {
+    return fallback;
+  }
+
+  return formatSectionCountLabel(count);
+}
+
+function formatViolationSummary(blockedSection: BlockedSectionPreview): string | null {
+  if (!blockedSection.violationSummary && !blockedSection.sectionLabel && !blockedSection.sectionId) {
+    return null;
+  }
+
+  if (blockedSection.violationSummary) {
+    const subject = blockedSection.sectionLabel ?? blockedSection.sectionId;
+    return subject ? `${subject}: ${blockedSection.violationSummary}` : blockedSection.violationSummary;
+  }
+
+  return blockedSection.sectionLabel ?? blockedSection.sectionId ?? 'Blocked section';
+}
 
 function rememberTaskCampaign(taskId: string, campaignId?: string | null) {
   if (typeof window === 'undefined') {
@@ -90,7 +279,13 @@ function ReviewerTaskRow({ task }: { task: ReviewerTaskItem }) {
   const detailHref = task.campaignId
     ? `/app/reviewer/tasks/${task.id}?campaignId=${encodeURIComponent(task.campaignId)}`
     : `/app/reviewer/tasks/${task.id}`;
+  const outputConstraintContext = getOutputConstraintContext(task);
   const persistContext = () => rememberTaskCampaign(task.id, task.campaignId);
+  const outputConstraintBadgeCount = outputConstraintContext
+    ? outputConstraintContext.blockedSectionCount ?? outputConstraintContext.blockedSections.length
+    : 0;
+  const isMultipleBlockedIssues =
+    task.failureMode === OUTPUT_CONSTRAINT_MODE && outputConstraintBadgeCount > 1;
 
   return (
     <Card className="border-border bg-card">
@@ -131,7 +326,44 @@ function ReviewerTaskRow({ task }: { task: ReviewerTaskItem }) {
           <p>Updated: {formatOpsDateTime(task.updatedAt)}</p>
           <p>Created: {formatOpsDateTime(task.createdAt)}</p>
           <p>Attempt: {typeof task.attemptNumber === 'number' ? task.attemptNumber : 'Not available'}</p>
+          {outputConstraintContext ? (
+            <p>
+              Blocked Sections:{' '}
+              <span className="font-semibold text-foreground">
+                {formatSectionCountLabel(outputConstraintBadgeCount || null)}
+              </span>
+            </p>
+          ) : null}
         </div>
+        {outputConstraintContext ? (
+          <details className="rounded-md border border-border/70 bg-background/40 p-3 text-sm">
+            <summary className="cursor-pointer font-medium text-amber-600">
+              {pluralizeBlockLabel(
+                outputConstraintContext.blockedSectionCount,
+                outputConstraintContext.sectionLabel,
+              )}
+            </summary>
+            {isMultipleBlockedIssues ? (
+              <ul className="mt-2 space-y-2 pl-4 text-muted-foreground">
+                {outputConstraintContext.blockedSections.map((blockedSection, index) => (
+                  <li key={`${blockedSection.sectionId || blockedSection.sectionLabel || 'section'}-${index}`}>
+                    <span className="text-foreground">
+                      {blockedSection.sectionLabel ?? blockedSection.sectionId ?? 'Unknown section'}
+                    </span>
+                    {blockedSection.violationSummary ? ` - ${blockedSection.violationSummary}` : null}
+                    {blockedSection.marketId ? (
+                      <span className="ml-1 text-xs text-muted-foreground">(market: {blockedSection.marketId})</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2">
+                {formatViolationSummary(outputConstraintContext.blockedSections[0] ?? {})}
+              </p>
+            )}
+          </details>
+        ) : null}
       </CardContent>
     </Card>
   );

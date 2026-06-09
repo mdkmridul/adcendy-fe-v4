@@ -1,14 +1,88 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminReviewRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
 import type { CampaignStatus } from '@/shared/types/campaign';
+import type { CampaignOverviewV2 } from '@/shared/types/opsV2';
 import type { CreateReviewerPayload } from '@/shared/types/reviews';
 import type { components } from '@/src/generated/openapi';
 import { useStrategyReview } from './useStrategyReviews';
 
 type AdminUserUpdateDto = components['schemas']['AdminUserUpdateDto'];
+type AdminCampaignDetailResponseDto = components['schemas']['AdminCampaignDetailResponseDto'];
+
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function upsertOpsCampaignCacheFromAdminDetail(
+  existing: CampaignOverviewV2[] | undefined,
+  campaignId: string,
+  detail: AdminCampaignDetailResponseDto,
+): CampaignOverviewV2[] {
+  const list = Array.isArray(existing) ? existing : [];
+  const detailCampaignId = toNonEmptyString(detail.campaign?.id) ?? campaignId;
+  const detailTitle = toNonEmptyString(detail.campaign?.title) ?? `Campaign ${detailCampaignId}`;
+  const detailStatus =
+    (toNonEmptyString(detail.campaign?.status) as CampaignOverviewV2['status'] | null) ?? 'DRAFT';
+  const detailUpdatedAt = toNonEmptyString(detail.campaign?.updatedAt) ?? undefined;
+  const detailCurrentStep =
+    typeof detail.wizard?.lastCompletedStep === 'number' && Number.isFinite(detail.wizard.lastCompletedStep)
+      ? detail.wizard.lastCompletedStep
+      : 0;
+  const detailRunId = toNonEmptyString(detail.latestRun?.id);
+  const detailRunStatus = toNonEmptyString(detail.latestRun?.status);
+
+  const index = list.findIndex((item) => item.id === detailCampaignId);
+  if (index === -1) {
+    return [
+      ...list,
+      {
+        id: detailCampaignId,
+        title: detailTitle,
+        status: detailStatus,
+        currentStep: detailCurrentStep,
+        updatedAt: detailUpdatedAt,
+        pipelineRunId: detailRunId,
+        latestRunStatus: detailRunStatus,
+      },
+    ];
+  }
+
+  const current = list[index];
+  const nextItem: CampaignOverviewV2 = {
+    ...current,
+    title: detailTitle,
+    status: detailStatus,
+    currentStep: detailCurrentStep,
+    updatedAt: detailUpdatedAt ?? current.updatedAt,
+    pipelineRunId: detailRunId,
+    latestRunStatus: detailRunStatus,
+  };
+
+  const unchanged =
+    current.title === nextItem.title &&
+    current.status === nextItem.status &&
+    current.currentStep === nextItem.currentStep &&
+    current.updatedAt === nextItem.updatedAt &&
+    current.pipelineRunId === nextItem.pipelineRunId &&
+    current.latestRunStatus === nextItem.latestRunStatus;
+
+  if (unchanged) {
+    return list;
+  }
+
+  const nextList = [...list];
+  nextList[index] = nextItem;
+  return nextList;
+}
 
 export function useReviewerAccounts(search?: string) {
   return useQuery({
@@ -56,12 +130,35 @@ export function useAdminCampaigns(
   });
 }
 
-export function useAdminCampaignDetail(campaignId: string | null, enabled = true) {
-  return useQuery({
+export function useAdminCampaignDetail(
+  campaignId: string | null,
+  enabled = true,
+  options?: {
+    refetchOnMount?: boolean | 'always';
+    retry?: boolean;
+  },
+) {
+  const queryClient = useQueryClient();
+  const campaignQuery = useQuery({
     queryKey: campaignId ? queryKeys.adminReview.campaignDetail(campaignId) : queryKeys.adminReview.all,
     queryFn: () => adminReviewRepository.getAdminCampaignDetail(campaignId as string),
     enabled: Boolean(campaignId) && enabled,
+    refetchOnMount: options?.refetchOnMount,
+    retry: options?.retry,
   });
+
+  useEffect(() => {
+    if (!campaignId || !campaignQuery.data) {
+      return;
+    }
+
+    queryClient.setQueryData<CampaignOverviewV2[]>(
+      queryKeys.opsV2.campaigns(),
+      (existing) => upsertOpsCampaignCacheFromAdminDetail(existing, campaignId, campaignQuery.data),
+    );
+  }, [campaignId, campaignQuery.data, queryClient]);
+
+  return campaignQuery;
 }
 
 export function useRefreshAdminCampaignIntelligence(campaignId: string | null) {
@@ -95,11 +192,15 @@ export function useAdminAiCalls(
     days?: number;
   },
   enabled = true,
+  options?: {
+    refetchOnMount?: boolean | 'always';
+  },
 ) {
   return useQuery({
     queryKey: queryKeys.adminReview.aiCallsList(filters),
     queryFn: () => adminReviewRepository.listAiCalls(filters ?? {}),
     enabled,
+    refetchOnMount: options?.refetchOnMount,
   });
 }
 
@@ -112,29 +213,9 @@ export function useAdminAiCallDetail(callId: string | null, enabled = true) {
 }
 
 export function useAdminCampaignReviewOverview(campaignId: string | null) {
-  const campaignQuery = useQuery({
-    queryKey: campaignId ? queryKeys.adminReview.campaignDetail(campaignId) : queryKeys.adminReview.all,
-    queryFn: () => adminReviewRepository.getAdminCampaignDetail(campaignId as string),
-    enabled: Boolean(campaignId),
-    retry: false,
-  });
+  const campaignQuery = useAdminCampaignDetail(campaignId, Boolean(campaignId), { retry: false });
 
   const reviewQuery = useStrategyReview(campaignId);
-
-  const jobsQuery = useQuery({
-    queryKey:
-      campaignId
-        ? queryKeys.adminReview.jobsByEntity('CAMPAIGN', campaignId, 8)
-        : queryKeys.adminReview.all,
-    queryFn: () =>
-      adminReviewRepository.listJobRunsByEntity({
-        entityType: 'CAMPAIGN',
-        entityId: campaignId as string,
-        limit: 8,
-      }),
-    enabled: Boolean(campaignId),
-    retry: false,
-  });
 
   const aiCallsQuery = useQuery({
     queryKey:
@@ -154,12 +235,10 @@ export function useAdminCampaignReviewOverview(campaignId: string | null) {
   return {
     campaignQuery,
     reviewQuery,
-    jobsQuery,
     aiCallsQuery,
     isLoading:
       campaignQuery.isLoading ||
       reviewQuery.isLoading ||
-      jobsQuery.isLoading ||
       aiCallsQuery.isLoading,
   };
 }

@@ -38,6 +38,128 @@ function coerceNullableString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function coerceFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function normalizeAdminCampaignDetail(
+  payload: unknown,
+  fallbackCampaignId: string,
+): AdminCampaignDetailResponseDto {
+  const nowIso = new Date().toISOString();
+  const root = asRecord(payload) ?? {};
+  const campaign = asRecord(root.campaign) ?? {};
+  const owner = asRecord(campaign.owner);
+  const wizard = asRecord(root.wizard) ?? asRecord(root.wizardState);
+  const runs = asRecord(root.runs);
+  const blockers = asRecord(root.blockers) ?? asRecord(runs?.blockers);
+  const legacyLatestRun = asRecord(root.latestRun);
+  const activeRun = asRecord(runs?.activeRun);
+  const blockerActiveRun = asRecord(blockers?.activeRun);
+  const latestRunSource = blockerActiveRun ?? legacyLatestRun ?? activeRun;
+
+  const campaignId = coerceNullableString(campaign.id) ?? fallbackCampaignId;
+  const activeRunId =
+    coerceNullableString(blockers?.activeRunId) ??
+    coerceNullableString(blockers?.active_run_id) ??
+    coerceNullableString(blockerActiveRun?.id) ??
+    coerceNullableString(runs?.activeRunId) ??
+    coerceNullableString(runs?.active_run_id) ??
+    coerceNullableString(latestRunSource?.id);
+  const activeRunStatus =
+    coerceNullableString(blockers?.activeRunStatus) ??
+    coerceNullableString(blockers?.active_run_status) ??
+    coerceNullableString(blockers?.status) ??
+    coerceNullableString(blockerActiveRun?.status) ??
+    coerceNullableString(runs?.activeRunStatus) ??
+    coerceNullableString(runs?.active_run_status) ??
+    coerceNullableString(runs?.status) ??
+    coerceNullableString(latestRunSource?.status);
+
+  const normalizedCampaign = {
+    id: campaignId,
+    title: coerceNullableString(campaign.title) ?? `Campaign ${campaignId}`,
+    status: coerceNullableString(campaign.status) ?? 'DRAFT',
+    businessType: campaign.businessType ?? null,
+    businessModel: campaign.businessModel ?? null,
+    marketScope: campaign.marketScope ?? null,
+    websiteUrl: campaign.websiteUrl ?? null,
+    description: campaign.description ?? null,
+    createdAt: coerceNullableString(campaign.createdAt) ?? nowIso,
+    updatedAt:
+      coerceNullableString(campaign.updatedAt) ??
+      coerceNullableString(campaign.createdAt) ??
+      nowIso,
+    owner: {
+      id: coerceNullableString(owner?.id) ?? '',
+      email: coerceNullableString(owner?.email) ?? '',
+    },
+  } as unknown as AdminCampaignDetailResponseDto['campaign'];
+
+  const normalizedWizard = wizard
+    ? ({
+        status: coerceNullableString(wizard.status) ?? 'UNKNOWN',
+        lastCompletedStep:
+          coerceFiniteNumber(wizard.lastCompletedStep) ??
+          coerceFiniteNumber(wizard.currentStep) ??
+          0,
+        version: coerceFiniteNumber(wizard.version) ?? 1,
+        updatedAt: coerceNullableString(wizard.updatedAt) ?? nowIso,
+        derivedJson:
+          asRecord(wizard.derivedJson) ??
+          asRecord(wizard.derivedState) ??
+          asRecord(wizard.answersJson) ??
+          undefined,
+      } as unknown as AdminCampaignDetailResponseDto['wizard'])
+    : null;
+
+  const normalizedLatestRun = activeRunId
+    ? ({
+        id: activeRunId,
+        campaignId,
+        userId: coerceNullableString(latestRunSource?.userId) ?? '',
+        status: activeRunStatus ?? 'QUEUED',
+        currentStage:
+          coerceNullableString(latestRunSource?.currentStage) ??
+          coerceNullableString(runs?.activeRunStage) ??
+          'UNKNOWN',
+        progress: coerceFiniteNumber(latestRunSource?.progress) ?? 0,
+        errorCode: latestRunSource?.errorCode ?? null,
+        errorMessage: latestRunSource?.errorMessage ?? null,
+        createdAt: coerceNullableString(latestRunSource?.createdAt) ?? nowIso,
+        updatedAt:
+          coerceNullableString(latestRunSource?.updatedAt) ??
+          coerceNullableString(latestRunSource?.createdAt) ??
+          nowIso,
+        startedAt: coerceNullableString(latestRunSource?.startedAt) ?? null,
+        endedAt: coerceNullableString(latestRunSource?.endedAt) ?? null,
+      } as unknown as AdminCampaignDetailResponseDto['latestRun'])
+    : null;
+
+  return {
+    campaign: normalizedCampaign,
+    wizard: normalizedWizard,
+    latestRun: normalizedLatestRun,
+  };
+}
+
 function coerceReviewer(dto: AdminUserDto): AdminReviewerUser {
   return {
     id: dto.id,
@@ -115,14 +237,14 @@ export const adminReviewRealAdapter = {
     campaignId: string,
     includeRaw?: string,
   ): Promise<AdminCampaignDetailResponseDto> {
-    const response = await http<ApiResponse<AdminCampaignDetailResponseDto>>(
-      `/v1/admin/campaigns/${campaignId}`,
+    const response = await http<ApiResponse<unknown> | unknown>(
+      `/api/v2/admin/campaigns/${campaignId}`,
       {
         query: includeRaw ? { includeRaw } : undefined,
       },
     );
 
-    return response.data;
+    return normalizeAdminCampaignDetail(unwrapResponseData(response), campaignId);
   },
 
   async refreshAdminCampaignIntelligence(

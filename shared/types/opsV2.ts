@@ -55,12 +55,15 @@ export interface ReviewerTaskItem {
   createdAt?: ISODateTime | null;
   updatedAt?: ISODateTime | null;
   attemptNumber?: number | null;
+  failureMode?: string | null;
+  questionPayload?: UnknownRecord | null;
 }
 
 export interface ReviewerTaskDetail extends ReviewerTaskItem {
   whatWentWrong?: unknown;
   currentValuesToFix?: unknown;
   exampleAnswerPayload?: unknown;
+  feedback?: unknown;
   whereAnswerWillBeApplied?: unknown;
   pipelineRestartPhase?: string | null;
   answerSchema?: UnknownRecord | null;
@@ -193,10 +196,18 @@ export type AdminCampaignTriggerType =
 export interface AdminPipelineTriggerBodyV2 extends Record<string, unknown> {
   runId?: unknown;
   marketId?: unknown;
+  marketIds?: unknown;
   audienceId?: unknown;
+  audienceIds?: unknown;
   fixtureKey?: unknown;
   forceMode?: unknown;
   strategySupportedManifestVersion?: unknown;
+}
+
+export interface AdminDownloadResponse {
+  blob: Blob;
+  filename?: string | null;
+  contentType?: string | null;
 }
 
 export interface CampaignHealthItem {
@@ -621,6 +632,8 @@ export function normalizeReviewerTaskItem(value: unknown): ReviewerTaskItem | nu
         record.created_at,
       ) ?? null,
     attemptNumber: fallbackNumber(record.attemptNumber, record.attempt_number) ?? null,
+    failureMode: fallbackNullableString(record.failureMode, record.failure_mode) ?? null,
+    questionPayload: questionPayload ?? null,
   };
 }
 
@@ -714,6 +727,18 @@ export function normalizeReviewerTaskDetail(payload: unknown): ReviewerTaskDetai
       questionPayload?.exampleAnswerPayload,
       questionPayload?.example_answer_payload,
       derivedExampleAnswerPayload,
+    ),
+    feedback: fallbackUnknown(
+      record.feedback,
+      record.feedbackPayload,
+      record.feedback_payload,
+      questionPayload?.feedback,
+      questionPayload?.feedbackPayload,
+      questionPayload?.feedback_payload,
+      record.narrativeValidation,
+      record.narrative_validation,
+      questionPayload?.narrativeValidation,
+      questionPayload?.narrative_validation,
     ),
     whereAnswerWillBeApplied: fallbackUnknown(
       record.whereAnswerWillBeApplied,

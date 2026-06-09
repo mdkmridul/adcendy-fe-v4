@@ -17,9 +17,10 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
+import { useAdminCampaignDetail } from '@/hooks/useAdminReview';
 import { useOpsCampaignOverviews, useOpsReviewerTask } from '@/hooks/useOpsV2';
 import { useToast } from '@/hooks/use-toast';
-import { opsV2Repository } from '@/shared/api/repositories';
+import { adminReviewRepository, opsV2Repository } from '@/shared/api/repositories';
 import type {
   AdminCampaignTriggerType,
   AdminPipelineTriggerBodyV2,
@@ -28,13 +29,17 @@ import { formatOpsStatus, toJsonPreview } from '@/shared/components/ops/opsUtils
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { resolveDownloadFilename, triggerBlobDownload } from '@/lib/download';
 import { cn } from '@/lib/utils';
 
+const OUTPUT_CONSTRAINT_MODE = 'output_constraint_violation';
 const FIELD_LABELS: Record<string, string> = {
   whatWentWrong: 'What Went Wrong',
   currentValuesToFix: 'Current Values To Fix',
+  feedback: 'Feedback',
   whereAnswerWillBeApplied: 'Where Answer Will Be Applied',
   pipelineRestartPhase: 'Pipeline Restart Phase',
   renderedQuestion: 'Rendered Question',
@@ -42,6 +47,392 @@ const FIELD_LABELS: Record<string, string> = {
   status: 'Status',
   submittedAnswer: 'Submitted Answer',
 };
+
+type OutputConstraintBlockedSection = {
+  issueId?: string | null;
+  termId?: string | null;
+  sectionId?: string | null;
+  sectionLabel?: string | null;
+  violationSummary?: string | null;
+  offendingSnippet?: string | null;
+  preferredWording?: string | null;
+  question?: string | null;
+  marketId?: string | null;
+  audienceId?: string | null;
+};
+
+type OutputConstraintCurrentValuesContext = {
+  blockedSectionCount: number | null;
+  blockedSections: OutputConstraintBlockedSection[];
+  hasExplicitBlockedSections: boolean;
+};
+
+type OutputConstraintIssueState = {
+  issueKey: string;
+  issueId: string;
+  section: OutputConstraintBlockedSection;
+  responseText: string;
+  isLocked: boolean;
+  isSaving: boolean;
+};
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function toRecordArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is Record<string, unknown> => toRecord(entry) !== null);
+}
+
+function parseBlockedSectionsCount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const count = Math.trunc(value);
+    return count >= 0 ? count : null;
+  }
+
+  if (typeof value === 'string') {
+    const count = Number.parseInt(value, 10);
+    return Number.isFinite(count) && count >= 0 ? count : null;
+  }
+
+  return null;
+}
+
+function normalizeOutputConstraintSection(item: Record<string, unknown>): OutputConstraintBlockedSection {
+  return {
+    issueId: toNonEmptyString(item.issueId) ?? toNonEmptyString(item.issue_id),
+    termId: toNonEmptyString(item.termId) ?? toNonEmptyString(item.term_id),
+    sectionId: toNonEmptyString(item.sectionId) ?? toNonEmptyString(item.section_id),
+    sectionLabel: toNonEmptyString(item.sectionLabel) ?? toNonEmptyString(item.section_label),
+    violationSummary: toNonEmptyString(item.violationSummary) ?? toNonEmptyString(item.violation_summary),
+    offendingSnippet: toNonEmptyString(item.offendingSnippet) ?? toNonEmptyString(item.offending_snippet),
+    preferredWording: toNonEmptyString(item.preferredWording) ?? toNonEmptyString(item.preferred_wording),
+    question: toNonEmptyString(item.question) ?? toNonEmptyString(item.questionText) ?? toNonEmptyString(item.question_text),
+    marketId: toNonEmptyString(item.marketId) ?? toNonEmptyString(item.market_id),
+    audienceId: toNonEmptyString(item.audienceId) ?? toNonEmptyString(item.audience_id),
+  };
+}
+
+function getBlockedSectionsFromCurrentValues(
+  currentValuesToFix: unknown,
+  fallbackQuestionContext: unknown,
+): OutputConstraintCurrentValuesContext | null {
+  const currentValuesRecord = toRecord(currentValuesToFix) ?? null;
+  const questionContext = toRecord(fallbackQuestionContext) ?? null;
+  const questionContextQuestions = Array.isArray(questionContext?.questions)
+    ? questionContext.questions
+        .map((entry) => {
+          if (typeof entry === 'string') {
+            return toNonEmptyString(entry);
+          }
+
+          const entryRecord = toRecord(entry);
+          if (!entryRecord) {
+            return null;
+          }
+
+          return (
+            toNonEmptyString(entryRecord.question) ??
+            toNonEmptyString(entryRecord.questionText) ??
+            toNonEmptyString(entryRecord.question_text)
+          );
+        })
+        .filter((question): question is string => Boolean(question))
+    : [];
+
+  const questionContextBlockedSections = toRecordArray(
+    questionContext?.blockedSections ?? questionContext?.blocked_sections,
+  ).map((section, index) => {
+    const normalized = normalizeOutputConstraintSection(section);
+    const fallbackQuestion = questionContextQuestions[index];
+    if (!toNonEmptyString(normalized.question)) {
+      return {
+        ...normalized,
+        question: fallbackQuestion ?? null,
+      };
+    }
+
+    return normalized;
+  });
+
+  if (questionContextBlockedSections.length > 0) {
+    return {
+      blockedSectionCount:
+        parseBlockedSectionsCount(
+          questionContext?.blockedSectionCount ??
+            questionContext?.blocked_section_count ??
+            questionContext?.blockedSectionsCount ??
+            questionContext?.blocked_sections_count,
+        ) ?? questionContextBlockedSections.length,
+      blockedSections: questionContextBlockedSections,
+      hasExplicitBlockedSections: true,
+    };
+  }
+
+  const currentValuesBlockedSections = toRecordArray(
+    currentValuesRecord?.blockedSections ?? currentValuesRecord?.blocked_sections,
+  ).map((section, index) => {
+    const normalized = normalizeOutputConstraintSection(section);
+    const fallbackQuestion = questionContextQuestions[index];
+
+    if (!toNonEmptyString(normalized.question)) {
+      return {
+        ...normalized,
+        question: fallbackQuestion ?? null,
+      };
+    }
+
+    return normalized;
+  });
+
+  if (currentValuesBlockedSections.length > 0) {
+    return {
+      blockedSectionCount:
+        parseBlockedSectionsCount(
+          currentValuesRecord?.blockedSectionCount ?? currentValuesRecord?.blocked_section_count,
+        ) ?? currentValuesBlockedSections.length,
+      blockedSections: currentValuesBlockedSections,
+      hasExplicitBlockedSections: true,
+    };
+  }
+
+  const fallbackSectionId =
+    toNonEmptyString(questionContext?.sectionId) ?? toNonEmptyString(questionContext?.section_id) ?? null;
+  const fallbackSectionLabel =
+    toNonEmptyString(questionContext?.sectionLabel) ??
+    toNonEmptyString(questionContext?.section_label) ??
+    fallbackSectionId;
+  if (!fallbackSectionId && !fallbackSectionLabel) {
+    return null;
+  }
+
+  return {
+    blockedSectionCount:
+      parseBlockedSectionsCount(questionContext?.blockedSectionCount ?? questionContext?.blocked_section_count) ?? 1,
+        blockedSections: [
+          {
+            sectionId: fallbackSectionId,
+            sectionLabel: fallbackSectionLabel,
+            violationSummary:
+              toNonEmptyString(questionContext?.violationSummary) ??
+              toNonEmptyString(questionContext?.violation_summary),
+            question: toNonEmptyString(questionContext?.question) ?? questionContextQuestions[0] ?? null,
+          },
+        ],
+        hasExplicitBlockedSections: false,
+      };
+}
+
+function formatOutputConstraintSectionLabel(section: OutputConstraintBlockedSection): string {
+  return section.sectionLabel ?? section.sectionId ?? 'Unknown section';
+}
+
+function formatOutputConstraintSectionCount(count: number | null): string {
+  if (!count || count <= 1) {
+    return '1 blocked section';
+  }
+
+  return `${count} blocked sections`;
+}
+
+function parseRenderedQuestionText(value: unknown): string[] {
+  const renderedQuestion = toNonEmptyString(value);
+  if (!renderedQuestion) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(renderedQuestion);
+    if (Array.isArray(parsed)) {
+      const parsedItems = parsed
+        .map((item) => toNonEmptyString(item))
+        .filter((item): item is string => Boolean(item));
+      if (parsedItems.length > 0) {
+        return parsedItems;
+      }
+    }
+
+    const asRecord = toRecord(parsed);
+    const questionsFromRecord = toRecordArray(asRecord?.questions).map((item) => toNonEmptyString(item)).filter(
+      (item): item is string => Boolean(item),
+    );
+    if (questionsFromRecord.length > 0) {
+      return questionsFromRecord;
+    }
+  } catch {
+    // Not JSON-encoded question payload.
+  }
+
+  const byBlankLine = renderedQuestion
+    .split(/\n\s*\n+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (byBlankLine.length > 1) {
+    return byBlankLine;
+  }
+
+  const byNumbered = renderedQuestion
+    .split(/\n(?=\s*\d+[\.\)]\s+)/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (byNumbered.length > 1) {
+    return byNumbered;
+  }
+
+  const byBullets = renderedQuestion
+    .split(/\n(?=\s*[-*]\s+)/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (byBullets.length > 1) {
+    return byBullets;
+  }
+
+  return [renderedQuestion];
+}
+
+function getOutputConstraintIssueKey(section: OutputConstraintBlockedSection, index: number): string {
+  return toNonEmptyString(section.issueId) ??
+    `${section.sectionId ?? section.sectionLabel ?? 'blocked-section'}::${index}`;
+}
+
+type OutputConstraintIssueAnswer = {
+  issue_id: string;
+  section_id: string;
+  section_label?: string;
+  term_id?: string;
+  instruction: string;
+};
+
+type OutputConstraintSubmitPayload = {
+  issue_answers: OutputConstraintIssueAnswer[];
+};
+
+function buildOutputConstraintSubmitPayload(
+  issues: OutputConstraintIssueState[],
+): OutputConstraintSubmitPayload | null {
+  const issueAnswers = issues
+    .map((issue) => {
+      const instruction = toNonEmptyString(issue.responseText);
+      const issueId = toNonEmptyString(issue.issueId);
+      const sectionId = toNonEmptyString(issue.section.sectionId);
+      const sectionLabel = toNonEmptyString(issue.section.sectionLabel);
+
+      if (!issueId || !instruction || !sectionId) {
+        return null;
+      }
+
+      return {
+        issue_id: issueId,
+        section_id: sectionId,
+        ...(sectionLabel ? { section_label: sectionLabel } : {}),
+        ...(toNonEmptyString(issue.section.termId) ? { term_id: toNonEmptyString(issue.section.termId) } : {}),
+        instruction,
+      };
+    })
+    .filter((entry): entry is OutputConstraintIssueAnswer => entry !== null);
+
+  if (issueAnswers.length === 0) {
+    return null;
+  }
+
+  return { issue_answers: issueAnswers };
+}
+
+
+function OutputConstraintIssueCard({
+  issueIndex,
+  issue,
+  disabled,
+  interactive = true,
+  onChange,
+  onSave,
+}: {
+  issueIndex: number;
+  issue: OutputConstraintIssueState;
+  disabled: boolean;
+  interactive?: boolean;
+  onChange?: (value: string) => void;
+  onSave?: () => void;
+}) {
+  const cardTitle = formatOutputConstraintSectionLabel(issue.section);
+  const isLocked = issue.isLocked;
+  const isSaving = issue.isSaving;
+  const hasQuestion = toNonEmptyString(issue.section.question) !== null;
+  const hasResponse = toNonEmptyString(issue.responseText) !== null;
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border p-4',
+        isLocked
+          ? 'border-emerald-300/60 bg-emerald-50/70 text-emerald-950 dark:bg-emerald-950/25 dark:text-emerald-100'
+          : 'border-border bg-card text-foreground',
+      )}
+    >
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <p className="text-sm font-semibold">
+          {`Issue ${issueIndex + 1}: ${cardTitle}`}
+        </p>
+        <span className={cn('text-xs font-semibold uppercase tracking-[0.08em]', isLocked ? 'text-emerald-600' : 'text-muted-foreground')}>
+          {isLocked ? 'Locked' : 'Pending'}
+        </span>
+      </div>
+      <div className="space-y-2 text-xs text-muted-foreground">
+        {hasQuestion ? (
+          <p>
+            <span className="font-medium text-foreground">Question:</span> {issue.section.question}
+          </p>
+        ) : null}
+        {issue.section.sectionId ? <p>Section ID: {issue.section.sectionId}</p> : null}
+        {issue.section.marketId ? <p>Market: {issue.section.marketId}</p> : null}
+        {issue.section.audienceId ? <p>Audience: {issue.section.audienceId}</p> : null}
+        {issue.section.violationSummary ? <p>Violation: {issue.section.violationSummary}</p> : null}
+        {issue.section.offendingSnippet ? <p>Snippet: {issue.section.offendingSnippet}</p> : null}
+        {!interactive && hasResponse ? <p>Response: {issue.responseText}</p> : null}
+        {issue.section.preferredWording ? (
+          <p>
+            Suggested guidance: <span className="text-foreground">{issue.section.preferredWording}</span>
+          </p>
+        ) : null}
+      </div>
+      {interactive ? (
+        <div className="mt-3 space-y-2">
+          <Label htmlFor={`output-constraint-issue-${issue.issueKey}`}>Regeneration Instruction</Label>
+          <Textarea
+            id={`output-constraint-issue-${issue.issueKey}`}
+            value={issue.responseText}
+            onChange={(event) => onChange?.(event.target.value)}
+            rows={6}
+            className="font-sans text-sm"
+            placeholder="Add one guidance message for this blocked issue."
+            disabled={isLocked || isSaving || disabled}
+          />
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              disabled={disabled || isLocked || isSaving || issue.responseText.trim().length === 0}
+              onClick={() => {
+                onSave?.();
+              }}
+              variant={isLocked ? 'secondary' : 'default'}
+            >
+              {isSaving ? 'Saving...' : isLocked ? 'Saved' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function prettifyLabel(label: string) {
   return FIELD_LABELS[label] ?? label;
@@ -103,6 +494,40 @@ function toNonEmptyString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function toUniqueNonEmptyStrings(values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    const normalized = toNonEmptyString(value);
+    if (!normalized) {
+      continue;
+    }
+
+    const dedupeKey = normalized.toLowerCase();
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
+function toPipelineMarketSelectionValue(marketId: string): string {
+  return `${PIPELINE_MARKET_SELECTION_VALUE_PREFIX}${marketId}`;
+}
+
+function getPipelineMarketIdFromSelection(selection: string): string | null {
+  if (!selection.startsWith(PIPELINE_MARKET_SELECTION_VALUE_PREFIX)) {
+    return null;
+  }
+
+  return toNonEmptyString(selection.slice(PIPELINE_MARKET_SELECTION_VALUE_PREFIX.length));
+}
+
 function normalizeIdCandidate(value: unknown, taskId: string): string | null {
   const normalized = toNonEmptyString(value);
   if (!normalized || normalized === taskId) {
@@ -146,6 +571,20 @@ function getCampaignIdFromReferrer(taskId: string | null | undefined): string | 
 }
 
 const REVIEWER_TASK_CAMPAIGN_MAP_KEY = 'adcendy_reviewer_task_campaign_map_v1';
+const PIPELINE_MARKET_SELECTION_CUSTOM = '__pipeline_market_selection_custom__';
+const PIPELINE_MARKET_SELECTION_TASK = '__pipeline_market_selection_task__';
+const PIPELINE_MARKET_SELECTION_ALL = '__pipeline_market_selection_all__';
+const PIPELINE_MARKET_SELECTION_VALUE_PREFIX = '__pipeline_market_selection_value__::';
+const ACTIVE_PIPELINE_RUN_STATUSES = new Set(['QUEUED', 'RUNNING', 'ACTIVE']);
+
+function isActivePipelineRunStatus(value: unknown): boolean {
+  const normalized = toNonEmptyString(value)?.toUpperCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return ACTIVE_PIPELINE_RUN_STATUSES.has(normalized);
+}
 
 function readTaskCampaignMap(): Record<string, string> {
   if (typeof window === 'undefined') {
@@ -224,6 +663,14 @@ function toPipelineTriggerPayload(
     audienceId: value.audienceId ?? fallback?.audienceId ?? undefined,
   };
 
+  if (Object.prototype.hasOwnProperty.call(value, 'marketIds')) {
+    payload.marketIds = value.marketIds;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(value, 'audienceIds')) {
+    payload.audienceIds = value.audienceIds;
+  }
+
   if (Object.prototype.hasOwnProperty.call(value, 'fixtureKey')) {
     payload.fixtureKey = value.fixtureKey;
   }
@@ -237,6 +684,52 @@ function toPipelineTriggerPayload(
   }
 
   return payload;
+}
+
+function applyPipelineMarketSelection(
+  payload: AdminPipelineTriggerBodyV2,
+  selection: string,
+  campaignMarketOptions: string[],
+  taskMarketId?: string | null,
+): AdminPipelineTriggerBodyV2 {
+  const nextPayload: AdminPipelineTriggerBodyV2 = {
+    ...payload,
+  };
+
+  if (selection === PIPELINE_MARKET_SELECTION_CUSTOM) {
+    return nextPayload;
+  }
+
+  if (selection === PIPELINE_MARKET_SELECTION_TASK) {
+    const normalizedTaskMarketId = toNonEmptyString(taskMarketId);
+    if (normalizedTaskMarketId) {
+      nextPayload.marketId = normalizedTaskMarketId;
+    } else {
+      delete nextPayload.marketId;
+    }
+    delete nextPayload.marketIds;
+    return nextPayload;
+  }
+
+  if (selection === PIPELINE_MARKET_SELECTION_ALL) {
+    const fallbackMarketIds = toUniqueNonEmptyStrings([taskMarketId]);
+    const marketIds = campaignMarketOptions.length > 0 ? campaignMarketOptions : fallbackMarketIds;
+    if (marketIds.length > 0) {
+      nextPayload.marketIds = marketIds;
+    } else {
+      delete nextPayload.marketIds;
+    }
+    delete nextPayload.marketId;
+    return nextPayload;
+  }
+
+  const selectedMarketId = getPipelineMarketIdFromSelection(selection);
+  if (selectedMarketId) {
+    nextPayload.marketId = selectedMarketId;
+    delete nextPayload.marketIds;
+  }
+
+  return nextPayload;
 }
 
 function ActionButton({
@@ -381,9 +874,39 @@ export default function ReviewerTaskDetailPage() {
           : campaignIdFromRun && campaignIdFromRun !== taskId
             ? campaignIdFromRun
             : null;
+  const adminCampaignIdForDetail =
+    normalizeIdCandidate(resolvedCampaignId, taskId) ??
+    normalizeIdCandidate(taskCampaignId, taskId) ??
+    normalizeIdCandidate(queryCampaignId, taskId);
+  const adminCampaignDetailQuery = useAdminCampaignDetail(
+    adminCampaignIdForDetail,
+    isAdmin && Boolean(adminCampaignIdForDetail),
+    {
+      refetchOnMount: 'always',
+    },
+  );
+  const resolvedCampaignOverview =
+    campaignOverviewsQuery.data?.find((campaign) => campaign.id === resolvedCampaignId) ??
+    campaignOverviewsQuery.data?.find((campaign) => campaign.pipelineRunId === task?.pipelineRunId) ??
+    null;
+  const campaignMarketOptions = toUniqueNonEmptyStrings([
+    ...(resolvedCampaignOverview?.v2TargetMarkets ?? []),
+    ...(resolvedCampaignOverview?.marketLocations ?? []),
+    resolvedCampaignOverview?.v2PrimaryMarket,
+    resolvedCampaignOverview?.marketLocation,
+    task?.marketId,
+  ]);
   const canRecreateCampaign = Boolean(resolvedCampaignId);
+  const outputConstraintContext = task
+    ? getBlockedSectionsFromCurrentValues(task.currentValuesToFix, task.questionPayload?.questionContext)
+    : null;
+  const isOutputConstraintFailureMode = task?.failureMode === OUTPUT_CONSTRAINT_MODE;
   const [blockerAnswerJson, setBlockerAnswerJson] = useState('{}');
+  const [outputConstraintIssueStates, setOutputConstraintIssueStates] = useState<OutputConstraintIssueState[]>([]);
   const [triggerPayloadJson, setTriggerPayloadJson] = useState('{}');
+  const [pipelineMarketSelection, setPipelineMarketSelection] = useState<string>(
+    PIPELINE_MARKET_SELECTION_CUSTOM,
+  );
   const [lastActionResult, setLastActionResult] = useState<unknown>(null);
 
   useEffect(() => {
@@ -405,11 +928,42 @@ export default function ReviewerTaskDetailPage() {
       return;
     }
 
-    setBlockerAnswerJson(
-      toEditableJson(task.submittedAnswer ?? task.exampleAnswerPayload, {
-        confirmed: true,
-      }),
+    setPipelineMarketSelection(
+      toNonEmptyString(task.marketId) ? PIPELINE_MARKET_SELECTION_TASK : PIPELINE_MARKET_SELECTION_CUSTOM,
     );
+  }, [task?.id, task?.marketId]);
+
+  useEffect(() => {
+    if (!task) {
+      return;
+    }
+
+    if (isOutputConstraintFailureMode && outputConstraintContext?.blockedSections?.length) {
+      const parsedQuestionParts = parseRenderedQuestionText(task.renderedQuestion);
+      setOutputConstraintIssueStates((previousStates) =>
+        outputConstraintContext.blockedSections.map((section, index) => {
+          const resolvedQuestion = toNonEmptyString(section.question) ?? toNonEmptyString(parsedQuestionParts[index]);
+          const sectionWithQuestion = resolvedQuestion ? { ...section, question: resolvedQuestion } : section;
+          const issueKey = getOutputConstraintIssueKey(section, index);
+          const previousState = previousStates.find((state) => state.issueKey === issueKey);
+          const fallbackIssueId = toNonEmptyString(section.issueId) ?? issueKey;
+
+          return {
+            issueKey,
+            issueId: fallbackIssueId,
+            section: sectionWithQuestion,
+            responseText:
+              previousState?.responseText ?? section.preferredWording ?? '',
+            isLocked: previousState?.isLocked ?? false,
+            isSaving: false,
+          };
+        }),
+      );
+    } else {
+      setOutputConstraintIssueStates([]);
+      setBlockerAnswerJson('{}');
+    }
+
     const triggerPayload = toPipelineTriggerPayload(
       {},
       {
@@ -427,7 +981,17 @@ export default function ReviewerTaskDetailPage() {
       ),
     );
     setLastActionResult(null);
-  }, [resolvedCampaignId, task?.audienceId, task?.id, task?.marketId]);
+  }, [
+    isOutputConstraintFailureMode,
+    resolvedCampaignId,
+    task?.audienceId,
+    task?.id,
+    task?.currentValuesToFix,
+    task?.renderedQuestion,
+    task?.marketId,
+    task?.pipelineRunId,
+    task?.questionPayload?.questionContext,
+  ]);
 
   const respondMutation = useMutation({
     mutationFn: (answer: Record<string, unknown>) =>
@@ -449,15 +1013,98 @@ export default function ReviewerTaskDetailPage() {
       payload?: Record<string, unknown>;
     }) => opsV2Repository.triggerAdminCampaign(campaignId, trigger, payload),
   });
+  const downloadCampaignOutputMutation = useMutation({
+    mutationFn: ({
+      campaignId,
+      payload,
+    }: {
+      campaignId: string;
+      payload?: Record<string, unknown>;
+    }) => opsV2Repository.downloadAdminCampaignOutput(campaignId, payload),
+  });
 
   const recreateLatestRunMutation = useMutation({
     mutationFn: (campaignId: string) => opsV2Repository.recreateLatestCommittedRun(campaignId),
   });
 
+  const resolveCampaignIdForAdminTrigger = async (inputPayload: Record<string, unknown>) => {
+    if (!task) {
+      return null;
+    }
+
+    const payloadCampaignId = toNonEmptyString(inputPayload.campaignId ?? inputPayload.campaign_id);
+    let campaignId = normalizeIdCandidate(resolvedCampaignId, task.id) ?? normalizeIdCandidate(payloadCampaignId, task.id);
+
+    if (!campaignId) {
+      const pipelineRunId = toNonEmptyString(task.pipelineRunId);
+
+      if (pipelineRunId) {
+        try {
+          const tasksByRun = await opsV2Repository.listReviewerTasks({
+            pipelineRunId,
+            limit: 100,
+          });
+          const exactTask = tasksByRun.find((item) => item.id === task.id);
+          campaignId =
+            normalizeIdCandidate(exactTask?.campaignId, task.id) ??
+            normalizeIdCandidate(tasksByRun.find((item) => toNonEmptyString(item.campaignId))?.campaignId, task.id);
+        } catch {
+          // Ignore fallback lookup errors and continue with additional strategies.
+        }
+
+        if (!campaignId) {
+          try {
+            const sectionReviewsByRun = await opsV2Repository.listSectionReviewsByRun(pipelineRunId, {
+              limit: 100,
+            });
+            campaignId = normalizeIdCandidate(
+              sectionReviewsByRun.find((item) => toNonEmptyString(item.campaignId))?.campaignId,
+              task.id,
+            );
+          } catch {
+            // Ignore fallback lookup errors and continue.
+          }
+        }
+      }
+
+      if (!campaignId) {
+        const overviews = campaignOverviewsQuery.data ?? (await opsV2Repository.listCampaignOverviews().catch(() => []));
+        if (pipelineRunId) {
+          campaignId = normalizeIdCandidate(
+            overviews.find((campaign) => campaign.pipelineRunId === pipelineRunId)?.id,
+            task.id,
+          );
+        }
+
+        if (!campaignId) {
+          const campaignTitle = toNonEmptyString(task.campaignTitle);
+          if (campaignTitle) {
+            campaignId = normalizeIdCandidate(
+              overviews.find((campaign) => toNonEmptyString(campaign.title) === campaignTitle)?.id,
+              task.id,
+            );
+          }
+        }
+      }
+    }
+
+    return campaignId;
+  };
+
   const handleResumeFromBlocker = async () => {
+    if (isOutputConstraintFailureMode) {
+      return;
+    }
+
+    if (!task) {
+      return;
+    }
+
     try {
-      const answer = parseJsonObject(blockerAnswerJson, 'Blocker response payload');
-      const result = await respondMutation.mutateAsync(answer);
+      const parsedAnswer = parseJsonObject(blockerAnswerJson, 'Blocker response payload');
+      const normalizedAnswer = toRecord(parsedAnswer?.answer) ?? parsedAnswer;
+      const result = await respondMutation.mutateAsync(normalizedAnswer);
+
       setLastActionResult(result);
       toast({
         title: 'Blocker response submitted',
@@ -469,6 +1116,95 @@ export default function ReviewerTaskDetailPage() {
     } catch (error) {
       toast({
         title: 'Unable to resume from blocker',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const allOutputConstraintIssuesLocked =
+    outputConstraintIssueStates.length > 0 && outputConstraintIssueStates.every((issue) => issue.isLocked);
+  const outputConstraintRenderedQuestions = parseRenderedQuestionText(task?.renderedQuestion);
+  const outputConstraintIssueCards: OutputConstraintIssueState[] = outputConstraintIssueStates.length
+    ? outputConstraintIssueStates
+    : outputConstraintContext
+      ? outputConstraintContext.blockedSections.map((section, index) => {
+          const resolvedQuestion =
+            toNonEmptyString(section.question) ?? toNonEmptyString(outputConstraintRenderedQuestions[index]);
+          const sectionWithQuestion = resolvedQuestion ? { ...section, question: resolvedQuestion } : section;
+          const issueKey = getOutputConstraintIssueKey(section, index);
+
+          return {
+            issueKey,
+            issueId: toNonEmptyString(section.issueId) ?? issueKey,
+            section: sectionWithQuestion,
+            responseText: section.preferredWording ?? '',
+            isLocked: false,
+            isSaving: false,
+          };
+        })
+      : [];
+
+  const handleOutputConstraintIssueResponseChange = (issueKey: string, responseText: string) => {
+    setOutputConstraintIssueStates((current) =>
+      current.map((issue) => (issue.issueKey === issueKey ? { ...issue, responseText } : issue)),
+    );
+  };
+
+  const handleOutputConstraintIssueSave = async (issueKey: string) => {
+    const issue = outputConstraintIssueStates.find((item) => item.issueKey === issueKey);
+    if (!issue || issue.isLocked || issue.isSaving) {
+      return;
+    }
+
+    const hasResponse = toNonEmptyString(issue.responseText);
+    if (!hasResponse) {
+      return;
+    }
+
+    setOutputConstraintIssueStates((current) =>
+      current.map((item) =>
+        item.issueKey === issueKey ? { ...item, isLocked: true, isSaving: false } : item,
+      ),
+    );
+  };
+
+  const handleOutputConstraintSubmit = async () => {
+    if (!task || !isOutputConstraintFailureMode) {
+      return;
+    }
+
+    if (!allOutputConstraintIssuesLocked) {
+      toast({
+        title: 'Complete all blocked issues',
+        description: 'Save all issue responses before submitting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const payload = buildOutputConstraintSubmitPayload(outputConstraintIssueStates);
+      if (!payload) {
+        toast({
+          title: 'No valid issue responses',
+          description: 'Each blocked issue needs a valid section and instruction before submitting.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const result = await respondMutation.mutateAsync(payload);
+
+      setLastActionResult(result);
+      toast({
+        title: 'Blocker workflow complete',
+        description: `All ${outputConstraintIssueStates.length} blocked issues were submitted together.`,
+      });
+      await taskQuery.refetch();
+    } catch (error) {
+      toast({
+        title: 'Unable to submit blocker workflow',
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
@@ -496,68 +1232,18 @@ export default function ReviewerTaskDetailPage() {
     }
   };
 
-  const handleTriggerCampaign = async (trigger: AdminCampaignTriggerType, label: string) => {
+  const handleTriggerCampaign = async (
+    trigger: AdminCampaignTriggerType,
+    label: string,
+    options?: { includeRunIdForPipeline?: boolean },
+  ) => {
     if (!task) {
       return;
     }
 
     try {
       const inputPayload = parseJsonObject(triggerPayloadJson, 'Campaign trigger payload');
-      const payloadCampaignId = toNonEmptyString(inputPayload.campaignId ?? inputPayload.campaign_id);
-      let campaignId = normalizeIdCandidate(resolvedCampaignId, task.id) ?? normalizeIdCandidate(payloadCampaignId, task.id);
-
-      if (!campaignId) {
-        const pipelineRunId = toNonEmptyString(task.pipelineRunId);
-
-        if (pipelineRunId) {
-          try {
-            const tasksByRun = await opsV2Repository.listReviewerTasks({
-              pipelineRunId,
-              limit: 100,
-            });
-            const exactTask = tasksByRun.find((item) => item.id === task.id);
-            campaignId =
-              normalizeIdCandidate(exactTask?.campaignId, task.id) ??
-              normalizeIdCandidate(tasksByRun.find((item) => toNonEmptyString(item.campaignId))?.campaignId, task.id);
-          } catch {
-            // Ignore fallback lookup errors and continue with additional strategies.
-          }
-
-          if (!campaignId) {
-            try {
-              const sectionReviewsByRun = await opsV2Repository.listSectionReviewsByRun(pipelineRunId, {
-                limit: 100,
-              });
-              campaignId = normalizeIdCandidate(
-                sectionReviewsByRun.find((item) => toNonEmptyString(item.campaignId))?.campaignId,
-                task.id,
-              );
-            } catch {
-              // Ignore fallback lookup errors and continue.
-            }
-          }
-        }
-
-        if (!campaignId) {
-          const overviews = campaignOverviewsQuery.data ?? (await opsV2Repository.listCampaignOverviews().catch(() => []));
-          if (pipelineRunId) {
-            campaignId = normalizeIdCandidate(
-              overviews.find((campaign) => campaign.pipelineRunId === pipelineRunId)?.id,
-              task.id,
-            );
-          }
-
-          if (!campaignId) {
-            const campaignTitle = toNonEmptyString(task.campaignTitle);
-            if (campaignTitle) {
-              campaignId = normalizeIdCandidate(
-                overviews.find((campaign) => toNonEmptyString(campaign.title) === campaignTitle)?.id,
-                task.id,
-              );
-            }
-          }
-        }
-      }
+      const campaignId = await resolveCampaignIdForAdminTrigger(inputPayload);
 
       if (!campaignId) {
         toast({
@@ -581,11 +1267,82 @@ export default function ReviewerTaskDetailPage() {
 
       const payload =
         trigger === 'pipeline'
-          ? toPipelineTriggerPayload(inputPayload, {
-              marketId: task.marketId ?? undefined,
-              audienceId: task.audienceId ?? undefined,
-            })
+          ? applyPipelineMarketSelection(
+              toPipelineTriggerPayload(inputPayload, {
+                marketId: task.marketId ?? undefined,
+                audienceId: task.audienceId ?? undefined,
+              }),
+              pipelineMarketSelection,
+              campaignMarketOptions,
+              task.marketId ?? undefined,
+            )
           : inputPayload;
+      if (trigger === 'pipeline' && options?.includeRunIdForPipeline) {
+        let latestRunId: string | null = null;
+        let latestRunStatus: string | null = null;
+
+        if (isAdmin) {
+          const adminCampaignDetail =
+            adminCampaignIdForDetail === campaignId
+              ? (await adminCampaignDetailQuery.refetch().catch(() => null))?.data ??
+                adminCampaignDetailQuery.data ??
+                null
+              : await adminReviewRepository.getAdminCampaignDetail(campaignId).catch(() => null);
+
+          latestRunId = toNonEmptyString(adminCampaignDetail?.latestRun?.id);
+          latestRunStatus = toNonEmptyString(adminCampaignDetail?.latestRun?.status);
+        }
+
+        if (!latestRunId) {
+          const latestOverviews = await opsV2Repository.listCampaignOverviews().catch(() => null);
+          if (!latestOverviews) {
+            toast({
+              title: 'Unable to verify latest active run',
+              description:
+                'Run From Last Failure requires the latest active run ID, but campaign overview refresh failed.',
+              variant: 'destructive',
+            });
+            return;
+          }
+
+          const latestCampaignOverview = latestOverviews.find((campaign) => campaign.id === campaignId) ?? null;
+          latestRunId = toNonEmptyString(latestCampaignOverview?.pipelineRunId);
+          latestRunStatus =
+            latestRunStatus ??
+            toNonEmptyString(latestCampaignOverview?.latestRunStatus);
+        }
+
+        if (latestRunId && !latestRunStatus) {
+          const aggregate = await opsV2Repository.getRunAggregate(latestRunId).catch(() => null);
+          latestRunStatus = toNonEmptyString(aggregate?.status);
+        }
+
+        if (
+          latestRunId &&
+          !latestRunStatus &&
+          latestRunId === toNonEmptyString(task.pipelineRunId) &&
+          isActivePipelineRunStatus(task.runStatus)
+        ) {
+          latestRunStatus = toNonEmptyString(task.runStatus);
+        }
+
+        if (!latestRunId || !isActivePipelineRunStatus(latestRunStatus)) {
+          const statusLabel = latestRunStatus ?? 'UNKNOWN';
+          toast({
+            title: 'No active run available',
+            description: `Latest run is ${statusLabel}. Run From Last Failure only supports latest active runs.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        payload.runId = latestRunId;
+      }
+      if (trigger === 'pipeline') {
+        setTriggerPayloadJson(
+          toEditableJson(payload, {}),
+        );
+      }
       setStoredCampaignIdForTask(task.id, campaignId);
       setStoredCampaignId(campaignId);
       const result = await triggerCampaignMutation.mutateAsync({
@@ -607,7 +1364,73 @@ export default function ReviewerTaskDetailPage() {
     }
   };
 
+  const handleDownloadAssembledOutput = async () => {
+    if (!task) {
+      return;
+    }
+
+    try {
+      const inputPayload = parseJsonObject(triggerPayloadJson, 'Campaign trigger payload');
+      const campaignId = await resolveCampaignIdForAdminTrigger(inputPayload);
+
+      if (!campaignId) {
+        toast({
+          title: 'Campaign ID is missing',
+          description:
+            'No valid campaign ID found. Add "campaignId" in Campaign Trigger Payload JSON to send this request.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (campaignId === task.id) {
+        toast({
+          title: 'Campaign ID looks invalid',
+          description:
+            'Campaign ID matches task ID. Use the real campaign ID in payload field "campaignId".',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const result = await downloadCampaignOutputMutation.mutateAsync({
+        campaignId,
+        payload: inputPayload,
+      });
+      const filename = resolveDownloadFilename(
+        result.filename,
+        `${campaignId}-output`,
+        result.contentType ?? result.blob.type,
+      );
+
+      triggerBlobDownload(result.blob, filename);
+      setStoredCampaignIdForTask(task.id, campaignId);
+      setStoredCampaignId(campaignId);
+      setLastActionResult({
+        downloaded: true,
+        campaignId,
+        filename,
+        contentType: result.contentType ?? result.blob.type ?? null,
+        size: result.blob.size,
+      });
+      toast({
+        title: 'Output downloaded',
+        description: `${filename} downloaded from output assembly response.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Unable to download output',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleRecreateLatestRun = async () => {
+    if (!task) {
+      return;
+    }
+
     if (!resolvedCampaignId) {
       toast({
         title: 'Campaign ID is missing',
@@ -679,7 +1502,9 @@ export default function ReviewerTaskDetailPage() {
             Reviewer Workspace
           </p>
           <h1 className="font-space-grotesk text-3xl font-bold text-foreground">Campaign Review Detail</h1>
-          <p className="text-sm text-muted-foreground">Structured view for reviewer diagnostics and single-value response submission.</p>
+          <p className="text-sm text-muted-foreground">
+            Structured view for reviewer diagnostics and blocker-response submission.
+          </p>
         </div>
       </div>
 
@@ -706,8 +1531,34 @@ export default function ReviewerTaskDetailPage() {
           <CardContent className="space-y-5">
             <div className="grid gap-5 lg:grid-cols-2">
               <FieldCard label="whatWentWrong" value={task.whatWentWrong} />
-              <FieldCard label="renderedQuestion" value={task.renderedQuestion} />
-              <FieldCard label="currentValuesToFix" value={task.currentValuesToFix} />
+              {isOutputConstraintFailureMode && outputConstraintContext ? (
+                <div className="col-span-full space-y-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    Blocked Issues (
+                    {formatOutputConstraintSectionCount(
+                      outputConstraintContext.blockedSectionCount ?? outputConstraintContext.blockedSections.length,
+                    )}
+                    )
+                  </p>
+                  <div className="grid gap-3">
+                    {outputConstraintIssueCards.map((issue, index) => (
+                      <OutputConstraintIssueCard
+                        key={issue.issueKey}
+                        issueIndex={index}
+                        issue={issue}
+                        disabled={true}
+                        interactive={false}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <FieldCard label="renderedQuestion" value={task.renderedQuestion} />
+                  <FieldCard label="currentValuesToFix" value={task.currentValuesToFix} />
+                </>
+              )}
+              <FieldCard label="feedback" value={task.feedback} />
               <FieldCard label="whereAnswerWillBeApplied" value={task.whereAnswerWillBeApplied} />
               <FieldCard label="pipelineRestartPhase" value={task.pipelineRestartPhase} />
               <FieldCard label="failureMode" value={task.failureMode ? formatOpsStatus(task.failureMode) : null} />
@@ -768,12 +1619,26 @@ export default function ReviewerTaskDetailPage() {
                 </div>
                 <ActionButton
                   label="Submit Reviewer Response"
-                  tooltip="Submit your answer to unblock the pipeline and resume from the right phase."
+                  tooltip={
+                    isOutputConstraintFailureMode
+                      ? 'Submit is enabled only after every blocked issue is saved.'
+                      : 'Submit your answer to unblock the pipeline and resume from the right phase.'
+                  }
                   tooltipTitle="Respond + Resume"
                   badge="Primary"
-                  description="Send blocker response payload and resume from restart phase."
-                  onClick={() => void handleResumeFromBlocker()}
-                  disabled={respondMutation.isPending}
+                  description={
+                    isOutputConstraintFailureMode
+                      ? 'Save every blocked issue response before submitting.'
+                      : 'Send blocker response payload and resume from restart phase.'
+                  }
+                  onClick={() =>
+                    void (isOutputConstraintFailureMode ? handleOutputConstraintSubmit() : handleResumeFromBlocker())
+                  }
+                  disabled={
+                    isOutputConstraintFailureMode
+                      ? respondMutation.isPending || !allOutputConstraintIssuesLocked
+                      : respondMutation.isPending
+                  }
                   pending={respondMutation.isPending}
                   pendingLabel="Submitting..."
                   tone="accent"
@@ -800,6 +1665,49 @@ export default function ReviewerTaskDetailPage() {
                     Queue specific regeneration stages without leaving this workspace.
                   </p>
                 </div>
+                <div className="rounded-lg border border-border/70 bg-background/35 p-3">
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,260px)_1fr] md:items-end">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="pipeline-market-target-select">Pipeline Market Target</Label>
+                      <Select value={pipelineMarketSelection} onValueChange={setPipelineMarketSelection}>
+                        <SelectTrigger id="pipeline-market-target-select">
+                          <SelectValue placeholder="Choose market target" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={PIPELINE_MARKET_SELECTION_CUSTOM}>
+                            Use market from payload JSON
+                          </SelectItem>
+                          <SelectItem
+                            value={PIPELINE_MARKET_SELECTION_TASK}
+                            disabled={!toNonEmptyString(task.marketId)}
+                          >
+                            {toNonEmptyString(task.marketId)
+                              ? `Use task market (${task.marketId})`
+                              : 'Use task market (not available)'}
+                          </SelectItem>
+                          <SelectItem
+                            value={PIPELINE_MARKET_SELECTION_ALL}
+                            disabled={campaignMarketOptions.length === 0}
+                          >
+                            {campaignMarketOptions.length > 0
+                              ? `All campaign markets (${campaignMarketOptions.join(', ')})`
+                              : 'All campaign markets (not available)'}
+                          </SelectItem>
+                          {campaignMarketOptions.map((marketId) => (
+                            <SelectItem key={marketId} value={toPipelineMarketSelectionValue(marketId)}>
+                              {`Only ${marketId}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Applied to <span className="font-semibold text-foreground">Run Full Pipeline</span> and
+                      <span className="font-semibold text-foreground"> Run From Last Failure</span>. Other trigger
+                      buttons ignore this market selector.
+                    </p>
+                  </div>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <ActionButton
                     label="Run Full Pipeline"
@@ -812,6 +1720,22 @@ export default function ReviewerTaskDetailPage() {
                     pending={triggerCampaignMutation.isPending}
                     pendingLabel="Queuing..."
                     icon={<Workflow className="h-4 w-4" />}
+                  />
+                  <ActionButton
+                    label="Run From Last Failure"
+                    tooltip="Run pipeline using the campaign's latest active run ID only."
+                    tooltipTitle="Pipeline Recovery"
+                    badge="Recovery"
+                    description="Resume/retrigger pipeline context from latest active run."
+                    onClick={() =>
+                      void handleTriggerCampaign('pipeline', 'Run From Last Failure', {
+                        includeRunIdForPipeline: true,
+                      })
+                    }
+                    disabled={triggerCampaignMutation.isPending}
+                    pending={triggerCampaignMutation.isPending}
+                    pendingLabel="Queuing..."
+                    icon={<RefreshCcw className="h-4 w-4" />}
                   />
                   <ActionButton
                     label="Run Intelligence"
@@ -855,10 +1779,10 @@ export default function ReviewerTaskDetailPage() {
                     tooltipTitle="Output Assembly"
                     badge="Deliverables"
                     description="Produce deliverables from approved section outputs."
-                    onClick={() => void handleTriggerCampaign('output', 'Assemble Output')}
-                    disabled={triggerCampaignMutation.isPending}
-                    pending={triggerCampaignMutation.isPending}
-                    pendingLabel="Queuing..."
+                    onClick={() => void handleDownloadAssembledOutput()}
+                    disabled={downloadCampaignOutputMutation.isPending}
+                    pending={downloadCampaignOutputMutation.isPending}
+                    pendingLabel="Downloading..."
                     icon={<CheckCircle2 className="h-4 w-4" />}
                   />
                   <ActionButton
@@ -879,26 +1803,61 @@ export default function ReviewerTaskDetailPage() {
 
             <div className="grid gap-5 xl:grid-cols-2">
               <div className="space-y-3 rounded-xl border border-border bg-background/30 p-4">
-                <div className="space-y-1">
-                  <Label htmlFor="admin-blocker-answer-json">Blocker Response Payload</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Used by Submit Reviewer Response to unblock the run.
-                  </p>
-                </div>
-                <Textarea
-                  id="admin-blocker-answer-json"
-                  value={blockerAnswerJson}
-                  onChange={(event) => setBlockerAnswerJson(event.target.value)}
-                  rows={11}
-                  className="font-mono text-xs"
-                />
+                {isOutputConstraintFailureMode ? (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label>Output Constraint Blocked Sections</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Resolve each issue separately. Save all blocked issue responses to enable submission.
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {outputConstraintIssueStates.length > 0
+                        ? formatOutputConstraintSectionCount(outputConstraintIssueStates.length)
+                        : 'No blocked sections available'}
+                    </p>
+                    {outputConstraintIssueStates.length ? (
+                      <div className="grid gap-3">
+                        {outputConstraintIssueStates.map((issue, index) => (
+                          <OutputConstraintIssueCard
+                            key={issue.issueKey}
+                            issueIndex={index}
+                            issue={issue}
+                            disabled={respondMutation.isPending}
+                            onChange={(responseText) => handleOutputConstraintIssueResponseChange(issue.issueKey, responseText)}
+                            onSave={() => void handleOutputConstraintIssueSave(issue.issueKey)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-md border border-dashed border-border/80 p-3 text-xs text-muted-foreground">
+                        No blocked section issues found.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Label htmlFor="admin-blocker-answer-json">Blocker Response Payload</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Used by Submit Reviewer Response to unblock the run.
+                    </p>
+                    <Textarea
+                      id="admin-blocker-answer-json"
+                      value={blockerAnswerJson}
+                      onChange={(event) => setBlockerAnswerJson(event.target.value)}
+                      rows={11}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3 rounded-xl border border-border bg-background/30 p-4">
                 <div className="space-y-1">
                   <Label htmlFor="admin-trigger-payload-json">Campaign Trigger Payload</Label>
                   <p className="text-xs text-muted-foreground">
-                    Shared payload sent to pipeline trigger operations.
+                    Shared payload sent to pipeline trigger operations. Pipeline market selector can override market
+                    fields for pipeline actions. Run From Last Failure auto-selects latest active runId.
                   </p>
                 </div>
                 <Textarea
@@ -942,4 +1901,3 @@ export default function ReviewerTaskDetailPage() {
     </div>
   );
 }
-

@@ -1,12 +1,13 @@
 'use client';
 
-import React, { Suspense } from "react"
+import React, { Suspense } from 'react';
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { OtpInput } from '@/components/ui/otp-input';
@@ -16,8 +17,17 @@ import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
 import { X, ArrowLeft, Mail, Clock } from 'lucide-react';
 import { useLandingDesignVariant } from '@/features/landing/hooks/useLandingDesignVariant';
 import { AuthV2Shell } from '@/components/auth/auth-v2-shell';
+import { legalRepository } from '@/shared/api/repositories';
+import { resolveLegalErrorMessage } from '@/shared/legal/legal-error';
+import {
+  areAllRequiredDocumentsAccepted,
+  buildLegalChecklistItems,
+  buildSignupAcceptPayload,
+  getSignupRequiredDocumentIds,
+} from '@/shared/legal/legal-flow-utils';
+import { SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES, type LegalDocumentVersion } from '@/shared/types/legal';
 
-type SignupStep = 'credentials' | 'verify-otp';
+type SignupStep = 'credentials' | 'verify-otp' | 'legal';
 
 interface VerificationState {
   verificationId: string;
@@ -42,12 +52,32 @@ function SignupContent() {
   });
   const [verificationState, setVerificationState] = useState<VerificationState | null>(null);
   const [otp, setOtp] = useState('');
+  const [activeLegalDocuments, setActiveLegalDocuments] = useState<LegalDocumentVersion[]>([]);
+  const [acceptedSignupDocumentIds, setAcceptedSignupDocumentIds] = useState<string[]>([]);
+  const [isLoadingLegalDocuments, setIsLoadingLegalDocuments] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const verifyingRef = useRef(false); // Prevent duplicate API calls
   const variant = useLandingDesignVariant();
   const isV2 = variant === 'v2';
+
+  const signupLegalChecklistItems = useMemo(
+    () => buildLegalChecklistItems(activeLegalDocuments, SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES),
+    [activeLegalDocuments],
+  );
+  const signupRequiredDocumentIds = useMemo(
+    () => getSignupRequiredDocumentIds(activeLegalDocuments),
+    [activeLegalDocuments],
+  );
+  const hasAcceptedAllSignupDocuments = useMemo(
+    () =>
+      areAllRequiredDocumentsAccepted(
+        signupRequiredDocumentIds,
+        acceptedSignupDocumentIds,
+      ),
+    [acceptedSignupDocumentIds, signupRequiredDocumentIds],
+  );
 
   // Timer for OTP expiration
   useEffect(() => {
@@ -109,6 +139,33 @@ function SignupContent() {
     }
   };
 
+  const loadSignupLegalDocuments = async () => {
+    setIsLoadingLegalDocuments(true);
+    setError(null);
+
+    try {
+      const documents = await legalRepository.getActiveDocuments();
+      const requiredIds = getSignupRequiredDocumentIds(documents);
+
+      if (requiredIds.length !== SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES.length) {
+        throw new Error('Required signup policies are currently unavailable. Please try again.');
+      }
+
+      setActiveLegalDocuments(documents);
+      setAcceptedSignupDocumentIds([]);
+      setIsLoadingLegalDocuments(false);
+    } catch (err: unknown) {
+      setError(
+        resolveLegalErrorMessage(
+          err,
+          'Unable to load required policies. Please retry.',
+        ),
+      );
+      setIsLoadingLegalDocuments(false);
+      throw err;
+    }
+  };
+
   const handleVerifyOtp = async (otpCode: string) => {
     if (!verificationState) return;
     
@@ -136,23 +193,14 @@ function SignupContent() {
         user: result.user,
       });
 
-      // Store plan preference if provided
-      if (planParam) {
-        localStorage.setItem('adcendy_plan', planParam);
-      }
-
-      // Calculate redirect URL
-      const redirectUrl = getAuthRedirectUrl(incomingNext);
-      console.log('Signup successful, redirecting to:', redirectUrl);
-      
-      // Dispatch auth-change event for reactive components
-      window.dispatchEvent(new Event('auth-change'));
-      
-      // Use replace to avoid back button issues
-      router.replace(redirectUrl);
+      setStep('legal');
+      await loadSignupLegalDocuments();
+      setOtp('');
+      setIsLoading(false);
+      verifyingRef.current = false;
     } catch (err: any) {
       console.error('OTP verification error:', err);
-      setError(err.message || 'Invalid OTP. Please try again.');
+      setError(err.message || 'Unable to verify OTP. Please try again.');
       setIsLoading(false);
       setOtp(''); // Clear OTP on error
       verifyingRef.current = false; // Reset on error to allow retry
@@ -188,10 +236,61 @@ function SignupContent() {
     }
   };
 
+  const handleSignupLegalToggle = (documentVersionId: string, checked: boolean) => {
+    setAcceptedSignupDocumentIds((previousIds) => {
+      if (checked) {
+        return previousIds.includes(documentVersionId)
+          ? previousIds
+          : [...previousIds, documentVersionId];
+      }
+
+      return previousIds.filter((id) => id !== documentVersionId);
+    });
+  };
+
+  const handleSignupLegalContinue = async () => {
+    if (!hasAcceptedAllSignupDocuments) {
+      setError('Please accept Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const payload = buildSignupAcceptPayload(signupRequiredDocumentIds);
+      await legalRepository.acceptDocuments({
+        ...payload,
+        metadata: {
+          flow: 'signup',
+          plan: planParam ?? undefined,
+        },
+      });
+
+      if (planParam) {
+        localStorage.setItem('adcendy_plan', planParam);
+      }
+
+      const redirectUrl = getAuthRedirectUrl(incomingNext);
+      window.dispatchEvent(new Event('auth-change'));
+      router.replace(redirectUrl);
+    } catch (err: unknown) {
+      setError(
+        resolveLegalErrorMessage(
+          err,
+          'Could not save policy acceptance. Please try again.',
+        ),
+      );
+      setIsLoading(false);
+    }
+  };
+
   const handleBackToCredentials = () => {
     setStep('credentials');
     setVerificationState(null);
     setOtp('');
+    setActiveLegalDocuments([]);
+    setAcceptedSignupDocumentIds([]);
     setError(null);
     verifyingRef.current = false; // Reset verification flag
   };
@@ -282,7 +381,7 @@ function SignupContent() {
               </Link>
             </div>
           </>
-        ) : (
+        ) : step === 'verify-otp' ? (
           <>
             <div className="space-y-4">
               <button
@@ -379,6 +478,79 @@ function SignupContent() {
               )}
             </div>
           </>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <h2 className={isV2 ? 'text-xl font-semibold text-[rgba(237,232,220,0.92)]' : 'font-space-grotesk text-2xl font-bold'}>
+                Accept Required Policies
+              </h2>
+              <p className={isV2 ? 'text-sm text-[rgba(237,232,220,0.64)]' : 'text-sm text-muted-foreground'}>
+                Please review and accept Terms of Service and Privacy Policy to complete signup.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {error && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-md">
+                  {error}
+                </div>
+              )}
+
+              {isLoadingLegalDocuments ? (
+                <div className="rounded-md border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                  Loading current legal documents...
+                </div>
+              ) : signupLegalChecklistItems.length === 0 ? (
+                <div className="space-y-3">
+                  <div className="rounded-md border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                    Required documents are not available right now.
+                  </div>
+                  <Button type="button" variant="outline" className="w-full" onClick={loadSignupLegalDocuments}>
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {signupLegalChecklistItems.map((item) => (
+                    <label
+                      key={item.id}
+                      className="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-3"
+                    >
+                      <Checkbox
+                        checked={acceptedSignupDocumentIds.includes(item.id)}
+                        onCheckedChange={(nextChecked) => handleSignupLegalToggle(item.id, nextChecked === true)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-sm text-foreground/90">
+                        I agree to the{' '}
+                        {item.href ? (
+                          <Link className="text-primary hover:underline" href={item.href}>
+                            {item.label}
+                          </Link>
+                        ) : (
+                          item.label
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                type="button"
+                className={isV2 ? 'w-full h-11 bg-[#cfa35b] text-[#11181a] hover:bg-[#d8af67] font-medium' : 'w-full'}
+                disabled={
+                  isLoading ||
+                  isLoadingLegalDocuments ||
+                  signupRequiredDocumentIds.length !== SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES.length ||
+                  !hasAcceptedAllSignupDocuments
+                }
+                onClick={handleSignupLegalContinue}
+              >
+                {isLoading ? 'Saving...' : 'Continue'}
+              </Button>
+            </div>
+          </>
         )}
     </>
   );
@@ -386,8 +558,20 @@ function SignupContent() {
   if (variant === 'v2') {
     return (
       <AuthV2Shell
-        title={step === 'credentials' ? 'Create account' : 'Verify your email'}
-        subtitle={step === 'credentials' ? 'Start your intelligence journey' : 'Confirm your account to continue'}
+        title={
+          step === 'credentials'
+            ? 'Create account'
+            : step === 'verify-otp'
+              ? 'Verify your email'
+              : 'Legal acceptance'
+        }
+        subtitle={
+          step === 'credentials'
+            ? 'Start your intelligence journey'
+            : step === 'verify-otp'
+              ? 'Confirm your account to continue'
+              : 'Review and accept required policies'
+        }
         modal
       >
         {content}

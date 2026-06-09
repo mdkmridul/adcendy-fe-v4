@@ -134,6 +134,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="font-semibold">{user?.email}</p>
                 <p>{user?.role}</p>
               </div>
+              <Button asChild variant={pathname.startsWith('/app/account/privacy-consents') ? 'default' : 'ghost'} size="sm">
+                <Link href="/app/account/privacy-consents">Privacy &amp; Consents</Link>
+              </Button>
+              <Button asChild variant={pathname.startsWith('/app/checkout') ? 'default' : 'ghost'} size="sm">
+                <Link href="/app/checkout">Checkout</Link>
+              </Button>
               <ThemeToggle />
               <Button
                 variant="ghost"

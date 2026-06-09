@@ -1,5 +1,6 @@
 import ENV from '@/lib/env';
 import type {
+  AdminDownloadResponse,
   AdminCampaignTriggerType,
   AdminCostsSummary,
   CampaignHealthItem,
@@ -122,8 +123,19 @@ export const opsV2Repository = {
     return adapter.triggerAdminCampaign(campaignId, trigger, payload);
   },
 
+  async downloadAdminCampaignOutput(
+    campaignId: string,
+    payload?: Record<string, unknown>,
+  ): Promise<AdminDownloadResponse> {
+    return adapter.downloadAdminCampaignOutput(campaignId, payload);
+  },
+
   async recreateLatestCommittedRun(campaignId: string): Promise<Record<string, unknown>> {
     return adapter.recreateLatestCommittedRun(campaignId);
+  },
+
+  async assembleAdminRunInternalOutput(runId: string): Promise<Record<string, unknown>> {
+    return adapter.assembleAdminRunInternalOutput(runId);
   },
 
   async getCampaignHealth(params?: { limit?: number; onlyUnhealthy?: boolean }): Promise<CampaignHealthItem[]> {

@@ -5,6 +5,8 @@ export const ROLE_ORDER: readonly Role[] = ['CLIENT', 'REVIEWER', 'ADMIN'] as co
 const exactRolePathPolicies: Array<{ pattern: RegExp; exactRole: Role }> = [
   { pattern: /^\/admin(?:\/|$)/, exactRole: 'ADMIN' },
   { pattern: /^\/app\/campaigns(?:\/|$)/, exactRole: 'CLIENT' },
+  { pattern: /^\/app\/checkout(?:\/|$)/, exactRole: 'CLIENT' },
+  { pattern: /^\/app\/account(?:\/|$)/, exactRole: 'CLIENT' },
   { pattern: /^\/app\/strategy(?:\/|$)/, exactRole: 'CLIENT' },
   { pattern: /^\/app\/weekly(?:\/|$)/, exactRole: 'CLIENT' },
   { pattern: /^\/app\/intelligence(?:\/|$)/, exactRole: 'CLIENT' },
@@ -36,6 +38,8 @@ export const routePolicies: Record<string, Role> = {
   '/admin/health': 'ADMIN',
   '/admin/runs': 'ADMIN',
   '/app/campaigns': 'CLIENT',
+  '/app/checkout': 'CLIENT',
+  '/app/account': 'CLIENT',
   '/app/strategy': 'CLIENT',
   '/app/weekly': 'CLIENT',
   '/app/intelligence': 'CLIENT',
