@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { ReactNode, useEffect, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
   BrainCircuit,
@@ -21,11 +21,14 @@ import { useAdminCampaignDetail } from '@/hooks/useAdminReview';
 import { useOpsCampaignOverviews, useOpsReviewerTask } from '@/hooks/useOpsV2';
 import { useToast } from '@/hooks/use-toast';
 import { adminReviewRepository, opsV2Repository } from '@/shared/api/repositories';
+import { queryKeys } from '@/shared/api/queryKeys';
 import type {
   AdminCampaignTriggerType,
   AdminPipelineTriggerBodyV2,
+  ReviewerTaskRespondPayload,
 } from '@/shared/types/opsV2';
 import { formatOpsStatus, toJsonPreview } from '@/shared/components/ops/opsUtils';
+import { humanizeReviewValue } from '@/shared/types/reviews';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -43,7 +46,9 @@ const FIELD_LABELS: Record<string, string> = {
   whereAnswerWillBeApplied: 'Where Answer Will Be Applied',
   pipelineRestartPhase: 'Pipeline Restart Phase',
   renderedQuestion: 'Rendered Question',
-  failureMode: 'Failure Mode',
+  section: 'Section',
+  market: 'Market',
+  failureMode: 'Failure',
   status: 'Status',
   submittedAnswer: 'Submitted Answer',
 };
@@ -114,11 +119,31 @@ function normalizeOutputConstraintSection(item: Record<string, unknown>): Output
     sectionLabel: toNonEmptyString(item.sectionLabel) ?? toNonEmptyString(item.section_label),
     violationSummary: toNonEmptyString(item.violationSummary) ?? toNonEmptyString(item.violation_summary),
     offendingSnippet: toNonEmptyString(item.offendingSnippet) ?? toNonEmptyString(item.offending_snippet),
-    preferredWording: toNonEmptyString(item.preferredWording) ?? toNonEmptyString(item.preferred_wording),
+    preferredWording:
+      toNonEmptyString(item.preferredWording) ??
+      toNonEmptyString(item.preferred_wording) ??
+      toNonEmptyString(item.preferredWortding) ??
+      toNonEmptyString(item.preferred_wortding),
     question: toNonEmptyString(item.question) ?? toNonEmptyString(item.questionText) ?? toNonEmptyString(item.question_text),
     marketId: toNonEmptyString(item.marketId) ?? toNonEmptyString(item.market_id),
     audienceId: toNonEmptyString(item.audienceId) ?? toNonEmptyString(item.audience_id),
   };
+}
+
+function getTaskQuestionContext(questionPayloadValue: unknown): Record<string, unknown> | null {
+  const questionPayload = toRecord(questionPayloadValue);
+  if (!questionPayload) {
+    return null;
+  }
+
+  return (
+    toRecord(questionPayload.questionContext) ??
+    toRecord(questionPayload.question_context) ??
+    toRecord(questionPayload.blockedSectionquestionContext) ??
+    toRecord(questionPayload.blockedSectionQuestionContext) ??
+    toRecord(questionPayload.blocked_section_question_context) ??
+    null
+  );
 }
 
 function getBlockedSectionsFromCurrentValues(
@@ -304,46 +329,53 @@ function getOutputConstraintIssueKey(section: OutputConstraintBlockedSection, in
 }
 
 type OutputConstraintIssueAnswer = {
-  issue_id: string;
-  section_id: string;
-  section_label?: string;
-  term_id?: string;
+  issueId: string;
+  sectionId: string;
+  sectionLabel?: string;
+  marketId?: string;
   instruction: string;
 };
 
-type OutputConstraintSubmitPayload = {
-  issue_answers: OutputConstraintIssueAnswer[];
-};
+function mapOutputConstraintIssueToAnswer(
+  issue: OutputConstraintIssueState,
+  fallbackMarketId?: string | null,
+): OutputConstraintIssueAnswer | null {
+  const instruction = toNonEmptyString(issue.responseText);
+  const issueId = toNonEmptyString(issue.issueId);
+  const sectionId = toNonEmptyString(issue.section.sectionId);
+  const sectionLabel =
+    toNonEmptyString(issue.section.sectionLabel) ?? formatOutputConstraintSectionLabel(issue.section);
+  const marketId = toNonEmptyString(issue.section.marketId) ?? toNonEmptyString(fallbackMarketId);
+
+  if (!issueId || !instruction || !sectionId) {
+    return null;
+  }
+
+  return {
+    issueId,
+    sectionId,
+    ...(sectionLabel ? { sectionLabel } : {}),
+    ...(marketId ? { marketId } : {}),
+    instruction,
+  };
+}
 
 function buildOutputConstraintSubmitPayload(
   issues: OutputConstraintIssueState[],
-): OutputConstraintSubmitPayload | null {
+  fallbackMarketId?: string | null,
+): Record<string, unknown> | null {
   const issueAnswers = issues
-    .map((issue) => {
-      const instruction = toNonEmptyString(issue.responseText);
-      const issueId = toNonEmptyString(issue.issueId);
-      const sectionId = toNonEmptyString(issue.section.sectionId);
-      const sectionLabel = toNonEmptyString(issue.section.sectionLabel);
-
-      if (!issueId || !instruction || !sectionId) {
-        return null;
-      }
-
-      return {
-        issue_id: issueId,
-        section_id: sectionId,
-        ...(sectionLabel ? { section_label: sectionLabel } : {}),
-        ...(toNonEmptyString(issue.section.termId) ? { term_id: toNonEmptyString(issue.section.termId) } : {}),
-        instruction,
-      };
-    })
+    .filter((issue) => issue.isLocked)
+    .map((issue) => mapOutputConstraintIssueToAnswer(issue, fallbackMarketId))
     .filter((entry): entry is OutputConstraintIssueAnswer => entry !== null);
 
   if (issueAnswers.length === 0) {
     return null;
   }
 
-  return { issue_answers: issueAnswers };
+  return {
+    issueAnswers,
+  };
 }
 
 
@@ -362,11 +394,8 @@ function OutputConstraintIssueCard({
   onChange?: (value: string) => void;
   onSave?: () => void;
 }) {
-  const cardTitle = formatOutputConstraintSectionLabel(issue.section);
   const isLocked = issue.isLocked;
   const isSaving = issue.isSaving;
-  const hasQuestion = toNonEmptyString(issue.section.question) !== null;
-  const hasResponse = toNonEmptyString(issue.responseText) !== null;
 
   return (
     <div
@@ -378,41 +407,35 @@ function OutputConstraintIssueCard({
       )}
     >
       <div className="mb-2 flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold">
-          {`Issue ${issueIndex + 1}: ${cardTitle}`}
-        </p>
+        <p className="text-sm font-semibold">{`Issue ${issueIndex + 1}`}</p>
         <span className={cn('text-xs font-semibold uppercase tracking-[0.08em]', isLocked ? 'text-emerald-600' : 'text-muted-foreground')}>
           {isLocked ? 'Locked' : 'Pending'}
         </span>
       </div>
-      <div className="space-y-2 text-xs text-muted-foreground">
-        {hasQuestion ? (
-          <p>
-            <span className="font-medium text-foreground">Question:</span> {issue.section.question}
-          </p>
-        ) : null}
-        {issue.section.sectionId ? <p>Section ID: {issue.section.sectionId}</p> : null}
-        {issue.section.marketId ? <p>Market: {issue.section.marketId}</p> : null}
-        {issue.section.audienceId ? <p>Audience: {issue.section.audienceId}</p> : null}
-        {issue.section.violationSummary ? <p>Violation: {issue.section.violationSummary}</p> : null}
-        {issue.section.offendingSnippet ? <p>Snippet: {issue.section.offendingSnippet}</p> : null}
-        {!interactive && hasResponse ? <p>Response: {issue.responseText}</p> : null}
-        {issue.section.preferredWording ? (
-          <p>
-            Suggested guidance: <span className="text-foreground">{issue.section.preferredWording}</span>
-          </p>
-        ) : null}
+      <div className="grid gap-3 text-xs text-muted-foreground lg:grid-cols-2">
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">Blocker Type</p>
+          <p>{issue.section.termId ?? 'Not available'}</p>
+        </div>
+        <div className="space-y-1 lg:col-span-2">
+          <p className="font-medium text-foreground">Offending Snippet</p>
+          <p>{issue.section.offendingSnippet ?? 'Not available'}</p>
+        </div>
+        <div className="space-y-1 lg:col-span-2">
+          <p className="font-medium text-foreground">Violation Summary</p>
+          <p>{issue.section.violationSummary ?? 'Not available'}</p>
+        </div>
       </div>
       {interactive ? (
         <div className="mt-3 space-y-2">
-          <Label htmlFor={`output-constraint-issue-${issue.issueKey}`}>Regeneration Instruction</Label>
+          <Label htmlFor={`output-constraint-issue-${issue.issueKey}`}>Response</Label>
           <Textarea
             id={`output-constraint-issue-${issue.issueKey}`}
             value={issue.responseText}
             onChange={(event) => onChange?.(event.target.value)}
             rows={6}
             className="font-sans text-sm"
-            placeholder="Add one guidance message for this blocked issue."
+            placeholder="Add the response that should be submitted for this issue."
             disabled={isLocked || isSaving || disabled}
           />
           <div className="flex justify-end">
@@ -492,6 +515,36 @@ function toNonEmptyString(value: unknown): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveTaskSectionId(
+  task:
+    | {
+        sectionId?: string | null;
+        questionPayload?: Record<string, unknown> | null;
+      }
+    | null
+    | undefined,
+): string | null {
+  const questionPayload = toRecord(task?.questionPayload);
+  return (
+    toNonEmptyString(task?.sectionId) ??
+    toNonEmptyString(questionPayload?.sectionId) ??
+    toNonEmptyString(questionPayload?.section_id) ??
+    toNonEmptyString(questionPayload?.sectoinId) ??
+    toNonEmptyString(questionPayload?.sectoin_id) ??
+    null
+  );
+}
+
+function formatTaskSectionLabel(sectionId?: string | null): string | null {
+  const normalizedSectionId = toNonEmptyString(sectionId);
+  if (!normalizedSectionId) {
+    return null;
+  }
+
+  const strippedSectionId = normalizedSectionId.replace(/^section(?:[_-]\d+)?[_-]+/i, '');
+  return humanizeReviewValue(strippedSectionId || normalizedSectionId);
 }
 
 function toUniqueNonEmptyStrings(values: unknown[]): string[] {
@@ -842,9 +895,11 @@ function ActionButton({
 
 export default function ReviewerTaskDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const taskId = params?.taskId as string;
   const { user, isLoading: isAuthLoading } = useAuth();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const isOpsRole = user?.role === 'REVIEWER' || user?.role === 'ADMIN';
@@ -897,10 +952,20 @@ export default function ReviewerTaskDetailPage() {
     task?.marketId,
   ]);
   const canRecreateCampaign = Boolean(resolvedCampaignId);
+  const taskQuestionContext = getTaskQuestionContext(task?.questionPayload);
   const outputConstraintContext = task
-    ? getBlockedSectionsFromCurrentValues(task.currentValuesToFix, task.questionPayload?.questionContext)
+    ? getBlockedSectionsFromCurrentValues(task.currentValuesToFix, taskQuestionContext)
     : null;
   const isOutputConstraintFailureMode = task?.failureMode === OUTPUT_CONSTRAINT_MODE;
+  const hasOutputConstraintIssues = Boolean(outputConstraintContext?.blockedSections?.length);
+  const isBlockerSnapshotTask = isOutputConstraintFailureMode || hasOutputConstraintIssues;
+  const taskSectionLabel = formatTaskSectionLabel(resolveTaskSectionId(task));
+  const adminSectionSummary =
+    toNonEmptyString(taskQuestionContext?.sectionLabel ?? taskQuestionContext?.section_label) ?? taskSectionLabel;
+  const adminMarketSummary =
+    toNonEmptyString(taskQuestionContext?.marketLabel ?? taskQuestionContext?.market_label) ??
+    toNonEmptyString(task?.marketId);
+  const resolvedReviewerId = toNonEmptyString(task?.reviewerId) ?? toNonEmptyString(user?.id);
   const [blockerAnswerJson, setBlockerAnswerJson] = useState('{}');
   const [outputConstraintIssueStates, setOutputConstraintIssueStates] = useState<OutputConstraintIssueState[]>([]);
   const [triggerPayloadJson, setTriggerPayloadJson] = useState('{}');
@@ -938,7 +1003,7 @@ export default function ReviewerTaskDetailPage() {
       return;
     }
 
-    if (isOutputConstraintFailureMode && outputConstraintContext?.blockedSections?.length) {
+    if (isBlockerSnapshotTask && outputConstraintContext?.blockedSections?.length) {
       const parsedQuestionParts = parseRenderedQuestionText(task.renderedQuestion);
       setOutputConstraintIssueStates((previousStates) =>
         outputConstraintContext.blockedSections.map((section, index) => {
@@ -982,7 +1047,7 @@ export default function ReviewerTaskDetailPage() {
     );
     setLastActionResult(null);
   }, [
-    isOutputConstraintFailureMode,
+    isBlockerSnapshotTask,
     resolvedCampaignId,
     task?.audienceId,
     task?.id,
@@ -990,12 +1055,11 @@ export default function ReviewerTaskDetailPage() {
     task?.renderedQuestion,
     task?.marketId,
     task?.pipelineRunId,
-    task?.questionPayload?.questionContext,
+    taskQuestionContext,
   ]);
 
   const respondMutation = useMutation({
-    mutationFn: (answer: Record<string, unknown>) =>
-      opsV2Repository.respondReviewerTask(taskId, { answer }),
+    mutationFn: (payload: ReviewerTaskRespondPayload) => opsV2Repository.respondReviewerTask(taskId, payload),
   });
 
   const startSectionReviewMutation = useMutation({
@@ -1092,7 +1156,7 @@ export default function ReviewerTaskDetailPage() {
   };
 
   const handleResumeFromBlocker = async () => {
-    if (isOutputConstraintFailureMode) {
+    if (isBlockerSnapshotTask) {
       return;
     }
 
@@ -1103,7 +1167,10 @@ export default function ReviewerTaskDetailPage() {
     try {
       const parsedAnswer = parseJsonObject(blockerAnswerJson, 'Blocker response payload');
       const normalizedAnswer = toRecord(parsedAnswer?.answer) ?? parsedAnswer;
-      const result = await respondMutation.mutateAsync(normalizedAnswer);
+      const result = await respondMutation.mutateAsync({
+        ...(resolvedReviewerId ? { reviewerId: resolvedReviewerId } : {}),
+        answer: normalizedAnswer,
+      });
 
       setLastActionResult(result);
       toast({
@@ -1112,7 +1179,8 @@ export default function ReviewerTaskDetailPage() {
           ? `Resume outcome: ${result.resumeOutcome}`
           : 'Task response accepted.',
       });
-      void taskQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.opsV2.all });
+      router.replace('/app/reviewer/strategy-reviews');
     } catch (error) {
       toast({
         title: 'Unable to resume from blocker',
@@ -1122,8 +1190,6 @@ export default function ReviewerTaskDetailPage() {
     }
   };
 
-  const allOutputConstraintIssuesLocked =
-    outputConstraintIssueStates.length > 0 && outputConstraintIssueStates.every((issue) => issue.isLocked);
   const outputConstraintRenderedQuestions = parseRenderedQuestionText(task?.renderedQuestion);
   const outputConstraintIssueCards: OutputConstraintIssueState[] = outputConstraintIssueStates.length
     ? outputConstraintIssueStates
@@ -1144,64 +1210,82 @@ export default function ReviewerTaskDetailPage() {
           };
         })
       : [];
+  const allOutputConstraintIssuesLocked =
+    outputConstraintIssueStates.length > 0 && outputConstraintIssueStates.every((issue) => issue.isLocked);
 
   const handleOutputConstraintIssueResponseChange = (issueKey: string, responseText: string) => {
     setOutputConstraintIssueStates((current) =>
-      current.map((issue) => (issue.issueKey === issueKey ? { ...issue, responseText } : issue)),
+      (current.length > 0 ? current : outputConstraintIssueCards).map((issue) =>
+        issue.issueKey === issueKey ? { ...issue, responseText, isLocked: false, isSaving: false } : issue,
+      ),
     );
   };
 
   const handleOutputConstraintIssueSave = async (issueKey: string) => {
-    const issue = outputConstraintIssueStates.find((item) => item.issueKey === issueKey);
+    const issuesToUpdate = outputConstraintIssueStates.length > 0 ? outputConstraintIssueStates : outputConstraintIssueCards;
+    const issue = issuesToUpdate.find((item) => item.issueKey === issueKey);
+
     if (!issue || issue.isLocked || issue.isSaving) {
       return;
     }
 
-    const hasResponse = toNonEmptyString(issue.responseText);
-    if (!hasResponse) {
+    if (!toNonEmptyString(issue.responseText)) {
+      toast({
+        title: 'Response required',
+        description: 'Add a response before saving this issue.',
+        variant: 'destructive',
+      });
       return;
     }
 
     setOutputConstraintIssueStates((current) =>
-      current.map((item) =>
+      (current.length > 0 ? current : outputConstraintIssueCards).map((item) =>
         item.issueKey === issueKey ? { ...item, isLocked: true, isSaving: false } : item,
       ),
     );
   };
 
   const handleOutputConstraintSubmit = async () => {
-    if (!task || !isOutputConstraintFailureMode) {
+    if (!task || !isBlockerSnapshotTask) {
       return;
     }
 
     if (!allOutputConstraintIssuesLocked) {
       toast({
-        title: 'Complete all blocked issues',
-        description: 'Save all issue responses before submitting.',
+        title: 'Save all blocked issues',
+        description: 'Save every issue response before submitting the reviewer response.',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      const payload = buildOutputConstraintSubmitPayload(outputConstraintIssueStates);
+      const issuesForSubmit = outputConstraintIssueStates.length > 0 ? outputConstraintIssueStates : outputConstraintIssueCards;
+      const payload = buildOutputConstraintSubmitPayload(
+        issuesForSubmit,
+        toNonEmptyString(task?.marketId),
+      );
       if (!payload) {
         toast({
           title: 'No valid issue responses',
-          description: 'Each blocked issue needs a valid section and instruction before submitting.',
+          description: 'Each saved issue needs a valid section and response before submitting.',
           variant: 'destructive',
         });
         return;
       }
 
-      const result = await respondMutation.mutateAsync(payload);
+      const result = await respondMutation.mutateAsync({
+        ...(resolvedReviewerId ? { reviewerId: resolvedReviewerId } : {}),
+        answer: payload,
+      });
 
       setLastActionResult(result);
       toast({
         title: 'Blocker workflow complete',
-        description: `All ${outputConstraintIssueStates.length} blocked issues were submitted together.`,
+        description: `All ${issuesForSubmit.length} blocked issues were submitted together.`,
       });
-      await taskQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.opsV2.all });
+      router.replace('/app/reviewer/strategy-reviews');
     } catch (error) {
       toast({
         title: 'Unable to submit blocker workflow',
@@ -1523,381 +1607,367 @@ export default function ReviewerTaskDetailPage() {
           <CardContent className="p-5 text-sm text-muted-foreground">Task not found.</CardContent>
         </Card>
       ) : (
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Campaign Review Details</CardTitle>
-            <CardDescription>Mapped reviewer-task fields</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-5 lg:grid-cols-2">
-              <FieldCard label="whatWentWrong" value={task.whatWentWrong} />
-              {isOutputConstraintFailureMode && outputConstraintContext ? (
-                <div className="col-span-full space-y-3">
-                  <p className="text-sm font-semibold text-foreground">
-                    Blocked Issues (
-                    {formatOutputConstraintSectionCount(
-                      outputConstraintContext.blockedSectionCount ?? outputConstraintContext.blockedSections.length,
-                    )}
-                    )
-                  </p>
-                  <div className="grid gap-3">
-                    {outputConstraintIssueCards.map((issue, index) => (
-                      <OutputConstraintIssueCard
-                        key={issue.issueKey}
-                        issueIndex={index}
-                        issue={issue}
-                        disabled={true}
-                        interactive={false}
-                      />
-                    ))}
+        <>
+          {isAdmin ? (
+            <Card className="relative overflow-hidden border-border bg-card/95 shadow-[0_18px_48px_rgba(0,0,0,0.35)]">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-amber-300/8 via-cyan-300/5 to-transparent" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Admin Pipeline Controls
+                </CardTitle>
+                <CardDescription>
+                  Trigger pipeline and generation actions directly from this intelligence blocker.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      Campaign
+                    </p>
+                    <p className="mt-1 truncate font-mono text-xs text-foreground">
+                      {task.campaignId ?? 'Not available'}
+                    </p>
                   </div>
-                </div>
-              ) : (
-                <>
-                  <FieldCard label="renderedQuestion" value={task.renderedQuestion} />
-                  <FieldCard label="currentValuesToFix" value={task.currentValuesToFix} />
-                </>
-              )}
-              <FieldCard label="feedback" value={task.feedback} />
-              <FieldCard label="whereAnswerWillBeApplied" value={task.whereAnswerWillBeApplied} />
-              <FieldCard label="pipelineRestartPhase" value={task.pipelineRestartPhase} />
-              <FieldCard label="failureMode" value={task.failureMode ? formatOpsStatus(task.failureMode) : null} />
-              <FieldCard label="status" value={task.status ? formatOpsStatus(task.status) : null} />
-              {task.submittedAnswer !== null && task.submittedAnswer !== undefined ? (
-                <div className="lg:col-span-2">
-                  <FieldCard label="submittedAnswer" value={task.submittedAnswer} />
-                </div>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {isAdmin && task ? (
-        <Card className="relative overflow-hidden border-border bg-card/95 shadow-[0_18px_48px_rgba(0,0,0,0.35)]">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-amber-300/8 via-cyan-300/5 to-transparent" />
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Admin Pipeline Controls
-            </CardTitle>
-            <CardDescription>
-              Trigger pipeline and generation actions directly from this intelligence blocker.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Campaign
-                </p>
-                <p className="mt-1 truncate font-mono text-xs text-foreground">
-                  {task.campaignId ?? 'Not available'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Run</p>
-                <p className="mt-1 truncate font-mono text-xs text-foreground">
-                  {task.pipelineRunId ?? 'Not available'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Restart Phase Hint
-                </p>
-                <p className="mt-1 truncate font-mono text-xs text-foreground">
-                  {task.pipelineRestartPhase ?? 'Not available'}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-3">
-              <div className="space-y-3 rounded-xl border border-amber-300/20 bg-gradient-to-br from-amber-300/8 via-background/35 to-background/25 p-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Reviewer Actions</p>
-                  <p className="text-xs text-muted-foreground">Resolve blocker then open review assignment.</p>
-                </div>
-                <ActionButton
-                  label="Submit Reviewer Response"
-                  tooltip={
-                    isOutputConstraintFailureMode
-                      ? 'Submit is enabled only after every blocked issue is saved.'
-                      : 'Submit your answer to unblock the pipeline and resume from the right phase.'
-                  }
-                  tooltipTitle="Respond + Resume"
-                  badge="Primary"
-                  description={
-                    isOutputConstraintFailureMode
-                      ? 'Save every blocked issue response before submitting.'
-                      : 'Send blocker response payload and resume from restart phase.'
-                  }
-                  onClick={() =>
-                    void (isOutputConstraintFailureMode ? handleOutputConstraintSubmit() : handleResumeFromBlocker())
-                  }
-                  disabled={
-                    isOutputConstraintFailureMode
-                      ? respondMutation.isPending || !allOutputConstraintIssuesLocked
-                      : respondMutation.isPending
-                  }
-                  pending={respondMutation.isPending}
-                  pendingLabel="Submitting..."
-                  tone="accent"
-                  icon={<PlayCircle className="h-4 w-4" />}
-                />
-                <ActionButton
-                  label="Start Review"
-                  tooltip="Claim this run and assign unclaimed review tasks to you."
-                  tooltipTitle="Create Review Workspace"
-                  badge="Reviewer"
-                  description="Create review workspace for this run."
-                  onClick={() => void handleStartSectionReview()}
-                  disabled={startSectionReviewMutation.isPending || !task.pipelineRunId}
-                  pending={startSectionReviewMutation.isPending}
-                  pendingLabel="Starting..."
-                  icon={<CheckCircle2 className="h-4 w-4" />}
-                />
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-cyan-300/20 bg-gradient-to-br from-cyan-300/5 via-background/35 to-background/25 p-4 xl:col-span-2">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Pipeline Triggers</p>
-                  <p className="text-xs text-muted-foreground">
-                    Queue specific regeneration stages without leaving this workspace.
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/35 p-3">
-                  <div className="grid gap-3 md:grid-cols-[minmax(0,260px)_1fr] md:items-end">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pipeline-market-target-select">Pipeline Market Target</Label>
-                      <Select value={pipelineMarketSelection} onValueChange={setPipelineMarketSelection}>
-                        <SelectTrigger id="pipeline-market-target-select">
-                          <SelectValue placeholder="Choose market target" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={PIPELINE_MARKET_SELECTION_CUSTOM}>
-                            Use market from payload JSON
-                          </SelectItem>
-                          <SelectItem
-                            value={PIPELINE_MARKET_SELECTION_TASK}
-                            disabled={!toNonEmptyString(task.marketId)}
-                          >
-                            {toNonEmptyString(task.marketId)
-                              ? `Use task market (${task.marketId})`
-                              : 'Use task market (not available)'}
-                          </SelectItem>
-                          <SelectItem
-                            value={PIPELINE_MARKET_SELECTION_ALL}
-                            disabled={campaignMarketOptions.length === 0}
-                          >
-                            {campaignMarketOptions.length > 0
-                              ? `All campaign markets (${campaignMarketOptions.join(', ')})`
-                              : 'All campaign markets (not available)'}
-                          </SelectItem>
-                          {campaignMarketOptions.map((marketId) => (
-                            <SelectItem key={marketId} value={toPipelineMarketSelectionValue(marketId)}>
-                              {`Only ${marketId}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Applied to <span className="font-semibold text-foreground">Run Full Pipeline</span> and
-                      <span className="font-semibold text-foreground"> Run From Last Failure</span>. Other trigger
-                      buttons ignore this market selector.
+                  <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Run</p>
+                    <p className="mt-1 truncate font-mono text-xs text-foreground">
+                      {task.pipelineRunId ?? 'Not available'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      Restart Phase Hint
+                    </p>
+                    <p className="mt-1 truncate font-mono text-xs text-foreground">
+                      {task.pipelineRestartPhase ?? 'Not available'}
                     </p>
                   </div>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <ActionButton
-                    label="Run Full Pipeline"
-                    tooltip="Run all v2 stages from intelligence through output."
-                    tooltipTitle="Full Pipeline"
-                    badge="End-to-end"
-                    description="End-to-end run from intelligence to final assembly."
-                    onClick={() => void handleTriggerCampaign('pipeline', 'Run Full Pipeline')}
-                    disabled={triggerCampaignMutation.isPending}
-                    pending={triggerCampaignMutation.isPending}
-                    pendingLabel="Queuing..."
-                    icon={<Workflow className="h-4 w-4" />}
-                  />
-                  <ActionButton
-                    label="Run From Last Failure"
-                    tooltip="Run pipeline using the campaign's latest active run ID only."
-                    tooltipTitle="Pipeline Recovery"
-                    badge="Recovery"
-                    description="Resume/retrigger pipeline context from latest active run."
-                    onClick={() =>
-                      void handleTriggerCampaign('pipeline', 'Run From Last Failure', {
-                        includeRunIdForPipeline: true,
-                      })
-                    }
-                    disabled={triggerCampaignMutation.isPending}
-                    pending={triggerCampaignMutation.isPending}
-                    pendingLabel="Queuing..."
-                    icon={<RefreshCcw className="h-4 w-4" />}
-                  />
-                  <ActionButton
-                    label="Run Intelligence"
-                    tooltip="Run only intelligence stages and produce/update the manifest."
-                    tooltipTitle="Intelligence Only"
-                    badge="Scoped"
-                    description="Refresh insights and update the manifest only."
-                    onClick={() => void handleTriggerCampaign('intelligence', 'Run Intelligence')}
-                    disabled={triggerCampaignMutation.isPending}
-                    pending={triggerCampaignMutation.isPending}
-                    pendingLabel="Queuing..."
-                    icon={<BrainCircuit className="h-4 w-4" />}
-                  />
-                  <ActionButton
-                    label="Run Strategy"
-                    tooltip="Run narrative and strategy generation stages only."
-                    tooltipTitle="Strategy Stages"
-                    badge="Narrative"
-                    description="Regenerate strategy narrative stages only."
-                    onClick={() => void handleTriggerCampaign('strategy', 'Run Strategy')}
-                    disabled={triggerCampaignMutation.isPending}
-                    pending={triggerCampaignMutation.isPending}
-                    pendingLabel="Queuing..."
-                    icon={<FileText className="h-4 w-4" />}
-                  />
-                  <ActionButton
-                    label="Run Sections"
-                    tooltip="Run section selection, generation, and formatting only."
-                    tooltipTitle="Sections + Formatting"
-                    badge="Content"
-                    description="Rebuild selected sections and formatting layers."
-                    onClick={() => void handleTriggerCampaign('sections', 'Run Sections')}
-                    disabled={triggerCampaignMutation.isPending}
-                    pending={triggerCampaignMutation.isPending}
-                    pendingLabel="Queuing..."
-                    icon={<Layers className="h-4 w-4" />}
-                  />
-                  <ActionButton
-                    label="Assemble Output"
-                    tooltip="Generate final output artifacts from approved sections."
-                    tooltipTitle="Output Assembly"
-                    badge="Deliverables"
-                    description="Produce deliverables from approved section outputs."
-                    onClick={() => void handleDownloadAssembledOutput()}
-                    disabled={downloadCampaignOutputMutation.isPending}
-                    pending={downloadCampaignOutputMutation.isPending}
-                    pendingLabel="Downloading..."
-                    icon={<CheckCircle2 className="h-4 w-4" />}
-                  />
-                  <ActionButton
-                    label="Recreate Run From Latest Commit"
-                    tooltip="Clone latest committed wizard snapshot and start a fresh run safely."
-                    tooltipTitle="Recreate Run"
-                    badge="Safe reset"
-                    description="Start a clean run from latest committed snapshot."
-                    onClick={() => void handleRecreateLatestRun()}
-                    disabled={recreateLatestRunMutation.isPending || !canRecreateCampaign}
-                    pending={recreateLatestRunMutation.isPending}
-                    pendingLabel="Queuing..."
-                    icon={<RefreshCcw className="h-4 w-4" />}
-                  />
-                </div>
-              </div>
-            </div>
 
-            <div className="grid gap-5 xl:grid-cols-2">
-              <div className="space-y-3 rounded-xl border border-border bg-background/30 p-4">
-                {isOutputConstraintFailureMode ? (
-                  <div className="space-y-3">
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <div className="space-y-3 rounded-xl border border-amber-300/20 bg-gradient-to-br from-amber-300/8 via-background/35 to-background/25 p-4">
                     <div className="space-y-1">
-                      <Label>Output Constraint Blocked Sections</Label>
+                      <p className="text-sm font-semibold text-foreground">Reviewer Actions</p>
+                      <p className="text-xs text-muted-foreground">Resolve blocker then open review assignment.</p>
+                    </div>
+                    {!isBlockerSnapshotTask ? (
+                      <ActionButton
+                        label="Submit Reviewer Response"
+                        tooltip="Submit your answer to unblock the pipeline and resume from the right phase."
+                        tooltipTitle="Respond + Resume"
+                        badge="Primary"
+                        description="Send blocker response payload and resume from restart phase."
+                        onClick={() => void handleResumeFromBlocker()}
+                        disabled={respondMutation.isPending}
+                        pending={respondMutation.isPending}
+                        pendingLabel="Submitting..."
+                        tone="accent"
+                        icon={<PlayCircle className="h-4 w-4" />}
+                      />
+                    ) : null}
+                    <ActionButton
+                      label="Start Review"
+                      tooltip="Claim this run and assign unclaimed review tasks to you."
+                      tooltipTitle="Create Review Workspace"
+                      badge="Reviewer"
+                      description="Create review workspace for this run."
+                      onClick={() => void handleStartSectionReview()}
+                      disabled={startSectionReviewMutation.isPending || !task.pipelineRunId}
+                      pending={startSectionReviewMutation.isPending}
+                      pendingLabel="Starting..."
+                      icon={<CheckCircle2 className="h-4 w-4" />}
+                    />
+                  </div>
+
+                  <div className="space-y-3 rounded-xl border border-cyan-300/20 bg-gradient-to-br from-cyan-300/5 via-background/35 to-background/25 p-4 xl:col-span-2">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">Pipeline Triggers</p>
                       <p className="text-xs text-muted-foreground">
-                        Resolve each issue separately. Save all blocked issue responses to enable submission.
+                        Queue specific regeneration stages without leaving this workspace.
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {outputConstraintIssueStates.length > 0
-                        ? formatOutputConstraintSectionCount(outputConstraintIssueStates.length)
-                        : 'No blocked sections available'}
-                    </p>
-                    {outputConstraintIssueStates.length ? (
+                    <div className="rounded-lg border border-border/70 bg-background/35 p-3">
+                      <div className="grid gap-3 md:grid-cols-[minmax(0,260px)_1fr] md:items-end">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="pipeline-market-target-select">Pipeline Market Target</Label>
+                          <Select value={pipelineMarketSelection} onValueChange={setPipelineMarketSelection}>
+                            <SelectTrigger id="pipeline-market-target-select">
+                              <SelectValue placeholder="Choose market target" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={PIPELINE_MARKET_SELECTION_CUSTOM}>
+                                Use market from payload JSON
+                              </SelectItem>
+                              <SelectItem
+                                value={PIPELINE_MARKET_SELECTION_TASK}
+                                disabled={!toNonEmptyString(task.marketId)}
+                              >
+                                {toNonEmptyString(task.marketId)
+                                  ? `Use task market (${task.marketId})`
+                                  : 'Use task market (not available)'}
+                              </SelectItem>
+                              <SelectItem
+                                value={PIPELINE_MARKET_SELECTION_ALL}
+                                disabled={campaignMarketOptions.length === 0}
+                              >
+                                {campaignMarketOptions.length > 0
+                                  ? `All campaign markets (${campaignMarketOptions.join(', ')})`
+                                  : 'All campaign markets (not available)'}
+                              </SelectItem>
+                              {campaignMarketOptions.map((marketId) => (
+                                <SelectItem key={marketId} value={toPipelineMarketSelectionValue(marketId)}>
+                                  {`Only ${marketId}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Applied to <span className="font-semibold text-foreground">Run Full Pipeline</span> and
+                          <span className="font-semibold text-foreground"> Run From Last Failure</span>. Other trigger
+                          buttons ignore this market selector.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <ActionButton
+                        label="Run Full Pipeline"
+                        tooltip="Run all v2 stages from intelligence through output."
+                        tooltipTitle="Full Pipeline"
+                        badge="End-to-end"
+                        description="End-to-end run from intelligence to final assembly."
+                        onClick={() => void handleTriggerCampaign('pipeline', 'Run Full Pipeline')}
+                        disabled={triggerCampaignMutation.isPending}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
+                        icon={<Workflow className="h-4 w-4" />}
+                      />
+                      <ActionButton
+                        label="Run From Last Failure"
+                        tooltip="Run pipeline using the campaign's latest active run ID only."
+                        tooltipTitle="Pipeline Recovery"
+                        badge="Recovery"
+                        description="Resume/retrigger pipeline context from latest active run."
+                        onClick={() =>
+                          void handleTriggerCampaign('pipeline', 'Run From Last Failure', {
+                            includeRunIdForPipeline: true,
+                          })
+                        }
+                        disabled={triggerCampaignMutation.isPending}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
+                        icon={<RefreshCcw className="h-4 w-4" />}
+                      />
+                      <ActionButton
+                        label="Run Intelligence"
+                        tooltip="Run only intelligence stages and produce/update the manifest."
+                        tooltipTitle="Intelligence Only"
+                        badge="Scoped"
+                        description="Refresh insights and update the manifest only."
+                        onClick={() => void handleTriggerCampaign('intelligence', 'Run Intelligence')}
+                        disabled={triggerCampaignMutation.isPending}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
+                        icon={<BrainCircuit className="h-4 w-4" />}
+                      />
+                      <ActionButton
+                        label="Run Strategy"
+                        tooltip="Run narrative and strategy generation stages only."
+                        tooltipTitle="Strategy Stages"
+                        badge="Narrative"
+                        description="Regenerate strategy narrative stages only."
+                        onClick={() => void handleTriggerCampaign('strategy', 'Run Strategy')}
+                        disabled={triggerCampaignMutation.isPending}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
+                        icon={<FileText className="h-4 w-4" />}
+                      />
+                      <ActionButton
+                        label="Run Sections"
+                        tooltip="Run section selection, generation, and formatting only."
+                        tooltipTitle="Sections + Formatting"
+                        badge="Content"
+                        description="Rebuild selected sections and formatting layers."
+                        onClick={() => void handleTriggerCampaign('sections', 'Run Sections')}
+                        disabled={triggerCampaignMutation.isPending}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
+                        icon={<Layers className="h-4 w-4" />}
+                      />
+                      <ActionButton
+                        label="Assemble Output"
+                        tooltip="Generate final output artifacts from approved sections."
+                        tooltipTitle="Output Assembly"
+                        badge="Deliverables"
+                        description="Produce deliverables from approved section outputs."
+                        onClick={() => void handleDownloadAssembledOutput()}
+                        disabled={downloadCampaignOutputMutation.isPending}
+                        pending={downloadCampaignOutputMutation.isPending}
+                        pendingLabel="Downloading..."
+                        icon={<CheckCircle2 className="h-4 w-4" />}
+                      />
+                      <ActionButton
+                        label="Recreate Run From Latest Commit"
+                        tooltip="Clone latest committed wizard snapshot and start a fresh run safely."
+                        tooltipTitle="Recreate Run"
+                        badge="Safe reset"
+                        description="Start a clean run from latest committed snapshot."
+                        onClick={() => void handleRecreateLatestRun()}
+                        disabled={recreateLatestRunMutation.isPending || !canRecreateCampaign}
+                        pending={recreateLatestRunMutation.isPending}
+                        pendingLabel="Queuing..."
+                        icon={<RefreshCcw className="h-4 w-4" />}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={cn('grid gap-5', isBlockerSnapshotTask ? 'xl:grid-cols-1' : 'xl:grid-cols-2')}>
+                  {!isBlockerSnapshotTask ? (
+                    <div className="space-y-3 rounded-xl border border-border bg-background/30 p-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="admin-blocker-answer-json">Blocker Response Payload</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Used by Submit Reviewer Response to unblock the run.
+                        </p>
+                        <Textarea
+                          id="admin-blocker-answer-json"
+                          value={blockerAnswerJson}
+                          onChange={(event) => setBlockerAnswerJson(event.target.value)}
+                          rows={11}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-3 rounded-xl border border-border bg-background/30 p-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="admin-trigger-payload-json">Campaign Trigger Payload</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Shared payload sent to pipeline trigger operations. Pipeline market selector can override market
+                        fields for pipeline actions. Run From Last Failure auto-selects latest active runId.
+                      </p>
+                    </div>
+                    <Textarea
+                      id="admin-trigger-payload-json"
+                      value={triggerPayloadJson}
+                      onChange={(event) => setTriggerPayloadJson(event.target.value)}
+                      rows={11}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                {lastActionResult ? (
+                  <div className="space-y-2 rounded-xl border border-border bg-background/30 p-4">
+                    <p className="text-sm font-semibold text-foreground">Last Action Response</p>
+                    <pre className="max-h-[260px] overflow-auto rounded-md border border-border bg-background p-3 text-xs">
+                      {toJsonPreview(lastActionResult)}
+                    </pre>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2 border-t border-border/70 pt-4">
+                  {task.pipelineRunId ? (
+                    <Link href={`/app/admin/runs/${task.pipelineRunId}`}>
+                      <Button variant="outline" size="sm">
+                        Open Admin Run Workspace
+                      </Button>
+                    </Link>
+                  ) : null}
+                  {task.campaignId ? (
+                    <Link href={`/app/admin/campaigns/${task.campaignId}`}>
+                      <Button variant="outline" size="sm">
+                        Open Admin Campaign
+                      </Button>
+                    </Link>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {isBlockerSnapshotTask ? (
+            <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle>Blocker Snapshot</CardTitle>
+                <CardDescription>Only the blocker fields used to review and submit responses.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <FieldCard label="section" value={adminSectionSummary} />
+                  <FieldCard label="market" value={adminMarketSummary} />
+                  <div className="col-span-full space-y-3">
+                    <p className="text-sm font-semibold text-foreground">Issues</p>
+                    {outputConstraintIssueCards.length > 0 ? (
                       <div className="grid gap-3">
-                        {outputConstraintIssueStates.map((issue, index) => (
+                        {outputConstraintIssueCards.map((issue, index) => (
                           <OutputConstraintIssueCard
                             key={issue.issueKey}
                             issueIndex={index}
                             issue={issue}
                             disabled={respondMutation.isPending}
-                            onChange={(responseText) => handleOutputConstraintIssueResponseChange(issue.issueKey, responseText)}
+                            onChange={(responseText) =>
+                              handleOutputConstraintIssueResponseChange(issue.issueKey, responseText)
+                            }
                             onSave={() => void handleOutputConstraintIssueSave(issue.issueKey)}
                           />
                         ))}
                       </div>
                     ) : (
-                      <p className="rounded-md border border-dashed border-border/80 p-3 text-xs text-muted-foreground">
-                        No blocked section issues found.
-                      </p>
+                      <div className="rounded-lg border border-dashed border-border/80 p-4 text-sm text-muted-foreground">
+                        No blocked issue details available.
+                      </div>
                     )}
+                    {outputConstraintIssueCards.length > 0 ? (
+                      <div className="space-y-2">
+                        <Button
+                          type="button"
+                          onClick={() => void handleOutputConstraintSubmit()}
+                          disabled={respondMutation.isPending || !allOutputConstraintIssuesLocked}
+                          className="w-full bg-amber-400 text-zinc-950 hover:bg-amber-300 sm:w-auto"
+                        >
+                          {respondMutation.isPending ? 'Submitting...' : 'Submit Reviewer Response'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          This sends the saved response values from the issues above to the respond API.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
-                ) : (
-                  <div className="space-y-1">
-                    <Label htmlFor="admin-blocker-answer-json">Blocker Response Payload</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Used by Submit Reviewer Response to unblock the run.
-                    </p>
-                    <Textarea
-                      id="admin-blocker-answer-json"
-                      value={blockerAnswerJson}
-                      onChange={(event) => setBlockerAnswerJson(event.target.value)}
-                      rows={11}
-                      className="font-mono text-xs"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-border bg-background/30 p-4">
-                <div className="space-y-1">
-                  <Label htmlFor="admin-trigger-payload-json">Campaign Trigger Payload</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Shared payload sent to pipeline trigger operations. Pipeline market selector can override market
-                    fields for pipeline actions. Run From Last Failure auto-selects latest active runId.
-                  </p>
                 </div>
-                <Textarea
-                  id="admin-trigger-payload-json"
-                  value={triggerPayloadJson}
-                  onChange={(event) => setTriggerPayloadJson(event.target.value)}
-                  rows={11}
-                  className="font-mono text-xs"
-                />
-              </div>
-            </div>
-
-            {lastActionResult ? (
-              <div className="space-y-2 rounded-xl border border-border bg-background/30 p-4">
-                <p className="text-sm font-semibold text-foreground">Last Action Response</p>
-                <pre className="max-h-[260px] overflow-auto rounded-md border border-border bg-background p-3 text-xs">
-                  {toJsonPreview(lastActionResult)}
-                </pre>
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2 border-t border-border/70 pt-4">
-              {task.pipelineRunId ? (
-                <Link href={`/app/admin/runs/${task.pipelineRunId}`}>
-                  <Button variant="outline" size="sm">
-                    Open Admin Run Workspace
-                  </Button>
-                </Link>
-              ) : null}
-              {task.campaignId ? (
-                <Link href={`/app/admin/campaigns/${task.campaignId}`}>
-                  <Button variant="outline" size="sm">
-                    Open Admin Campaign
-                  </Button>
-                </Link>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle>Campaign Review Details</CardTitle>
+                <CardDescription>Mapped reviewer-task fields</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <FieldCard label="whatWentWrong" value={task.whatWentWrong} />
+                  <FieldCard label="renderedQuestion" value={task.renderedQuestion} />
+                  <FieldCard label="currentValuesToFix" value={task.currentValuesToFix} />
+                  <FieldCard label="feedback" value={task.feedback} />
+                  <FieldCard label="whereAnswerWillBeApplied" value={task.whereAnswerWillBeApplied} />
+                  <FieldCard label="pipelineRestartPhase" value={task.pipelineRestartPhase} />
+                  <FieldCard label="failureMode" value={task.failureMode ? formatOpsStatus(task.failureMode) : null} />
+                  <FieldCard label="status" value={task.status ? formatOpsStatus(task.status) : null} />
+                  {task.submittedAnswer !== null && task.submittedAnswer !== undefined ? (
+                    <div className="lg:col-span-2">
+                      <FieldCard label="submittedAnswer" value={task.submittedAnswer} />
+                    </div>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }

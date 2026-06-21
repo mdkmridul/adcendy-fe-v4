@@ -47,10 +47,12 @@ export interface ReviewerTaskItem {
   marketId?: string | null;
   campaignId?: string | null;
   campaignTitle?: string | null;
+  campaignBusinessName?: string | null;
   campaignStatus?: string | null;
   currentStep?: number | null;
   runStatus?: string | null;
   currentPhase?: string | null;
+  sectionId?: string | null;
   renderedQuestion?: string | null;
   createdAt?: ISODateTime | null;
   updatedAt?: ISODateTime | null;
@@ -85,6 +87,7 @@ export interface ReviewerTaskDetail extends ReviewerTaskItem {
 }
 
 export interface ReviewerTaskRespondPayload {
+  reviewerId?: string | null;
   answer: UnknownRecord;
 }
 
@@ -556,6 +559,61 @@ export function normalizeReviewerTaskItem(value: unknown): ReviewerTaskItem | nu
     return null;
   }
 
+  const marketId =
+    fallbackNullableString(record.marketId, record.market_id, record.marketCode, record.market_code) ?? null;
+  const campaignId =
+    fallbackNullableString(
+      record.campaignId,
+      record.campaign_id,
+      campaign?.id,
+      campaign?.campaignId,
+      campaign?.campaign_id,
+      record.campaign,
+      run?.campaignId,
+      run?.campaign_id,
+      runCampaign?.id,
+      runCampaign?.campaignId,
+      runCampaign?.campaign_id,
+      questionPayload?.campaignId,
+      questionPayload?.campaign_id,
+      questionCampaign?.id,
+      questionCampaign?.campaignId,
+      questionCampaign?.campaign_id,
+    ) ?? null;
+  const campaignTitle =
+    fallbackNullableString(
+      record.campaignTitle,
+      record.campaign_title,
+      campaign?.title,
+      campaign?.name,
+      questionPayload?.clientName,
+      questionPayload?.client_name,
+    ) ?? null;
+  const campaignBusinessName =
+    fallbackNullableString(
+      campaign?.businessName,
+      campaign?.business_name,
+      questionCampaign?.businessName,
+      questionCampaign?.business_name,
+      record.businessName,
+      record.business_name,
+      questionPayload?.businessName,
+      questionPayload?.business_name,
+      questionPayload?.clientName,
+      questionPayload?.client_name,
+    ) ?? null;
+  const sectionId =
+    fallbackNullableString(
+      record.sectionId,
+      record.section_id,
+      record.sectoinId,
+      record.sectoin_id,
+      questionPayload?.sectionId,
+      questionPayload?.section_id,
+      questionPayload?.sectoinId,
+      questionPayload?.sectoin_id,
+    ) ?? null;
+
   return {
     id,
     status: fallbackString(record.status, record.taskStatus, record.task_status) ?? 'PENDING',
@@ -564,35 +622,10 @@ export function normalizeReviewerTaskItem(value: unknown): ReviewerTaskItem | nu
     pipelineRunId:
       fallbackNullableString(record.pipelineRunId, record.pipeline_run_id, run?.id, run?.runId) ??
       null,
-    marketId: fallbackNullableString(record.marketId, record.market_id, record.marketCode, record.market_code) ?? null,
-    campaignId:
-      fallbackNullableString(
-        record.campaignId,
-        record.campaign_id,
-        campaign?.id,
-        campaign?.campaignId,
-        campaign?.campaign_id,
-        record.campaign,
-        run?.campaignId,
-        run?.campaign_id,
-        runCampaign?.id,
-        runCampaign?.campaignId,
-        runCampaign?.campaign_id,
-        questionPayload?.campaignId,
-        questionPayload?.campaign_id,
-        questionCampaign?.id,
-        questionCampaign?.campaignId,
-        questionCampaign?.campaign_id,
-      ) ?? null,
-    campaignTitle:
-      fallbackNullableString(
-        record.campaignTitle,
-        record.campaign_title,
-        campaign?.title,
-        campaign?.name,
-        questionPayload?.clientName,
-        questionPayload?.client_name,
-      ) ?? null,
+    marketId,
+    campaignId,
+    campaignTitle,
+    campaignBusinessName,
     campaignStatus:
       fallbackNullableString(record.campaignStatus, record.campaign_status, campaign?.status) ?? null,
     currentStep: fallbackNumber(record.currentStep, record.current_step, campaign?.currentStep) ?? null,
@@ -615,6 +648,7 @@ export function normalizeReviewerTaskItem(value: unknown): ReviewerTaskItem | nu
         run?.currentPhase,
         run?.phase,
       ) ?? null,
+    sectionId,
     renderedQuestion:
       fallbackNullableString(record.renderedQuestion, record.rendered_question, record.question) ?? null,
     createdAt: fallbackNullableString(record.createdAt, record.created_at) ?? null,
@@ -788,10 +822,11 @@ export function normalizeReviewerTaskDetail(payload: unknown): ReviewerTaskDetai
 
 export function normalizeReviewerTaskRespondResult(payload: unknown): ReviewerTaskRespondResult {
   const record = asRecord(payload) ?? {};
+  const updatedTaskRecord = record.updatedTask ?? record.updated_task ?? record.task;
   return {
     resumeOutcome: fallbackNullableString(record.resumeOutcome, record.resume_outcome) ?? null,
     resumedPhases: normalizeStringArray(record.resumedPhases ?? record.resumed_phases),
-    updatedTask: record.task ? normalizeReviewerTaskDetail(record.task) : null,
+    updatedTask: updatedTaskRecord ? normalizeReviewerTaskDetail(updatedTaskRecord) : null,
   };
 }
 

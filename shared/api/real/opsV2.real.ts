@@ -165,6 +165,7 @@ export const opsV2RealAdapter = {
     const response = await http<ApiResponse<unknown> | unknown>(`/api/v2/reviewer-tasks/${taskId}/respond`, {
       method: 'POST',
       body: {
+        ...(payload.reviewerId ? { reviewerId: payload.reviewerId } : {}),
         answer: payload.answer,
       },
     });

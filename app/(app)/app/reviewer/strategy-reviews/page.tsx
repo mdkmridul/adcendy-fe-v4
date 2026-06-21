@@ -19,6 +19,7 @@ import {
   formatOpsStatus,
   formatOpsStep,
 } from '@/shared/components/ops/opsUtils';
+import { humanizeReviewValue } from '@/shared/types/reviews';
 import type { OpsListFilters, ReviewerTaskItem, SectionReviewItem } from '@/shared/types/opsV2';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,15 +37,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type SortBy = 'updatedAt' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
+type ReviewStatusFilter = 'ALL' | 'PENDING_REVIEW' | 'CHANGES_REQUESTED' | 'APPROVED';
 
 const STATUS_OPTIONS = [
   'ALL',
-  'PENDING',
-  'ANSWERED',
+  'PENDING_REVIEW',
+  'CHANGES_REQUESTED',
   'APPROVED',
-  'REVISION_REQUESTED',
-  'RUNNING',
-  'FAILED',
 ] as const;
 
 const LIMIT_OPTIONS = [10, 20, 50, 100] as const;
@@ -243,6 +242,42 @@ function formatViolationSummary(blockedSection: BlockedSectionPreview): string |
   return blockedSection.sectionLabel ?? blockedSection.sectionId ?? 'Blocked section';
 }
 
+function formatTaskSectionLabel(sectionId?: string | null): string | null {
+  const normalizedSectionId = toNonEmptyString(sectionId);
+  if (!normalizedSectionId) {
+    return null;
+  }
+
+  const strippedSectionId = normalizedSectionId.replace(/^section(?:[_-]\d+)?[_-]+/i, '');
+  return humanizeReviewValue(strippedSectionId || normalizedSectionId);
+}
+
+function formatTaskCampaignTitle(task: ReviewerTaskItem): string {
+  const businessName = toNonEmptyString(task.campaignBusinessName) ?? toNonEmptyString(task.clientName);
+  const marketId = toNonEmptyString(task.marketId);
+  const campaignId = toNonEmptyString(task.campaignId);
+
+  if (businessName) {
+    const heading = [businessName, marketId].filter(Boolean).join(' ');
+    return campaignId ? `${heading} (id: ${campaignId})` : heading;
+  }
+
+  return toNonEmptyString(task.campaignTitle) ?? campaignId ?? 'Unknown Client';
+}
+
+function mapStatusFilterToBackend(status: ReviewStatusFilter): string | undefined {
+  switch (status) {
+    case 'PENDING_REVIEW':
+      return 'pending_review';
+    case 'CHANGES_REQUESTED':
+      return 'changes_requested';
+    case 'APPROVED':
+      return 'approved';
+    default:
+      return undefined;
+  }
+}
+
 function rememberTaskCampaign(taskId: string, campaignId?: string | null) {
   if (typeof window === 'undefined') {
     return;
@@ -274,8 +309,9 @@ function rememberTaskCampaign(taskId: string, campaignId?: string | null) {
 }
 
 function ReviewerTaskRow({ task }: { task: ReviewerTaskItem }) {
-  const clientName = task.clientName || task.campaignTitle || task.campaignId || 'Unknown Client';
-  const marketLabel = task.marketId || 'Unknown Market';
+  const campaignTitle = formatTaskCampaignTitle(task);
+  const sectionLabel = formatTaskSectionLabel(task.sectionId);
+  const failureLabel = task.failureMode ? formatOpsStatus(task.failureMode) : null;
   const detailHref = task.campaignId
     ? `/app/reviewer/tasks/${task.id}?campaignId=${encodeURIComponent(task.campaignId)}`
     : `/app/reviewer/tasks/${task.id}`;
@@ -292,8 +328,12 @@ function ReviewerTaskRow({ task }: { task: ReviewerTaskItem }) {
       <CardContent className="flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
-            <Link href={detailHref} onClick={persistContext} className="text-base font-semibold text-foreground underline-offset-4 hover:underline">
-              {`${clientName} - ${marketLabel}`}
+            <Link
+              href={detailHref}
+              onClick={persistContext}
+              className="text-base font-semibold text-foreground underline-offset-4 hover:underline"
+            >
+              {campaignTitle}
             </Link>
             {task.marketId ? <p className="text-xs text-muted-foreground">Market: {task.marketId}</p> : null}
           </div>
@@ -322,7 +362,9 @@ function ReviewerTaskRow({ task }: { task: ReviewerTaskItem }) {
         </div>
 
         <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-          <p>Campaign: {task.campaignTitle || task.campaignId || 'Not available'}</p>
+          <p>Campaign: {campaignTitle}</p>
+          <p>Section: {sectionLabel ?? 'Not available'}</p>
+          <p>Failure: {failureLabel ?? 'Not available'}</p>
           <p>Updated: {formatOpsDateTime(task.updatedAt)}</p>
           <p>Created: {formatOpsDateTime(task.createdAt)}</p>
           <p>Attempt: {typeof task.attemptNumber === 'number' ? task.attemptNumber : 'Not available'}</p>
@@ -524,7 +566,10 @@ export default function ReviewerStrategyReviewsPage() {
   const isAdmin = user?.role === 'ADMIN';
   const searchParams = useSearchParams();
 
-  const [status, setStatus] = useState(searchParams.get('status')?.toUpperCase() ?? 'ALL');
+  const initialStatus = (searchParams.get('status')?.toUpperCase() ?? 'PENDING_REVIEW') as ReviewStatusFilter;
+  const [status, setStatus] = useState<ReviewStatusFilter>(
+    STATUS_OPTIONS.includes(initialStatus) ? initialStatus : 'PENDING_REVIEW',
+  );
   const [pipelineRunId, setPipelineRunId] = useState(searchParams.get('pipelineRunId') ?? '');
   const [marketId, setMarketId] = useState(searchParams.get('marketId') ?? '');
   const [sortBy, setSortBy] = useState<SortBy>(
@@ -542,7 +587,7 @@ export default function ReviewerStrategyReviewsPage() {
 
   const filters = useMemo<OpsListFilters>(
     () => ({
-      status: status === 'ALL' ? undefined : status,
+      status: mapStatusFilterToBackend(status),
       pipelineRunId: pipelineRunId.trim() || undefined,
       marketId: marketId.trim() || undefined,
       sortBy,
@@ -552,7 +597,15 @@ export default function ReviewerStrategyReviewsPage() {
     [limit, marketId, pipelineRunId, sortBy, sortOrder, status],
   );
 
-  const reviewerTasksQuery = useOpsReviewerTasks(filters, isOpsRole);
+  const reviewerTaskFilters = useMemo<OpsListFilters>(
+    () => ({
+      ...filters,
+      status: 'pending_review',
+    }),
+    [filters],
+  );
+
+  const reviewerTasksQuery = useOpsReviewerTasks(reviewerTaskFilters, isOpsRole);
   const sectionReviewsQuery = useOpsSectionReviews(filters, isOpsRole);
 
   if (isAuthLoading) {
@@ -590,7 +643,12 @@ export default function ReviewerStrategyReviewsPage() {
         <CardContent className="grid gap-4 p-5 md:grid-cols-2 lg:grid-cols-6">
           <div className="space-y-2">
             <Label htmlFor="status-filter">Status</Label>
-            <Select value={status} onValueChange={(value) => setStatus(value)}>
+            <Select
+              value={status}
+              onValueChange={(value) =>
+                setStatus(STATUS_OPTIONS.includes(value as ReviewStatusFilter) ? (value as ReviewStatusFilter) : 'PENDING_REVIEW')
+              }
+            >
               <SelectTrigger id="status-filter">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
