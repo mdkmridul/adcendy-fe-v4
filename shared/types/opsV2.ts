@@ -666,7 +666,13 @@ export function normalizeReviewerTaskItem(value: unknown): ReviewerTaskItem | nu
         record.created_at,
       ) ?? null,
     attemptNumber: fallbackNumber(record.attemptNumber, record.attempt_number) ?? null,
-    failureMode: fallbackNullableString(record.failureMode, record.failure_mode) ?? null,
+    failureMode:
+      fallbackNullableString(
+        record.failureMode,
+        record.failure_mode,
+        questionPayload?.failureMode,
+        questionPayload?.failure_mode,
+      ) ?? null,
     questionPayload: questionPayload ?? null,
   };
 }
@@ -690,7 +696,12 @@ export function normalizeReviewerTaskDetail(payload: unknown): ReviewerTaskDetai
     ) ?? '';
   const lowConfidenceDimensions = normalizeStringArray(lowConfidenceDimensionsRaw);
   const failureMode =
-    fallbackNullableString(record.failureMode, record.failure_mode) ?? null;
+    fallbackNullableString(
+      record.failureMode,
+      record.failure_mode,
+      questionPayload?.failureMode,
+      questionPayload?.failure_mode,
+    ) ?? null;
   const currentPhase =
     fallbackNullableString(
       record.phaseName,

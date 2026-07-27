@@ -99,6 +99,15 @@ function toNonEmptyString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeFailureMode(value: unknown): string | null {
+  const mode = toNonEmptyString(value);
+  return mode ? mode.toLowerCase().replace(/[\s-]+/g, '_') : null;
+}
+
+function isOutputConstraintMode(value: unknown): boolean {
+  return normalizeFailureMode(value) === OUTPUT_CONSTRAINT_MODE;
+}
+
 function parseBlockedSectionsCount(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     const intValue = Math.trunc(value);
@@ -128,11 +137,13 @@ function normalizeBlockedSection(item: Record<string, unknown>): BlockedSectionP
 }
 
 function getOutputConstraintContext(task: ReviewerTaskItem): OutputConstraintTaskContext | null {
-  if (task.failureMode !== OUTPUT_CONSTRAINT_MODE) {
+  if (!isOutputConstraintMode(task.failureMode)) {
     return null;
   }
 
-  const questionContext = toRecord(toRecord(task.questionPayload)?.questionContext);
+  const questionPayload = toRecord(task.questionPayload);
+  const questionContext =
+    toRecord(questionPayload?.questionContext) ?? toRecord(questionPayload?.question_context) ?? questionPayload;
   const questionContextQuestions = Array.isArray(questionContext?.questions)
     ? questionContext.questions
         .map((entry) => {
@@ -321,7 +332,7 @@ function ReviewerTaskRow({ task }: { task: ReviewerTaskItem }) {
     ? outputConstraintContext.blockedSectionCount ?? outputConstraintContext.blockedSections.length
     : 0;
   const isMultipleBlockedIssues =
-    task.failureMode === OUTPUT_CONSTRAINT_MODE && outputConstraintBadgeCount > 1;
+    isOutputConstraintMode(task.failureMode) && outputConstraintBadgeCount > 1;
 
   return (
     <Card className="border-border bg-card">

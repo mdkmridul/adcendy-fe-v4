@@ -142,8 +142,17 @@ function getTaskQuestionContext(questionPayloadValue: unknown): Record<string, u
     toRecord(questionPayload.blockedSectionquestionContext) ??
     toRecord(questionPayload.blockedSectionQuestionContext) ??
     toRecord(questionPayload.blocked_section_question_context) ??
-    null
+    questionPayload
   );
+}
+
+function normalizeFailureMode(value: unknown): string | null {
+  const mode = toNonEmptyString(value);
+  return mode ? mode.toLowerCase().replace(/[\s-]+/g, '_') : null;
+}
+
+function isOutputConstraintMode(value: unknown): boolean {
+  return normalizeFailureMode(value) === OUTPUT_CONSTRAINT_MODE;
 }
 
 function getBlockedSectionsFromCurrentValues(
@@ -956,7 +965,10 @@ export default function ReviewerTaskDetailPage() {
   const outputConstraintContext = task
     ? getBlockedSectionsFromCurrentValues(task.currentValuesToFix, taskQuestionContext)
     : null;
-  const isOutputConstraintFailureMode = task?.failureMode === OUTPUT_CONSTRAINT_MODE;
+  const isOutputConstraintFailureMode =
+    isOutputConstraintMode(task?.failureMode) ||
+    isOutputConstraintMode(taskQuestionContext?.failureMode) ||
+    isOutputConstraintMode(taskQuestionContext?.failure_mode);
   const hasOutputConstraintIssues = Boolean(outputConstraintContext?.blockedSections?.length);
   const isBlockerSnapshotTask = isOutputConstraintFailureMode || hasOutputConstraintIssues;
   const taskSectionLabel = formatTaskSectionLabel(resolveTaskSectionId(task));
