@@ -22,6 +22,7 @@ interface CampaignWorkspaceHeaderProps {
   campaign: Campaign;
   stage: CampaignLifecycleStage;
   pathname: string;
+  legacyPerformanceEnabled?: boolean;
   mobileNavigationTrigger?: ReactNode;
 }
 
@@ -29,6 +30,7 @@ export function CampaignWorkspaceHeader({
   campaign,
   stage,
   pathname,
+  legacyPerformanceEnabled = false,
   mobileNavigationTrigger,
 }: CampaignWorkspaceHeaderProps) {
   const campaignState = deriveCampaignState(campaign);
@@ -58,7 +60,7 @@ export function CampaignWorkspaceHeader({
           : null
       : stage === 'waiting'
         ? null
-      : pathname.includes('/strategy')
+      : pathname.includes('/strategy') && legacyPerformanceEnabled
         ? {
             label: 'Open Weekly',
             href: `/app/campaigns/${campaign.id}/weekly`,

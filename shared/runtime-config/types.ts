@@ -3,6 +3,7 @@ export type AppEnvironment = 'local' | 'uat' | 'production';
 export interface PublicFeatureFlags {
   apiLogging: boolean;
   debugPanel: boolean;
+  legacyPerformanceWorkspaces: boolean;
   useMockData: boolean;
 }
 
@@ -17,7 +18,11 @@ export interface RuntimePublicConfig {
 }
 
 export const APP_ORIGINS: Record<AppEnvironment, readonly string[]> = {
-  local: ['http://localhost:3000', 'http://localhost:5173'],
+  local: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:34100',
+  ],
   uat: ['https://uat.adcendy.com'],
   production: ['https://app.adcendy.com'],
 };

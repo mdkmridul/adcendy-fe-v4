@@ -11,6 +11,8 @@ backend:
     not assume a fixed TTL.
 
 analytics:
+  first_uat_scope: excluded
+  emission_enabled: false
   provider: pending_product_decision
   uat_destination_id: pending
   production_destination_id: pending
@@ -24,3 +26,20 @@ release:
   uat_exists: false
   production_signoff_claimed: false
   release_tag_allowed: false
+
+first_uat_scope:
+  included:
+    - "Wave 1 authentication and reviewer authority controls"
+    - "Wave 2 asynchronous run state machine"
+    - "Wave 3 same-origin deployment and runtime configuration"
+    - "Wave 4 campaign files and release-quality gates"
+  excluded:
+    - "Analytics emission until provider and separate destination IDs are supplied"
+    - "Legacy weekly, anomaly, tweak, and tweak-approval workspaces"
+  legacy_workspace_flag:
+    name: legacyPerformanceWorkspaces
+    default: false
+    enable_only_after:
+      - "The legacy Backend contracts are versioned and checksummed."
+      - "The real adapters are verified against those contracts."
+      - "Browser authorization and async behavior tests pass."

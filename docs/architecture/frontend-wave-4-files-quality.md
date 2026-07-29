@@ -66,7 +66,7 @@ the published Backend contracts:
   Production IDs marked as UAT/staging/test/development.
 - Node is pinned to `22.14.0`, npm to `10.9.2`, and `package-lock.json` is the
   sole authoritative lockfile.
-- Full TypeScript, ESLint, tests, production build, contract drift, bundle
+- Full TypeScript, ESLint, unit and browser tests, production build, contract drift, bundle
   secret scan, reverse-proxy verification, production dependency audit,
   runtime configuration, SBOM generation, and container gates are active.
 - `next.config.mjs` no longer permits TypeScript build errors.
@@ -76,9 +76,10 @@ the published Backend contracts:
 Local verification completed on 2026-07-29:
 
 - Contract drift: PASS for Auth/V2 `2.2.0` and Files `1.0.0`
-- Tests: 54 passed, 0 failed
+- Unit/contract/security tests: 57 passed, 0 failed
+- Chromium integration tests: 3 passed, 0 failed
 - TypeScript: PASS
-- ESLint: PASS with 0 errors
+- ESLint: PASS with 0 unsuppressed errors or warnings; new violations fail
 - Production build: PASS
 - Production dependency audit: 0 vulnerabilities
 - Browser bundle scan: 442 files, 0 findings

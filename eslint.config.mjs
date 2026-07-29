@@ -7,10 +7,13 @@ export default defineConfig([
   ...nextTs,
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'react-hooks/purity': 'warn',
-      'react-hooks/set-state-in-effect': 'warn',
-      'react/no-unescaped-entities': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+      'react-hooks/incompatible-library': 'error',
+      'react-hooks/purity': 'error',
+      'react-hooks/set-state-in-effect': 'error',
+      'react/no-unescaped-entities': 'error',
     },
   },
   globalIgnores([

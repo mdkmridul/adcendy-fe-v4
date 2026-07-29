@@ -1,0 +1,49 @@
+version: 1
+status: accepted_development_only_exception
+recorded_on: "2026-07-29"
+review_by: "2026-08-29"
+owner: frontend
+
+production:
+  audit_command: "npm audit --omit=dev --audit-level=high"
+  result: "0 vulnerabilities"
+  runtime_image_contains_development_dependencies: false
+  release_blocking: true
+
+development_tooling:
+  audit_result:
+    high: 11
+    critical: 0
+  affected_direct_tools:
+    - package: eslint
+      version: "9.39.5"
+      use: "repository linting"
+    - package: eslint-config-next
+      version: "16.2.12"
+      use: "Next.js lint rules"
+    - package: openapi-typescript
+      resolved_version: "7.13.0"
+      use: "generation from vendored immutable OpenAPI files"
+  transitive_advisory:
+    package_family:
+      - brace-expansion
+      - minimatch
+    impact: "denial of service from adversarial glob expansion"
+  containment:
+    - "All affected packages are devDependencies and are absent from the standalone runtime image."
+    - "OpenAPI generation reads only immutable, checksummed contracts vendored in this repository."
+    - "Lint patterns and configuration are repository-controlled; untrusted users cannot supply CLI patterns in CI."
+    - "Production dependency audit remains a mandatory release gate."
+    - "The full development audit is reviewed monthly and after Next.js/ESLint toolchain updates."
+  remediation_attempt:
+    result: incompatible
+    detail: >-
+      ESLint 10.8.0 removes the vulnerable ESLint dependency chain but the
+      React plugin bundled by eslint-config-next 16.2.12 fails at runtime
+      under ESLint 10. The repository remains on the latest compatible
+      ESLint 9 release until the Next.js lint stack supports ESLint 10.
+
+decision:
+  blocks_local_uat_candidate: false
+  blocks_production_when_runtime_audit_is_clean: false
+  expires_without_review: true

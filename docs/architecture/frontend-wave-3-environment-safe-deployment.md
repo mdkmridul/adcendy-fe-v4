@@ -117,16 +117,14 @@ Browser source maps are disabled. The bundle scan rejects build-time public
 variable names, known environment API origins, Backend localhost origins,
 private-key headers, compact JWTs, and AWS access-key identifiers.
 
-The Production dependency tree has no known audit findings. The development
-toolchain still reports transitive high-severity findings below
-`openapi-typescript`/Redocly; those packages are not copied into the standalone
-runtime image. Attempts to force incompatible transitive versions break
-OpenAPI generation, so this remains an explicitly recorded development-only
-dependency update.
+The Production dependency tree has no known audit findings. Remaining
+development-only advisory containment, affected tool versions, and review
+expiry are recorded in
+`docs/operations/frontend-development-dependency-risk.yaml`.
 
-Repository-wide TypeScript checking still includes pre-existing failures
-outside the completed waves. `typecheck:wave1`, `typecheck:wave2`, and
-`typecheck:wave3` are the scoped implementation gates.
+Wave 4 subsequently repaired repository-wide TypeScript and linting. Full
+`npm run typecheck`, an enforceable ESLint baseline, and Chromium integration
+tests against the Production build are now mandatory gates.
 
 ## Local verification evidence
 

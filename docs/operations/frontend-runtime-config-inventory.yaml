@@ -48,6 +48,7 @@ public_config:
   allowed_feature_flags:
     - "apiLogging"
     - "debugPanel"
+    - "legacyPerformanceWorkspaces"
     - "useMockData"
   required_in_deployed_environments:
     - "APP_ENV"
@@ -85,3 +86,14 @@ analytics:
   provider: "pending product decision"
   uat_destination_id: "pending"
   production_destination_id: "pending"
+  first_uat_scope: "excluded until provider and separate IDs are approved"
+
+uat_scope:
+  legacy_performance_workspaces:
+    default_enabled: false
+    runtime_flag: "legacyPerformanceWorkspaces"
+    routes:
+      - "/app/campaigns/:campaignId/weekly"
+      - "/app/campaigns/:campaignId/anomalies"
+      - "/app/campaigns/:campaignId/tweaks"
+      - "/app/campaigns/:campaignId/approvals"

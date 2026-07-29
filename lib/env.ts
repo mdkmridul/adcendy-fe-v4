@@ -27,6 +27,8 @@ export const ENV = {
   features: {
     debugPanel: runtimeConfig?.FEATURE_FLAGS.debugPanel === true,
     apiLogging: runtimeConfig?.FEATURE_FLAGS.apiLogging === true,
+    legacyPerformanceWorkspaces:
+      runtimeConfig?.FEATURE_FLAGS.legacyPerformanceWorkspaces === true,
   },
   public: {
     errorDsn: runtimeConfig?.PUBLIC_ERROR_DSN ?? null,

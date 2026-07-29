@@ -22,6 +22,9 @@ jobs:
           node-version: 22.14.0
           cache: npm
 
+      - name: Verify pinned Node and npm
+        run: npm run toolchain:check
+
       - name: Install locked dependencies
         run: npm ci
 
@@ -54,6 +57,14 @@ jobs:
 
       - name: Build immutable application
         run: npm run build
+
+      - name: Install Chromium for browser integration tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser integration tests against the Production build
+        run: npm run test:e2e
+        env:
+          E2E_PRODUCTION: "true"
 
       - name: Scan browser bundle
         run: npm run bundle:scan
@@ -101,3 +112,12 @@ jobs:
             config/deployment/files-contract.json
             config/deployment/frontend-proxy-contract.v1.json
           retention-days: 30
+
+      - name: Upload browser test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore

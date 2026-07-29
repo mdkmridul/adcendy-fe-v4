@@ -30,6 +30,10 @@ test('builds an allowlisted Production configuration without an API origin', () 
   ]);
   assert.equal('API_BASE_URL' in config, false);
   assert.equal(config.FEATURE_FLAGS.useMockData, false);
+  assert.equal(
+    config.FEATURE_FLAGS.legacyPerformanceWorkspaces,
+    false,
+  );
 });
 
 test('rejects legacy NEXT_PUBLIC and unknown public variables', () => {
@@ -48,6 +52,16 @@ test('rejects legacy NEXT_PUBLIC and unknown public variables', () => {
         PUBLIC_DATABASE_URL: 'postgres://private',
       }),
     /Unsupported browser-public environment keys/,
+  );
+});
+
+test('ignores blank retired public variables', () => {
+  assert.doesNotThrow(() =>
+    buildRuntimePublicConfig({
+      ...production,
+      NEXT_PUBLIC_API_URL: '',
+      NEXT_PUBLIC_API_MODE: '   ',
+    }),
   );
 });
 
@@ -91,6 +105,30 @@ test('rejects deployed debug, logging, and mock flags', () => {
       /Deployed environments cannot enable/,
     );
   }
+});
+
+test('allowlists the explicit legacy workspace flag without enabling it by default', () => {
+  const enabled = buildRuntimePublicConfig({
+    ...production,
+    APP_ENV: 'uat',
+    RELEASE_ID: 'release-uat',
+    FEATURE_FLAGS: JSON.stringify({
+      legacyPerformanceWorkspaces: true,
+    }),
+  });
+
+  assert.equal(
+    enabled.FEATURE_FLAGS.legacyPerformanceWorkspaces,
+    true,
+  );
+  assert.throws(
+    () =>
+      buildRuntimePublicConfig({
+        ...production,
+        FEATURE_FLAGS: JSON.stringify({ unreviewedFeature: true }),
+      }),
+    /Unsupported public feature flags/,
+  );
 });
 
 test('enforces payment environment separation', () => {

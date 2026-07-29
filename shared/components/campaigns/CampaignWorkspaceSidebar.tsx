@@ -12,6 +12,7 @@ interface CampaignWorkspaceSidebarProps {
   campaign: Campaign;
   stage: CampaignLifecycleStage;
   pathname: string;
+  legacyPerformanceEnabled?: boolean;
   className?: string;
   onNavigate?: () => void;
 }
@@ -27,7 +28,11 @@ interface WorkspaceNavItem {
   }>;
 }
 
-function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage): WorkspaceNavItem[] {
+function buildWorkspaceItems(
+  campaign: Campaign,
+  stage: CampaignLifecycleStage,
+  legacyPerformanceEnabled: boolean,
+): WorkspaceNavItem[] {
   const showFiles = canAccessCampaignFiles(campaign);
 
   if (stage === 'draft') {
@@ -106,12 +111,18 @@ function buildWorkspaceItems(campaign: Campaign, stage: CampaignLifecycleStage):
       href: `/app/campaigns/${campaign.id}/strategy`,
       isActive: (pathname) => pathname.includes('/strategy'),
     },
-    {
-      label: 'Weekly',
-      href: `/app/campaigns/${campaign.id}/weekly`,
-      isActive: (pathname) =>
-        pathname.includes('/weekly') || pathname.includes('/anomalies') || pathname.includes('/tweaks'),
-    },
+    ...(legacyPerformanceEnabled
+      ? [
+          {
+            label: 'Weekly',
+            href: `/app/campaigns/${campaign.id}/weekly`,
+            isActive: (pathname: string) =>
+              pathname.includes('/weekly') ||
+              pathname.includes('/anomalies') ||
+              pathname.includes('/tweaks'),
+          },
+        ]
+      : []),
     {
       label: 'Intelligence',
       href: `/app/campaigns/${campaign.id}/intelligence`,
@@ -133,10 +144,15 @@ export function CampaignWorkspaceSidebar({
   campaign,
   stage,
   pathname,
+  legacyPerformanceEnabled = false,
   className,
   onNavigate,
 }: CampaignWorkspaceSidebarProps) {
-  const items = buildWorkspaceItems(campaign, stage);
+  const items = buildWorkspaceItems(
+    campaign,
+    stage,
+    legacyPerformanceEnabled,
+  );
 
   return (
     <div className={cn('flex h-full flex-col bg-card', className)}>

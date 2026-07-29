@@ -14,6 +14,7 @@ import { canAccessCampaignFiles } from '@/shared/components/campaigns/campaign-u
 import { SubmittedInputsSummary } from '@/shared/components/campaigns/SubmittedInputsSummary';
 import { formatCampaignStatus } from '@/shared/types/campaign';
 import { humanizeReviewValue } from '@/shared/types/reviews';
+import { useLegacyPerformanceWorkspacesEnabled } from '@/shared/runtime-config/features';
 
 function extractSectionPreview(content: unknown) {
   if (typeof content === 'string') {
@@ -37,6 +38,8 @@ export default function OverviewPage() {
   const params = useParams();
   const campaignId = params?.campaignId as string;
   const { campaign, stage, strategyReview, isLoading } = useCampaignLifecycle(campaignId);
+  const legacyPerformanceEnabled =
+    useLegacyPerformanceWorkspacesEnabled();
 
   const { data: preview } = useQuery({
     queryKey: ['campaign-overview-preview', campaignId],
@@ -309,12 +312,14 @@ export default function OverviewPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
-            <Button asChild variant="outline" className="w-full justify-between">
-              <Link href={`/app/campaigns/${campaignId}/weekly`}>
-                Open weekly recommendations
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+              {legacyPerformanceEnabled ? (
+                <Button asChild variant="outline" className="w-full justify-between">
+                  <Link href={`/app/campaigns/${campaignId}/weekly`}>
+                    Open weekly recommendations
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : null}
             <Button asChild variant="outline" className="w-full justify-between">
               <Link href={`/app/campaigns/${campaignId}/intelligence`}>
                 Check intelligence

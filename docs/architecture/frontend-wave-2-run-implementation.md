@@ -54,7 +54,7 @@ OpenAPI generation       PASS — checksum matched
 git diff --check         PASS
 ```
 
-The repository-wide `npm run typecheck` still reports pre-existing legacy
-generated-schema and repository typing failures outside the Wave 2 scope.
-Next.js is configured to skip repository-wide type validation during build;
-the dedicated Wave 2 TypeScript project is the scoped gate for this work.
+This was the Wave 2 verification snapshot. Wave 4 subsequently repaired the
+repository-wide TypeScript failures and removed the build bypass.
+`npm run typecheck` and the normal Next.js production build are now mandatory
+repository gates.

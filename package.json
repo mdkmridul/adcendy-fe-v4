@@ -17,7 +17,10 @@
     "start": "next start",
     "start:production": "cross-env NODE_ENV=production next start",
     "test": "node --test --experimental-strip-types --experimental-specifier-resolution=node \"tests/**/*.test.ts\" \"tests/**/*.test.mjs\"",
-    "lint": "eslint . --quiet",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "lint": "eslint . --max-warnings=0",
+    "lint:baseline:prune": "eslint . --prune-suppressions --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "typecheck:wave1": "tsc --project tsconfig.wave1.json",
     "typecheck:wave2": "tsc --project tsconfig.wave2.json",
@@ -29,7 +32,8 @@
     "bundle:scan": "node scripts/scan-browser-bundle.mjs",
     "sbom:generate": "node scripts/generate-production-sbom.mjs",
     "proxy:verify": "node scripts/verify-proxy-reference.mjs",
-    "promotion:verify": "node scripts/verify-image-promotion.mjs"
+    "promotion:verify": "node scripts/verify-image-promotion.mjs",
+    "toolchain:check": "node scripts/verify-toolchain.mjs"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "1.4.0",
@@ -88,6 +92,7 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",

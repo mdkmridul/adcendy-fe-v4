@@ -10,6 +10,10 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCampaignLifecycle } from '@/hooks/useCampaignLifecycle';
 import { CampaignWorkspaceHeader } from '@/shared/components/campaigns/CampaignWorkspaceHeader';
 import { CampaignWorkspaceSidebar } from '@/shared/components/campaigns/CampaignWorkspaceSidebar';
+import { useLegacyPerformanceWorkspacesEnabled } from '@/shared/runtime-config/features';
+
+const LEGACY_PERFORMANCE_PATH =
+  /\/campaigns\/[^/]+\/(?:weekly|anomalies|tweaks|approvals)(?:\/|$)/;
 
 export default function CampaignLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -17,6 +21,10 @@ export default function CampaignLayout({ children }: { children: React.ReactNode
   const campaignId = params?.campaignId as string;
   const { campaign, stage, isLoading, error } = useCampaignLifecycle(campaignId || null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const legacyPerformanceEnabled =
+    useLegacyPerformanceWorkspacesEnabled();
+  const legacyPerformanceBlocked =
+    LEGACY_PERFORMANCE_PATH.test(pathname) && !legacyPerformanceEnabled;
 
   if (isLoading) {
     return (
@@ -45,7 +53,12 @@ export default function CampaignLayout({ children }: { children: React.ReactNode
     <div className="flex min-h-full bg-background">
       {stage !== 'draft' ? (
         <aside className="hidden w-72 shrink-0 border-r border-border lg:block">
-          <CampaignWorkspaceSidebar campaign={campaign} stage={stage} pathname={pathname} />
+          <CampaignWorkspaceSidebar
+            campaign={campaign}
+            stage={stage}
+            pathname={pathname}
+            legacyPerformanceEnabled={legacyPerformanceEnabled}
+          />
         </aside>
       ) : null}
 
@@ -54,6 +67,7 @@ export default function CampaignLayout({ children }: { children: React.ReactNode
           campaign={campaign}
           stage={stage}
           pathname={pathname}
+          legacyPerformanceEnabled={legacyPerformanceEnabled}
           mobileNavigationTrigger={
             stage !== 'draft' ? (
               <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
@@ -67,6 +81,7 @@ export default function CampaignLayout({ children }: { children: React.ReactNode
                     campaign={campaign}
                     stage={stage}
                     pathname={pathname}
+                    legacyPerformanceEnabled={legacyPerformanceEnabled}
                     onNavigate={() => setMobileSidebarOpen(false)}
                   />
                 </SheetContent>
@@ -75,7 +90,27 @@ export default function CampaignLayout({ children }: { children: React.ReactNode
           }
         />
 
-        <div className="px-6 py-6">{children}</div>
+        <div className="px-6 py-6">
+          {legacyPerformanceBlocked ? (
+            <Card className="border-border bg-card p-8 text-center">
+              <h2 className="font-space-grotesk text-xl font-semibold">
+                Not included in the first UAT scope
+              </h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+                Weekly, anomaly, tweak, and tweak-approval workspaces remain
+                disabled until their legacy Backend contracts are pinned and
+                approved for UAT.
+              </p>
+              <Button asChild className="mt-5">
+                <Link href={`/app/campaigns/${campaignId}/overview`}>
+                  Return to campaign overview
+                </Link>
+              </Button>
+            </Card>
+          ) : (
+            children
+          )}
+        </div>
       </div>
     </div>
   );

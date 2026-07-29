@@ -20,6 +20,7 @@ const ALLOWED_PUBLIC_ENV_KEYS = new Set([
 const ALLOWED_FEATURE_FLAGS = new Set([
   'apiLogging',
   'debugPanel',
+  'legacyPerformanceWorkspaces',
   'useMockData',
 ]);
 
@@ -31,8 +32,9 @@ function optional(value: string | undefined): string | null {
 function assertPublicEnvironmentKeyAllowlist(source: EnvironmentSource): void {
   const prohibited = Object.keys(source).filter(
     (key) =>
-      key.startsWith('NEXT_PUBLIC_') ||
-      (key.startsWith('PUBLIC_') && !ALLOWED_PUBLIC_ENV_KEYS.has(key)),
+      optional(source[key]) !== null &&
+      (key.startsWith('NEXT_PUBLIC_') ||
+        (key.startsWith('PUBLIC_') && !ALLOWED_PUBLIC_ENV_KEYS.has(key))),
   );
   if (prohibited.length > 0) {
     throw new Error(
@@ -94,6 +96,8 @@ function parseFeatureFlags(
   const flags: PublicFeatureFlags = {
     apiLogging: record.apiLogging === true,
     debugPanel: record.debugPanel === true,
+    legacyPerformanceWorkspaces:
+      record.legacyPerformanceWorkspaces === true,
     useMockData:
       record.useMockData === true ||
       (appEnvironment === 'local' && localDataSource === 'mock'),
