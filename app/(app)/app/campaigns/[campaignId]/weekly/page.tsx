@@ -30,7 +30,9 @@ function formatWeekStart(date: Date) {
 export default function WeeklyPage() {
   const params = useParams();
   const campaignId = params?.campaignId as string;
-  const [selectedWeekStart, setSelectedWeekStart] = useState<string | null>(null);
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() =>
+    formatWeekStart(getMonday(new Date())),
+  );
   const [processingRunId, setProcessingRunId] = useState<string | null>(null);
 
   // Fetch submissions list

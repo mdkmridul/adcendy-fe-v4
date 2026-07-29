@@ -5,6 +5,7 @@ import { queryKeys } from '@/shared/api/queryKeys';
 import { opsV2Repository } from '@/shared/api/repositories';
 import type {
   AdminCampaignTriggerType,
+  AdminReviewerAssignmentPayload,
   OpsListFilters,
   ReviewerTaskRespondPayload,
   SectionRevisionImpactAnalyzePayload,
@@ -178,6 +179,18 @@ export function useTriggerOpsAdminCampaign(campaignId: string | null, trigger: A
   return useMutation({
     mutationFn: (payload?: Record<string, unknown>) =>
       opsV2Repository.triggerAdminCampaign(campaignId as string, trigger, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.opsV2.all });
+    },
+  });
+}
+
+export function useAssignOpsCampaignReviewer(campaignId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: AdminReviewerAssignmentPayload) =>
+      opsV2Repository.assignCampaignReviewer(campaignId as string, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.opsV2.all });
     },

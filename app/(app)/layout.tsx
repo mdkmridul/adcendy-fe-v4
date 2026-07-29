@@ -6,6 +6,9 @@ import { AppShell } from '@/shared/components/layout/AppShell';
 import { clearAuth, getToken, getUser } from '@/features/auth/auth';
 import { canAccessPath, getRequiredRoleForPath } from '@/features/auth/rbac';
 import { authRepository } from '@/shared/api/repositories';
+import { refreshSession } from '@/shared/api/http';
+import { ApiError } from '@/shared/api/errors';
+import { Button } from '@/components/ui/button';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -13,21 +16,39 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let isCancelled = false;
+    let checkPromise: Promise<void> | null = null;
 
-    const checkAuth = async () => {
-      const token = getToken();
-      const user = getUser();
+    const runAuthCheck = async () => {
+      let token = getToken();
+      let user = getUser();
 
       if (!token || !user) {
-        router.push(`/auth/login?next=${encodeURIComponent(pathname)}`);
-        return;
+        const refreshResult = await refreshSession();
+
+        if (!refreshResult.ok) {
+          if (refreshResult.kind === 'anonymous') {
+            router.replace(`/auth/login?next=${encodeURIComponent(pathname)}`);
+            return;
+          }
+
+          if (!isCancelled) {
+            setSessionError(refreshResult.message);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        token = refreshResult.session.accessToken;
+        user = refreshResult.session.user;
       }
 
       if (!canAccessPath(user, pathname)) {
-        router.push('/app/unauthorized');
+        router.replace('/app/unauthorized');
         return;
       }
 
@@ -47,32 +68,64 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (!isCancelled) {
           setIsAuthed(true);
           setIsAuthorized(true);
+          setSessionError(null);
           setIsLoading(false);
         }
-      } catch {
-        clearAuth();
+      } catch (error) {
+        const isTemporaryFailure =
+          error instanceof ApiError &&
+          (error.kind === 'Network' ||
+            error.kind === 'RateLimit' ||
+            error.kind === 'Server' ||
+            error.status === undefined);
+
+        if (isTemporaryFailure) {
+          if (!isCancelled) {
+            setSessionError('We could not verify your session. Please retry.');
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        clearAuth({ broadcast: false });
         if (!isCancelled) {
-          router.push(`/auth/login?next=${encodeURIComponent(pathname)}`);
+          router.replace(`/auth/login?next=${encodeURIComponent(pathname)}`);
         }
       }
     };
 
+    const checkAuth = () => {
+      if (!checkPromise) {
+        checkPromise = runAuthCheck().finally(() => {
+          checkPromise = null;
+        });
+      }
+      return checkPromise;
+    };
+
     setIsLoading(true);
+    setSessionError(null);
     void checkAuth();
 
-    const handleAuthChange = () => {
-      void checkAuth();
-    };
-    
+    const handleAuthChange = () => void checkAuth();
     window.addEventListener('auth-change', handleAuthChange);
-    window.addEventListener('storage', handleAuthChange);
 
     return () => {
       isCancelled = true;
       window.removeEventListener('auth-change', handleAuthChange);
-      window.removeEventListener('storage', handleAuthChange);
     };
-  }, [router, pathname]);
+  }, [router, pathname, retryKey]);
+
+  if (sessionError) {
+    return (
+      <div className="adcendy-cinematic min-h-screen bg-background flex flex-col gap-4 items-center justify-center">
+        <div className="text-sm text-muted-foreground">{sessionError}</div>
+        <Button onClick={() => setRetryKey((value) => value + 1)}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

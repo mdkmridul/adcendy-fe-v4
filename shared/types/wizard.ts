@@ -683,6 +683,7 @@ export interface SaveWizardStepPayload {
 }
 
 export type PipelineRunStatusV2 =
+  | 'QUEUED'
   | 'RUNNING'
   | 'COMPLETED'
   | 'FAILED'
@@ -728,6 +729,13 @@ export interface WizardStateResponseV2 {
   lastCompletedStep: number;
   committedSnapshotId: string | null;
   updatedAt: string | null;
+  run?: {
+    runId: string;
+    status: PipelineRunStatusV2;
+    statusUrl: string;
+    attemptNumber: number;
+    updatedAt: string;
+  } | null;
   steps: {
     step1: Record<string, unknown> | null;
     step2: Record<string, unknown> | null;
@@ -742,6 +750,12 @@ export interface WizardStateResponseV2 {
 export interface WizardCommitResponseV2 {
   pipelineRunId: string | null;
   pipelineStatus: PipelineRunStatusV2 | null;
+  run?: {
+    campaignId: string;
+    runId: string;
+    status: PipelineRunStatusV2;
+    statusUrl: string;
+  } | null;
   normalizationRecordId: string;
   wizardSnapshotId: string;
   reviewerTasks: Array<{

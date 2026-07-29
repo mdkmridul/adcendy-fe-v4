@@ -1,32 +1,36 @@
 import { http } from '../index';
-import type { components } from '@/src/generated/openapi';
 import type { ApiResponse } from '../types';
+import type {
+  IntelligenceSnapshot,
+  RefreshSnapshotResponse,
+} from '@/shared/types/intelligence';
 
-type SnapshotDto = components['schemas']['SnapshotDto'];
-type SnapshotListResponseDto = components['schemas']['SnapshotListResponseDto'];
+interface SnapshotListResponse {
+  snapshots: IntelligenceSnapshot[];
+}
 
 export const intelligenceRealAdapter = {
-  async getLatestSnapshot(campaignId: string): Promise<SnapshotDto | null> {
+  async getLatestSnapshot(campaignId: string): Promise<IntelligenceSnapshot | null> {
     try {
-      const response = await http<ApiResponse<SnapshotDto>>(`/v1/campaigns/${campaignId}/snapshots/latest`);
+      const response = await http<ApiResponse<IntelligenceSnapshot>>(`/v1/campaigns/${campaignId}/snapshots/latest`);
       return response.data;
     } catch {
       return null;
     }
   },
 
-  async listSnapshots(campaignId: string): Promise<SnapshotDto[]> {
-    const response = await http<ApiResponse<SnapshotListResponseDto>>(`/v1/campaigns/${campaignId}/snapshots`);
+  async listSnapshots(campaignId: string): Promise<IntelligenceSnapshot[]> {
+    const response = await http<ApiResponse<SnapshotListResponse>>(`/v1/campaigns/${campaignId}/snapshots`);
     return response.data.snapshots;
   },
 
-  async getSnapshot(snapshotId: string): Promise<SnapshotDto> {
-    const response = await http<ApiResponse<SnapshotDto>>(`/v1/intelligence/snapshots/${snapshotId}`);
+  async getSnapshot(snapshotId: string): Promise<IntelligenceSnapshot> {
+    const response = await http<ApiResponse<IntelligenceSnapshot>>(`/v1/intelligence/snapshots/${snapshotId}`);
     return response.data;
   },
 
-  async refreshSnapshot(campaignId: string): Promise<{ message: string }> {
-    const response = await http<ApiResponse<{ message: string }>>(`/v1/campaigns/${campaignId}/intelligence/serp/refresh`, {
+  async refreshSnapshot(campaignId: string): Promise<RefreshSnapshotResponse> {
+    const response = await http<ApiResponse<RefreshSnapshotResponse>>(`/v1/campaigns/${campaignId}/intelligence/serp/refresh`, {
       method: 'POST',
     });
     return response.data;

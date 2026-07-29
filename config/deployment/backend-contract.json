@@ -1,0 +1,8 @@
+{
+  "backendRevision": "65a37c342e763a7c23eb126c78eae380dd8b0fb6",
+  "openApiVersion": "2.2.0",
+  "openApiFormat": "3.0.3",
+  "openApiSha256": "f47bdda74803612e550cb21dd6c61e3793d5e64d10c0d0f3765615fb18694aa3",
+  "generatedClient": "src/generated/openapi.ts",
+  "generatedClientSha256": "9e07342f2dfdb4e812dcefe8adad1b258832c50d2bde275b2d3bfe56722f6bc3"
+}

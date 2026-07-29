@@ -6,10 +6,10 @@ import type { StrategyRun, StrategyVersion, SubmitStrategyFeedbackPayload } from
 import type { ID } from '@/shared/types/common';
 import { useMemo } from 'react';
 
-export function useStrategyRun(runId: ID | null) {
+export function useStrategyRun(campaignId: ID, runId: ID | null) {
   const { data, error, isLoading, mutate } = useSWR(
     runId ? `strategy-run-${runId}` : null,
-    () => (runId ? strategyRepository.getRun(runId) : null),
+    () => (runId ? strategyRepository.getRun(campaignId, runId) : null),
     {
       refreshInterval: runId ? 3000 : 0, // Poll every 3s if run exists
     }
@@ -51,12 +51,12 @@ export function useStrategyLatest(campaignId: ID) {
   };
 }
 
-export function useSubmitStrategyFeedback(strategyVersionId: ID) {
+export function useSubmitStrategyFeedback(campaignId: ID, strategyVersionId: ID) {
   const submit = useMemo(
     () => async (payload: SubmitStrategyFeedbackPayload) => {
-      await strategyRepository.submitFeedback(strategyVersionId, payload);
+      await strategyRepository.submitFeedback(campaignId, strategyVersionId, payload);
     },
-    [strategyVersionId]
+    [campaignId, strategyVersionId]
   );
 
   return { submit };

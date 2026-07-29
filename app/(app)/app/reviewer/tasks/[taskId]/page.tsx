@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -20,7 +20,9 @@ import { useAuth } from '@/features/auth/useAuth';
 import { useAdminCampaignDetail } from '@/hooks/useAdminReview';
 import { useOpsCampaignOverviews, useOpsReviewerTask } from '@/hooks/useOpsV2';
 import { useToast } from '@/hooks/use-toast';
-import { adminReviewRepository, opsV2Repository } from '@/shared/api/repositories';
+import { adminReviewRepository, opsV2Repository, runsV2Repository } from '@/shared/api/repositories';
+import { ApiError } from '@/shared/api/errors';
+import { createIdempotencyKey } from '@/shared/run/idempotency';
 import { queryKeys } from '@/shared/api/queryKeys';
 import type {
   AdminCampaignTriggerType,
@@ -37,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { resolveDownloadFilename, triggerBlobDownload } from '@/lib/download';
 import { cn } from '@/lib/utils';
+import { CampaignDocumentUploader } from '@/shared/components/campaigns/CampaignDocumentUploader';
 
 const OUTPUT_CONSTRAINT_MODE = 'output_constraint_violation';
 const FIELD_LABELS: Record<string, string> = {
@@ -977,7 +980,6 @@ export default function ReviewerTaskDetailPage() {
   const adminMarketSummary =
     toNonEmptyString(taskQuestionContext?.marketLabel ?? taskQuestionContext?.market_label) ??
     toNonEmptyString(task?.marketId);
-  const resolvedReviewerId = toNonEmptyString(task?.reviewerId) ?? toNonEmptyString(user?.id);
   const [blockerAnswerJson, setBlockerAnswerJson] = useState('{}');
   const [outputConstraintIssueStates, setOutputConstraintIssueStates] = useState<OutputConstraintIssueState[]>([]);
   const [triggerPayloadJson, setTriggerPayloadJson] = useState('{}');
@@ -1102,6 +1104,55 @@ export default function ReviewerTaskDetailPage() {
   const recreateLatestRunMutation = useMutation({
     mutationFn: (campaignId: string) => opsV2Repository.recreateLatestCommittedRun(campaignId),
   });
+  const startRunIdempotencyKeyRef = useRef<string | null>(null);
+  const retryRunIdempotencyKeyRef = useRef<string | null>(null);
+  const startPipelineRunMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const key =
+        startRunIdempotencyKeyRef.current ??
+        createIdempotencyKey(`start-run-${campaignId}`);
+      startRunIdempotencyKeyRef.current = key;
+      return runsV2Repository.start(campaignId, key);
+    },
+    onSuccess: () => {
+      startRunIdempotencyKeyRef.current = null;
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status && error.status < 500) {
+        startRunIdempotencyKeyRef.current = null;
+      }
+    },
+  });
+  const retryPipelineRunMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const recovery = await runsV2Repository.recover(campaignId, 'latest');
+      if (!recovery.run) {
+        throw new Error('No pipeline run is available for this campaign.');
+      }
+      if (!recovery.run.capabilities.canRetry) {
+        throw new Error(
+          `Run ${recovery.run.runId} is ${recovery.run.status} and is not retryable.`,
+        );
+      }
+      const key =
+        retryRunIdempotencyKeyRef.current ??
+        createIdempotencyKey(`retry-run-${recovery.run.runId}`);
+      retryRunIdempotencyKeyRef.current = key;
+      const result = await runsV2Repository.retry(recovery.run.runId, key);
+      if (result.runId !== recovery.run.runId) {
+        throw new Error('Backend retry changed the canonical run ID.');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      retryRunIdempotencyKeyRef.current = null;
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status && error.status < 500) {
+        retryRunIdempotencyKeyRef.current = null;
+      }
+    },
+  });
 
   const resolveCampaignIdForAdminTrigger = async (inputPayload: Record<string, unknown>) => {
     if (!task) {
@@ -1180,7 +1231,6 @@ export default function ReviewerTaskDetailPage() {
       const parsedAnswer = parseJsonObject(blockerAnswerJson, 'Blocker response payload');
       const normalizedAnswer = toRecord(parsedAnswer?.answer) ?? parsedAnswer;
       const result = await respondMutation.mutateAsync({
-        ...(resolvedReviewerId ? { reviewerId: resolvedReviewerId } : {}),
         answer: normalizedAnswer,
       });
 
@@ -1287,7 +1337,6 @@ export default function ReviewerTaskDetailPage() {
       }
 
       const result = await respondMutation.mutateAsync({
-        ...(resolvedReviewerId ? { reviewerId: resolvedReviewerId } : {}),
         answer: payload,
       });
 
@@ -1322,6 +1371,32 @@ export default function ReviewerTaskDetailPage() {
     } catch (error) {
       toast({
         title: 'Unable to start section review',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCanonicalPipelineAction = async (action: 'start' | 'retry') => {
+    if (!task) return;
+
+    try {
+      const campaignId = await resolveCampaignIdForAdminTrigger({});
+      if (!campaignId) {
+        throw new Error('Unable to resolve the campaign ID for this task.');
+      }
+      const result =
+        action === 'start'
+          ? await startPipelineRunMutation.mutateAsync(campaignId)
+          : await retryPipelineRunMutation.mutateAsync(campaignId);
+      setLastActionResult(result);
+      toast({
+        title: action === 'start' ? 'Full pipeline queued' : 'Pipeline retry queued',
+        description: `Run ${result.runId} is attempt ${result.attemptNumber}.`,
+      });
+    } catch (error) {
+      toast({
+        title: action === 'start' ? 'Unable to start pipeline' : 'Unable to retry pipeline',
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
@@ -1620,6 +1695,8 @@ export default function ReviewerTaskDetailPage() {
         </Card>
       ) : (
         <>
+          <CampaignDocumentUploader campaignId={task.campaignId} />
+
           {isAdmin ? (
             <Card className="relative overflow-hidden border-border bg-card/95 shadow-[0_18px_48px_rgba(0,0,0,0.35)]">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-amber-300/8 via-cyan-300/5 to-transparent" />
@@ -1737,9 +1814,7 @@ export default function ReviewerTaskDetailPage() {
                           </Select>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Applied to <span className="font-semibold text-foreground">Run Full Pipeline</span> and
-                          <span className="font-semibold text-foreground"> Run From Last Failure</span>. Other trigger
-                          buttons ignore this market selector.
+                          Wave 2 full start and retry use the Backend-owned run plan and ignore this legacy selector.
                         </p>
                       </div>
                     </div>
@@ -1750,25 +1825,21 @@ export default function ReviewerTaskDetailPage() {
                         tooltipTitle="Full Pipeline"
                         badge="End-to-end"
                         description="End-to-end run from intelligence to final assembly."
-                        onClick={() => void handleTriggerCampaign('pipeline', 'Run Full Pipeline')}
-                        disabled={triggerCampaignMutation.isPending}
-                        pending={triggerCampaignMutation.isPending}
+                        onClick={() => void handleCanonicalPipelineAction('start')}
+                        disabled={startPipelineRunMutation.isPending}
+                        pending={startPipelineRunMutation.isPending}
                         pendingLabel="Queuing..."
                         icon={<Workflow className="h-4 w-4" />}
                       />
                       <ActionButton
                         label="Run From Last Failure"
-                        tooltip="Run pipeline using the campaign's latest active run ID only."
+                        tooltip="Retry the latest failed run through the dedicated idempotent retry operation."
                         tooltipTitle="Pipeline Recovery"
                         badge="Recovery"
-                        description="Resume/retrigger pipeline context from latest active run."
-                        onClick={() =>
-                          void handleTriggerCampaign('pipeline', 'Run From Last Failure', {
-                            includeRunIdForPipeline: true,
-                          })
-                        }
-                        disabled={triggerCampaignMutation.isPending}
-                        pending={triggerCampaignMutation.isPending}
+                        description="Continue the same run ID from its retryable failed phase."
+                        onClick={() => void handleCanonicalPipelineAction('retry')}
+                        disabled={retryPipelineRunMutation.isPending}
+                        pending={retryPipelineRunMutation.isPending}
                         pendingLabel="Queuing..."
                         icon={<RefreshCcw className="h-4 w-4" />}
                       />
@@ -1859,8 +1930,8 @@ export default function ReviewerTaskDetailPage() {
                     <div className="space-y-1">
                       <Label htmlFor="admin-trigger-payload-json">Campaign Trigger Payload</Label>
                       <p className="text-xs text-muted-foreground">
-                        Shared payload sent to pipeline trigger operations. Pipeline market selector can override market
-                        fields for pipeline actions. Run From Last Failure auto-selects latest active runId.
+                        Shared payload for scoped legacy trigger operations. Wave 2 full start and retry use their
+                        operation-specific contracts and ignore this payload.
                       </p>
                     </div>
                     <Textarea

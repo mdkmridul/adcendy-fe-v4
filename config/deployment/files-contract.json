@@ -1,0 +1,9 @@
+{
+  "backendRevision": "79324473cab50871875fc8c7472c440125b277a9",
+  "openApiVersion": "1.0.0",
+  "openApiFormat": "3.0.3",
+  "openApiSha256": "2f93209434783f443f28be35068661c123ee37e402bb0671b43dcd133fe128da",
+  "vendoredContract": "contracts/backend/files-v1/1.0.0/adcendy-files.openapi.json",
+  "generatedClient": "src/generated/files-v1.ts",
+  "generatedClientSha256": "8921550047b27c68f7a2b974c98869899b255b2c408bf93bbd0fe6ad56d66c92"
+}

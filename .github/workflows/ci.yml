@@ -6,59 +6,98 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+
 jobs:
-  typecheck-and-build:
-    name: Type Check & Build
+  verify-and-build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          version: 8
+          node-version: 22.14.0
+          cache: npm
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'pnpm'
+      - name: Install locked dependencies
+        run: npm ci
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Audit production dependency tree
+        run: npm audit --omit=dev --audit-level=high
 
-      - name: Generate API types from staging
-        run: pnpm gen:api:staging
-        env:
-          OPENAPI_URL: ${{ secrets.STAGING_OPENAPI_URL || 'https://api-staging.adcendy.com/api/docs-json' }}
+      - name: Verify pinned Backend contract
+        run: npm run gen:api:check
 
-      - name: Type check
-        run: pnpm typecheck
+      - name: Test
+        run: npm test
 
-      - name: Check for uncommitted generated files
-        run: |
-          if ! git diff --exit-code src/generated/openapi.ts; then
-            echo "❌ Error: Generated API types are out of sync!"
-            echo "Please run 'pnpm gen:api' and commit the changes."
-            exit 1
-          fi
-        continue-on-error: false
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Lint
-        run: pnpm lint
-        continue-on-error: true
+        run: npm run lint
 
-      - name: Build application
-        run: pnpm build
+      - name: Validate UAT runtime fixture
+        run: npm run env:check
         env:
-          NEXT_PUBLIC_API_BASE_URL: https://api-staging.adcendy.com
-          NEXT_PUBLIC_DATA_SOURCE: real
+          APP_ENV: uat
+          RELEASE_ID: ${{ github.sha }}
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+      - name: Validate Production runtime fixture
+        run: npm run env:check
+        env:
+          APP_ENV: production
+          RELEASE_ID: ${{ github.sha }}
+
+      - name: Build immutable application
+        run: npm run build
+
+      - name: Scan browser bundle
+        run: npm run bundle:scan
+
+      - name: Verify reverse-proxy reference against mock upstream
+        run: npm run proxy:verify
+
+      - name: Build standalone container once
+        run: docker build --tag adcendy-fe:${{ github.sha }} .
+
+      - name: Generate Production dependency SBOM
+        run: |
+          mkdir -p release
+          npm run --silent sbom:generate > release/frontend-sbom.cdx.json
+
+      - name: Validate the same image with UAT configuration
+        run: >-
+          docker run --rm
+          -e APP_ENV=uat
+          -e RELEASE_ID=${{ github.sha }}
+          adcendy-fe:${{ github.sha }}
+          node --experimental-strip-types scripts/validate-runtime-config.ts
+
+      - name: Validate the same image with Production configuration
+        run: >-
+          docker run --rm
+          -e APP_ENV=production
+          -e RELEASE_ID=${{ github.sha }}
+          adcendy-fe:${{ github.sha }}
+          node --experimental-strip-types scripts/validate-runtime-config.ts
+
+      - name: Record local image content identifier
+        run: |
+          mkdir -p release
+          docker image inspect adcendy-fe:${{ github.sha }} --format='{"imageId":"{{.Id}}"}' > release/image-manifest.json
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
         with:
-          name: build
-          path: .next
-          retention-days: 7
+          name: frontend-release-${{ github.sha }}
+          path: |
+            release/image-manifest.json
+            release/frontend-sbom.cdx.json
+            config/deployment/backend-contract.json
+            config/deployment/files-contract.json
+            config/deployment/frontend-proxy-contract.v1.json
+          retention-days: 30

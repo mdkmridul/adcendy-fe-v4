@@ -5,13 +5,14 @@ import type {
   CreateReviewerPayload,
 } from '@/shared/types/reviews';
 import type { CampaignStatus } from '@/shared/types/campaign';
-import type { components } from '@/src/generated/openapi';
-
-type AdminUserUpdateDto = components['schemas']['AdminUserUpdateDto'];
-type AdminCampaignSummaryDto = components['schemas']['AdminCampaignSummaryDto'];
-type AdminCampaignDetailResponseDto = components['schemas']['AdminCampaignDetailResponseDto'];
-type AdminCampaignRefreshResponseDto = components['schemas']['AdminCampaignRefreshResponseDto'];
-type AiCallDetailDto = components['schemas']['AiCallDetailDto'];
+import type {
+  AdminCampaignDetail,
+  AdminCampaignRefreshResponse,
+  AdminCampaignSummary,
+  AdminReviewAdapter,
+  AdminUserUpdate,
+  AiCallDetail,
+} from '@/shared/types/admin';
 
 const reviewerState: AdminReviewerUser[] = [
   {
@@ -55,7 +56,7 @@ const aiCalls: AdminAiCallSummary[] = [
   },
 ];
 
-const adminCampaigns: AdminCampaignSummaryDto[] = [
+const adminCampaigns: AdminCampaignSummary[] = [
   {
     id: 'campaign-001',
     title: 'Spring Launch Campaign',
@@ -71,7 +72,7 @@ async function delay(ms = 250) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export const adminReviewMockAdapter = {
+export const adminReviewMockAdapter: AdminReviewAdapter = {
   async createReviewer(payload: CreateReviewerPayload): Promise<AdminReviewerUser> {
     await delay(200);
     const reviewer: AdminReviewerUser = {
@@ -104,7 +105,7 @@ export const adminReviewMockAdapter = {
 
   async updateReviewerStatus(
     reviewerId: string,
-    payload: AdminUserUpdateDto,
+    payload: AdminUserUpdate,
   ): Promise<AdminReviewerUser | null> {
     await delay(150);
     const reviewer = reviewerState.find((entry) => entry.id === reviewerId) ?? null;
@@ -121,7 +122,7 @@ export const adminReviewMockAdapter = {
     pageSize?: number;
     q?: string;
     status?: CampaignStatus;
-  }): Promise<AdminCampaignSummaryDto[]> {
+  }): Promise<AdminCampaignSummary[]> {
     await delay(180);
     const query = params?.q?.trim().toLowerCase();
     return adminCampaigns.filter((campaign) => {
@@ -137,7 +138,7 @@ export const adminReviewMockAdapter = {
     });
   },
 
-  async getAdminCampaignDetail(campaignId: string, _includeRaw?: string): Promise<AdminCampaignDetailResponseDto> {
+  async getAdminCampaignDetail(campaignId: string, _includeRaw?: string): Promise<AdminCampaignDetail> {
     await delay(180);
     const campaign = adminCampaigns.find((entry) => entry.id === campaignId) ?? adminCampaigns[0];
 
@@ -157,7 +158,7 @@ export const adminReviewMockAdapter = {
           id: campaign.ownerId,
           email: campaign.ownerEmail,
         },
-      } as unknown as AdminCampaignDetailResponseDto['campaign'],
+      },
       wizard: {
         status: 'IN_PROGRESS',
         lastCompletedStep: 5,
@@ -176,7 +177,7 @@ export const adminReviewMockAdapter = {
   async refreshAdminCampaignIntelligence(
     _campaignId: string,
     _force?: boolean,
-  ): Promise<AdminCampaignRefreshResponseDto> {
+  ): Promise<AdminCampaignRefreshResponse> {
     await delay(200);
     return {
       results: {},
@@ -208,7 +209,7 @@ export const adminReviewMockAdapter = {
     return aiCalls;
   },
 
-  async getAiCallDetail(callId: string): Promise<AiCallDetailDto> {
+  async getAiCallDetail(callId: string): Promise<AiCallDetail> {
     await delay(120);
     const call = aiCalls.find((entry) => entry.id === callId) ?? aiCalls[0];
 
@@ -216,9 +217,9 @@ export const adminReviewMockAdapter = {
       id: call.id,
       requestId: call.requestId ?? undefined,
       provider: call.provider ?? undefined,
-      operation: call.operation as AiCallDetailDto['operation'],
+      operation: call.operation as AiCallDetail['operation'],
       model: call.model,
-      status: call.status as AiCallDetailDto['status'],
+      status: call.status as AiCallDetail['status'],
       startedAt: call.startedAt,
       finishedAt: undefined,
       totalTokens: undefined,

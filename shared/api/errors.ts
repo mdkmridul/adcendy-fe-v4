@@ -10,7 +10,9 @@ export type ApiErrorKind =
 
 export interface ApiErrorResponse {
   kind: ApiErrorKind;
+  code?: string;
   status?: number;
+  retryAfterMs?: number;
   message: string;
   requestId?: string;
   details?: any;
@@ -19,7 +21,9 @@ export interface ApiErrorResponse {
 
 export class ApiError extends Error implements ApiErrorResponse {
   kind: ApiErrorKind;
+  code?: string;
   status?: number;
+  retryAfterMs?: number;
   requestId?: string;
   details?: any;
   data?: any; // For conflict responses (e.g., 409 with latest draft)
@@ -28,7 +32,9 @@ export class ApiError extends Error implements ApiErrorResponse {
     super(response.message);
     this.name = 'ApiError';
     this.kind = response.kind;
+    this.code = response.code;
     this.status = response.status;
+    this.retryAfterMs = response.retryAfterMs;
     this.requestId = response.requestId;
     this.details = response.details;
     this.data = response.data;
@@ -46,7 +52,8 @@ export function normalizeError(
 
   if (error instanceof Error) {
     return new ApiError({
-      kind: 'Unknown',
+      kind: status === undefined ? 'Network' : 'Unknown',
+      status,
       message: error.message,
       requestId,
     });

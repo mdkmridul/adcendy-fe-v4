@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
@@ -25,13 +25,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -48,21 +41,12 @@ export default function SectionReviewDetailPage() {
   const requestRevisionMutation = useRequestOpsSectionRevision(sectionReviewTaskId);
   const analyzeImpactMutation = useAnalyzeOpsSectionRevisionImpact(sectionReviewTaskId);
 
-  const [reviewerId, setReviewerId] = useState('');
   const [approveNotes, setApproveNotes] = useState('');
   const [instruction, setInstruction] = useState('');
   const [revisionNotes, setRevisionNotes] = useState('');
-  const [fixtureKey, setFixtureKey] = useState('');
-  const [forceMode, setForceMode] = useState<'live' | 'fixture'>('live');
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<unknown>(null);
   const confirmImpactMutation = useConfirmOpsSectionRevisionImpact(analysisId);
-
-  useEffect(() => {
-    if (user?.id) {
-      setReviewerId(user.id);
-    }
-  }, [user?.id]);
 
   if (isAuthLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading section review detail...</div>;
@@ -91,13 +75,12 @@ export default function SectionReviewDetailPage() {
   const approveTask = async () => {
     try {
       await approveMutation.mutateAsync({
-        reviewerId: reviewerId.trim() || undefined,
         reviewerNotes: approveNotes.trim() || undefined,
       });
 
       toast({
         title: 'Section approved',
-        description: `sectionReviewTaskId=${sectionReviewTaskId} reviewerId=${reviewerId || 'none'} action=approve`,
+        description: `sectionReviewTaskId=${sectionReviewTaskId} action=approve`,
       });
 
       setApproveNotes('');
@@ -121,32 +104,19 @@ export default function SectionReviewDetailPage() {
       return;
     }
 
-    if (!user?.id) {
-      toast({
-        title: 'User context missing',
-        description: 'Unable to determine requestedByUserId.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     try {
       await requestRevisionMutation.mutateAsync({
-        requestedByUserId: user.id,
         instruction: instruction.trim(),
         reviewerNotes: revisionNotes.trim() || undefined,
-        fixtureKey: fixtureKey.trim() || undefined,
-        forceMode,
       });
 
       toast({
         title: 'Revision requested',
-        description: `sectionReviewTaskId=${sectionReviewTaskId} requestedByUserId=${user.id} action=request-revision`,
+        description: `sectionReviewTaskId=${sectionReviewTaskId} action=request-revision`,
       });
 
       setInstruction('');
       setRevisionNotes('');
-      setFixtureKey('');
       void detailQuery.refetch();
     } catch (error) {
       toast({
@@ -167,22 +137,10 @@ export default function SectionReviewDetailPage() {
       return;
     }
 
-    if (!user?.id) {
-      toast({
-        title: 'User context missing',
-        description: 'Unable to determine requestedByUserId.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     try {
       const result = await analyzeImpactMutation.mutateAsync({
-        requestedByUserId: user.id,
         instruction: instruction.trim(),
         reviewerNotes: revisionNotes.trim() || undefined,
-        fixtureKey: fixtureKey.trim() || undefined,
-        forceMode,
       });
       const nextAnalysisId =
         typeof result.analysisId === 'string'
@@ -385,15 +343,7 @@ export default function SectionReviewDetailPage() {
             <CardContent className="space-y-6">
               <div className="space-y-3 rounded-md border border-border bg-background p-4">
                 <p className="text-sm font-medium text-foreground">Approve Section</p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="approve-reviewer-id">Reviewer ID (optional)</Label>
-                    <Input
-                      id="approve-reviewer-id"
-                      value={reviewerId}
-                      onChange={(event) => setReviewerId(event.target.value)}
-                    />
-                  </div>
+                <div className="grid gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="approve-notes">Reviewer Notes (optional)</Label>
                     <Input
@@ -430,7 +380,7 @@ export default function SectionReviewDetailPage() {
                     rows={4}
                   />
                 </div>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="revision-notes">Reviewer Notes</Label>
                     <Input
@@ -439,27 +389,6 @@ export default function SectionReviewDetailPage() {
                       onChange={(event) => setRevisionNotes(event.target.value)}
                       placeholder="optional notes"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fixture-key">Fixture Key</Label>
-                    <Input
-                      id="fixture-key"
-                      value={fixtureKey}
-                      onChange={(event) => setFixtureKey(event.target.value)}
-                      placeholder="optional fixture key"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="force-mode">Force Mode</Label>
-                    <Select value={forceMode} onValueChange={(value) => setForceMode(value as 'live' | 'fixture')}>
-                      <SelectTrigger id="force-mode">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="live">live</SelectItem>
-                        <SelectItem value="fixture">fixture</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">

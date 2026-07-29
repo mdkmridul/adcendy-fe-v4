@@ -1,6 +1,8 @@
 import ENV from '@/lib/env';
 import type {
   AdminDownloadResponse,
+  AdminReviewerAssignmentPayload,
+  AdminReviewerAssignmentResult,
   AdminCampaignTriggerType,
   AdminCostsSummary,
   CampaignHealthItem,
@@ -113,6 +115,13 @@ export const opsV2Repository = {
     payload: SectionRevisionImpactConfirmPayload,
   ): Promise<Record<string, unknown>> {
     return adapter.confirmSectionRevisionImpact(analysisId, payload);
+  },
+
+  async assignCampaignReviewer(
+    campaignId: string,
+    payload: AdminReviewerAssignmentPayload,
+  ): Promise<AdminReviewerAssignmentResult> {
+    return adapter.assignCampaignReviewer(campaignId, payload);
   },
 
   async triggerAdminCampaign(

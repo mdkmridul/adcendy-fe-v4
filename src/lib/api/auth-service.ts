@@ -10,9 +10,9 @@ export const authService = {
   /**
    * Register a new user
    */
-  async register(email: string, password: string, name: string) {
+  async startSignup(email: string, password: string, name?: string) {
     return api.execute(() =>
-      api.client.POST('/v1/auth/register', {
+      api.client.POST('/v1/auth/signup/start', {
         body: { email, password, name },
       })
     );
@@ -32,10 +32,10 @@ export const authService = {
   /**
    * Refresh authentication token
    */
-  async refresh(refreshToken: string) {
+  async refresh() {
     return api.execute(() =>
       api.client.POST('/v1/auth/refresh', {
-        body: { refreshToken },
+        body: {},
       })
     );
   },
@@ -54,16 +54,16 @@ export const authService = {
    */
   async getCurrentUser() {
     return api.execute(() =>
-      api.client.GET('/v1/auth/protected/me', {})
+      api.client.GET('/v1/auth/me', {})
     );
   },
 
   /**
-   * Get current user from /v1/users/me endpoint
+   * Logout all sessions for the authenticated user.
    */
-  async getMe() {
+  async logoutAll() {
     return api.execute(() =>
-      api.client.GET('/v1/users/me', {})
+      api.client.POST('/v1/auth/logout-all', { body: {} })
     );
   },
 };

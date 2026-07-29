@@ -170,7 +170,7 @@ export const strategyMockAdapter = {
     return { strategyRunId: runId };
   },
 
-  async getRun(id: ID): Promise<StrategyRun> {
+  async getRun(_campaignId: ID, id: ID): Promise<StrategyRun> {
     await delay(150);
     let run = mockRuns.get(id);
     if (!run) {
@@ -233,7 +233,7 @@ export const strategyMockAdapter = {
     return versions.sort((a, b) => b.version - a.version)[0];
   },
 
-  async getVersion(strategyVersionId: ID): Promise<StrategyVersion> {
+  async getVersion(_campaignId: ID, strategyVersionId: ID): Promise<StrategyVersion> {
     await delay(150);
     const version = mockVersions.find(v => v.id === strategyVersionId);
     if (!version) {
@@ -242,7 +242,11 @@ export const strategyMockAdapter = {
     return version;
   },
 
-  async submitFeedback(strategyVersionId: ID, payload: SubmitStrategyFeedbackPayload): Promise<void> {
+  async submitFeedback(
+    _campaignId: ID,
+    strategyVersionId: ID,
+    payload: SubmitStrategyFeedbackPayload,
+  ): Promise<void> {
     await delay(200);
     console.log(`[v0] Strategy feedback recorded: version=${strategyVersionId}, rating=${payload.rating}, note=${payload.note || 'none'}`);
   },

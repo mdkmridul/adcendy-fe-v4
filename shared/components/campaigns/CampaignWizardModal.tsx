@@ -65,6 +65,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/shared/api/errors';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { campaignsRepository, legalRepository, wizardRepository } from '@/shared/api/repositories';
+import { createIdempotencyKey } from '@/shared/run/idempotency';
 import { resolveLegalErrorMessage } from '@/shared/legal/legal-error';
 import {
   areWizardRequiredConsentsSatisfied,
@@ -2008,6 +2009,7 @@ export function CampaignWizardModal({
   const autoCreatedDraftIdRef = useRef<string | null>(null);
   const hasSavedStep1Ref = useRef(Boolean(campaignId));
   const consentPersistedStateRef = useRef<ConsentToggleState>(DEFAULT_WIZARD_CONSENT_STATE);
+  const commitIdempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -3284,6 +3286,11 @@ export function CampaignWizardModal({
 
       await persistPendingConsentChanges();
 
+      const idempotencyKey =
+        commitIdempotencyKeyRef.current ??
+        createIdempotencyKey(`wizard-commit-${activeCampaignId}`);
+      commitIdempotencyKeyRef.current = idempotencyKey;
+
       return wizardRepository.commitAndGenerate(activeCampaignId, {
         version: wizardState?.version,
         confirmFocus,
@@ -3293,9 +3300,9 @@ export function CampaignWizardModal({
         confirmEconomics,
         readyToGenerate,
         dataConsentOptIn: wizardConsentState.BENCHMARK_DATA,
-      });
+      }, idempotencyKey);
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       if (!activeCampaignId) {
         return;
       }
@@ -3306,11 +3313,18 @@ export function CampaignWizardModal({
         queryClient.invalidateQueries({ queryKey: queryKeys.wizard.preview(activeCampaignId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.legal.consentsMe() }),
       ]);
+      commitIdempotencyKeyRef.current = null;
       onOpenChange(false);
-      router.push(`/app/campaigns/${activeCampaignId}/overview`);
+      const returnedRunId = result.run?.runId ?? result.pipelineRunId;
+      router.push(
+        returnedRunId
+          ? `/app/campaigns/${activeCampaignId}/runs/${returnedRunId}`
+          : `/app/campaigns/${activeCampaignId}/overview`,
+      );
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError && error.status === 409) {
+        commitIdempotencyKeyRef.current = null;
         setConfirmFocus(false);
         setConfirmBusiness(false);
         setConfirmAudience(false);

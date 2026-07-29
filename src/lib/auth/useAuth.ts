@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { clearAuth, getToken, getUser } from '@/features/auth/auth';
 import type { AuthUser } from '@/features/auth/types';
+import { refreshSession } from '@/shared/api/http';
+import { authRepository } from '@/shared/api/repositories';
 
 type AuthStatus = 'loading' | 'anon' | 'authed';
 
@@ -29,21 +31,21 @@ export function useMarketingAuth() {
     }
   }, []);
 
-  // Check on mount
+  // Bootstrap from the Backend-owned HttpOnly refresh cookie on mount.
   useEffect(() => {
-    checkAuthState();
-  }, [checkAuthState]);
+    let cancelled = false;
 
-  // Listen for auth changes (storage events from other tabs/windows)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'adcendy_token' || e.key === 'adcendy_user') {
-        checkAuthState();
+    const bootstrap = async () => {
+      if (!getToken() || !getUser()) {
+        await refreshSession();
       }
+      if (!cancelled) checkAuthState();
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, [checkAuthState]);
 
   // Custom event listener for same-tab auth changes
@@ -56,12 +58,15 @@ export function useMarketingAuth() {
     return () => window.removeEventListener('auth-change', handleAuthChange);
   }, [checkAuthState]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await authRepository.logout();
+    } catch {
+      // Clear the in-memory session even if Backend logout is unreachable.
+    }
     clearAuth();
     setStatus('anon');
     setUserState(undefined);
-    // Dispatch custom event to notify other components
-    window.dispatchEvent(new Event('auth-change'));
     router.push('/');
   }, [router]);
 

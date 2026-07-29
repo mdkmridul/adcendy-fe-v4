@@ -1127,20 +1127,17 @@ export const wizardRealAdapter = {
   async commitAndGenerate(
     campaignId: string,
     payload: Step7CommitPayload,
+    idempotencyKey: string,
   ): Promise<WizardCommitResponseV2> {
     const response = await http<ApiResponse<WizardCommitResponseV2> | WizardCommitResponseV2>(
       '/api/v2/wizard/commit',
       {
         method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: {
           campaignId,
           version: payload.version ?? 0,
           step7: {
-            confirmFocus: payload.confirmFocus,
-            confirmBusiness: payload.confirmBusiness,
-            confirmAudience: payload.confirmAudience,
-            confirmGoals: payload.confirmGoals,
-            confirmEconomics: payload.confirmEconomics,
             readyToGenerate: payload.readyToGenerate,
             dataConsentOptIn: payload.dataConsentOptIn,
           },

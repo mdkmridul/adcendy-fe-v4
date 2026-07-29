@@ -1,97 +1,148 @@
 import { http } from '../index';
-import type { components } from '@/src/generated/openapi';
 import type { ApiResponse } from '../types';
+import type {
+  Anomaly,
+  DerivedMetricsSummary,
+  TweakItem,
+  TweakRun,
+  UpdateTweakStatusPayload,
+  UpsertWeeklySubmissionPayload,
+  WeeklyProcessingRun,
+  WeeklySubmission,
+} from '@/shared/types/weekly';
 
-type WeeklySubmissionDto = components['schemas']['WeeklySubmissionDto'];
-type WeeklySubmissionResponseDto = components['schemas']['WeeklySubmissionResponseDto'];
-type WeeklyListResponseDto = components['schemas']['WeeklyListResponseDto'];
-type AnomalyDto = components['schemas']['AnomalyDto'];
-type AnomalyListResponseDto = components['schemas']['AnomalyListResponseDto'];
-type TweakRunDto = components['schemas']['TweakRunDto'];
-type TweakRunResponseDto = components['schemas']['TweakRunResponseDto'];
-type UpsertWeeklySubmissionDto = components['schemas']['UpsertWeeklySubmissionDto'];
+interface WeeklySubmissionResponse {
+  weeklySubmission: WeeklySubmission;
+  processingRunId: string;
+}
+
+interface WeeklyListResponse {
+  submissions: WeeklySubmission[];
+}
+
+interface AnomalyListResponse {
+  anomalies: Anomaly[];
+}
+
+function requireId(value: unknown, label: string): string {
+  if (typeof value === 'string' && value.trim()) {
+    return value;
+  }
+  throw new Error(`${label} response did not include a run ID.`);
+}
 
 export const weeklyRealAdapter = {
   async upsertSubmission(
     campaignId: string,
     weekStart: string,
-    payload: UpsertWeeklySubmissionDto
-  ): Promise<WeeklySubmissionResponseDto> {
-    const response = await http<ApiResponse<WeeklySubmissionResponseDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}`, {
-      method: 'POST',
-      body: payload,
-    });
+    payload: UpsertWeeklySubmissionPayload,
+  ): Promise<WeeklySubmissionResponse> {
+    const response = await http<ApiResponse<WeeklySubmissionResponse>>(
+      `/v1/campaigns/${campaignId}/weekly/${weekStart}`,
+      { method: 'POST', body: payload },
+    );
     return response.data;
   },
 
-  async listSubmissions(campaignId: string): Promise<WeeklySubmissionDto[]> {
-    const response = await http<ApiResponse<WeeklyListResponseDto>>(`/v1/campaigns/${campaignId}/weekly`);
+  async listSubmissions(campaignId: string): Promise<WeeklySubmission[]> {
+    const response = await http<ApiResponse<WeeklyListResponse>>(
+      `/v1/campaigns/${campaignId}/weekly`,
+    );
     return response.data.submissions;
   },
 
-  async getWeeklySubmission(campaignId: string, weekStart: string): Promise<WeeklySubmissionDto | null> {
+  async getWeeklySubmission(
+    campaignId: string,
+    weekStart: string,
+  ): Promise<WeeklySubmission | null> {
     try {
-      const response = await http<ApiResponse<WeeklySubmissionDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}`);
+      const response = await http<ApiResponse<WeeklySubmission>>(
+        `/v1/campaigns/${campaignId}/weekly/${weekStart}`,
+      );
       return response.data;
     } catch {
       return null;
     }
   },
 
-  async finalizeWeek(campaignId: string, weekStart: string): Promise<void> {
-    await http(`/v1/campaigns/${campaignId}/weekly/${weekStart}/finalize`, {
-      method: 'POST',
-    });
+  async getProcessingRun(processingRunId: string): Promise<WeeklyProcessingRun> {
+    const response = await http<ApiResponse<WeeklyProcessingRun>>(
+      `/v1/weekly/processing-runs/${processingRunId}`,
+    );
+    return response.data;
   },
 
-  async listAnomalies(campaignId: string): Promise<AnomalyDto[]> {
-    const response = await http<ApiResponse<AnomalyListResponseDto>>(`/v1/campaigns/${campaignId}/anomalies`);
+  async getDerivedSummary(
+    campaignId: string,
+    weekStart: string,
+  ): Promise<DerivedMetricsSummary> {
+    const response = await http<ApiResponse<DerivedMetricsSummary>>(
+      `/v1/campaigns/${campaignId}/weekly/${weekStart}/summary`,
+    );
+    return response.data;
+  },
+
+  async listAnomalies(campaignId: string, weekStart?: string): Promise<Anomaly[]> {
+    const response = await http<ApiResponse<AnomalyListResponse>>(
+      `/v1/campaigns/${campaignId}/anomalies`,
+      { query: weekStart ? { weekStart } : undefined },
+    );
     return response.data.anomalies;
   },
 
-  async getAnomaly(campaignId: string, anomalyId: string): Promise<AnomalyDto> {
-    const response = await http<ApiResponse<AnomalyDto>>(`/v1/campaigns/${campaignId}/anomalies/${anomalyId}`);
-    return response.data;
+  async startTweakRun(
+    campaignId: string,
+    weekStart: string,
+  ): Promise<{ tweakRunId: string }> {
+    const response = await http<ApiResponse<Record<string, unknown>>>(
+      `/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks/generate`,
+      { method: 'POST' },
+    );
+    return {
+      tweakRunId: requireId(
+        response.data.tweakRunId ?? response.data.runId ?? response.data.id,
+        'Tweak generation',
+      ),
+    };
   },
 
-  async refreshAnomalies(campaignId: string): Promise<void> {
-    await http(`/v1/campaigns/${campaignId}/anomalies/refresh`, {
-      method: 'POST',
-    });
-  },
-
-  async acknowledgeAnomaly(campaignId: string, anomalyId: string): Promise<AnomalyDto> {
-    const response = await http<ApiResponse<AnomalyDto>>(`/v1/campaigns/${campaignId}/anomalies/${anomalyId}/ack`, {
-      method: 'POST',
-    });
-    return response.data;
-  },
-
-  async resolveAnomaly(campaignId: string, anomalyId: string): Promise<AnomalyDto> {
-    const response = await http<ApiResponse<AnomalyDto>>(`/v1/campaigns/${campaignId}/anomalies/${anomalyId}/resolve`, {
-      method: 'POST',
-    });
-    return response.data;
-  },
-
-  async generateTweaks(campaignId: string, weekStart: string): Promise<TweakRunResponseDto> {
-    const response = await http<ApiResponse<TweakRunResponseDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks/generate`, {
-      method: 'POST',
-    });
-    return response.data;
-  },
-
-  async getTweakRun(campaignId: string, weekStart: string): Promise<TweakRunDto | null> {
+  async getTweakRun(campaignId: string, weekStart: string): Promise<TweakRun | null> {
     try {
-      const response = await http<ApiResponse<TweakRunDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks/latest`);
+      const response = await http<ApiResponse<TweakRun>>(
+        `/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks/latest`,
+      );
       return response.data;
     } catch {
       return null;
     }
   },
 
-  async listTweaks(campaignId: string, weekStart: string): Promise<TweakRunDto> {
-    const response = await http<ApiResponse<TweakRunDto>>(`/v1/campaigns/${campaignId}/weekly/${weekStart}/tweaks`);
+  async getTweakRunById(tweakRunId: string): Promise<TweakRun> {
+    const response = await http<ApiResponse<TweakRun>>(
+      `/v1/weekly/tweak-runs/${tweakRunId}`,
+    );
+    return response.data;
+  },
+
+  async listTweaks(
+    tweakRunId: string,
+    visibility: 'ALL' | 'APPROVED_ONLY' = 'ALL',
+  ): Promise<TweakItem[]> {
+    const response = await http<ApiResponse<{ items: TweakItem[] }>>(
+      `/v1/weekly/tweak-runs/${tweakRunId}/items`,
+      { query: { visibility } },
+    );
+    return response.data.items;
+  },
+
+  async updateTweakStatus(
+    tweakItemId: string,
+    payload: UpdateTweakStatusPayload,
+  ): Promise<TweakItem> {
+    const response = await http<ApiResponse<TweakItem>>(
+      `/v1/weekly/tweaks/${tweakItemId}`,
+      { method: 'PATCH', body: payload },
+    );
     return response.data;
   },
 };

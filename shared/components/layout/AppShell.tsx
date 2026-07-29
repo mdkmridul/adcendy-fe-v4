@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from './ThemeToggle';
@@ -81,6 +81,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push('/auth/login');
   };
 
+  const handleLogoutAll = async () => {
+    try {
+      await authRepository.logoutAll();
+    } catch {
+      // The local session must still be discarded if the request fails.
+    }
+
+    clearAuth();
+    router.push('/auth/login');
+  };
+
   const normalizeAppPath = (value: string) => (value.startsWith('/app/') ? value.slice(4) : value);
   const matchesSection = (currentPath: string, sectionPath: string) =>
     currentPath === sectionPath || currentPath.startsWith(`${sectionPath}/`);
@@ -150,6 +161,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={handleLogoutAll}
+              >
+                <ShieldOff className="mr-2 h-4 w-4" />
+                Sign out everywhere
+              </Button>
             </div>
           </div>
         </header>
@@ -198,6 +218,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <LogOut className="mr-2 h-4 w-4" />
             Logout
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-destructive hover:text-destructive"
+            onClick={handleLogoutAll}
+            size="sm"
+          >
+            <ShieldOff className="mr-2 h-4 w-4" />
+            Sign out everywhere
           </Button>
         </div>
       </aside>
@@ -260,6 +289,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-destructive hover:text-destructive"
+                    onClick={handleLogoutAll}
+                    size="sm"
+                  >
+                    <ShieldOff className="mr-2 h-4 w-4" />
+                    Sign out everywhere
                   </Button>
                 </div>
               </SheetContent>

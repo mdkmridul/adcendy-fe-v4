@@ -18,8 +18,8 @@ export const strategyRepository = {
     return adapter.startRun(campaignId);
   },
 
-  async getRun(id: ID): Promise<StrategyRun> {
-    return adapter.getRun(id);
+  async getRun(campaignId: ID, id: ID): Promise<StrategyRun> {
+    return adapter.getRun(campaignId, id);
   },
 
   async listVersions(campaignId: ID): Promise<StrategyVersion[]> {
@@ -30,11 +30,15 @@ export const strategyRepository = {
     return adapter.getLatest(campaignId);
   },
 
-  async getVersion(strategyVersionId: ID): Promise<StrategyVersion> {
-    return adapter.getVersion(strategyVersionId);
+  async getVersion(campaignId: ID, strategyVersionId: ID): Promise<StrategyVersion> {
+    return adapter.getVersion(campaignId, strategyVersionId);
   },
 
-  async submitFeedback(strategyVersionId: ID, payload: SubmitStrategyFeedbackPayload): Promise<void> {
-    return adapter.submitFeedback(strategyVersionId, payload);
+  async submitFeedback(
+    campaignId: ID,
+    strategyVersionId: ID,
+    payload: SubmitStrategyFeedbackPayload,
+  ): Promise<void> {
+    return adapter.submitFeedback(campaignId, strategyVersionId, payload);
   },
 };

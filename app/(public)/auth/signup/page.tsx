@@ -186,10 +186,9 @@ function SignupContent() {
         otp: otpCode,
       });
 
-      // Store token, refresh token, and user
+      // The Backend stores the refresh token in its HttpOnly cookie.
       setAuthSession({
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
         user: result.user,
       });
 

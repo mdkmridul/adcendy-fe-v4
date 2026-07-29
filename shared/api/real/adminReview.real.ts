@@ -1,8 +1,20 @@
 import { subDays } from 'date-fns';
 import { http } from '../index';
 import type { ApiResponse } from '../types';
-import type { components } from '@/src/generated/openapi';
 import type { CampaignStatus } from '@/shared/types/campaign';
+import type {
+  AdminCampaignDetail,
+  AdminCampaignListResponse,
+  AdminCampaignRefreshResponse,
+  AdminCampaignSummary,
+  AdminReviewAdapter,
+  AdminUserDto,
+  AdminUserListResponse,
+  AdminUserUpdate,
+  AiCallDetail,
+  AiCallListResponse,
+  JobRunsByEntityResponse,
+} from '@/shared/types/admin';
 import type {
   AdminAiCallSummary,
   AdminJobRunSummary,
@@ -10,17 +22,6 @@ import type {
   CreateReviewerPayload,
 } from '@/shared/types/reviews';
 import { normalizeAdminAiCalls, normalizeAdminJobRuns, normalizeReviewerUser } from '@/shared/types/reviews';
-
-type AdminUserDto = components['schemas']['AdminUserDto'];
-type AdminUserListResponseDto = components['schemas']['AdminUserListResponseDto'];
-type AdminUserUpdateDto = components['schemas']['AdminUserUpdateDto'];
-type AdminCampaignSummaryDto = components['schemas']['AdminCampaignSummaryDto'];
-type AdminCampaignListResponseDto = components['schemas']['AdminCampaignListResponseDto'];
-type AdminCampaignDetailResponseDto = components['schemas']['AdminCampaignDetailResponseDto'];
-type AdminCampaignRefreshResponseDto = components['schemas']['AdminCampaignRefreshResponseDto'];
-type JobRunsByEntityResponseDto = components['schemas']['JobRunsByEntityResponseDto'];
-type AiCallListResponseDto = components['schemas']['AiCallListResponseDto'];
-type AiCallDetailDto = components['schemas']['AiCallDetailDto'];
 
 function unwrapResponseData<T>(response: ApiResponse<T> | T | undefined): T | undefined {
   if (
@@ -62,7 +63,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function normalizeAdminCampaignDetail(
   payload: unknown,
   fallbackCampaignId: string,
-): AdminCampaignDetailResponseDto {
+): AdminCampaignDetail {
   const nowIso = new Date().toISOString();
   const root = asRecord(payload) ?? {};
   const campaign = asRecord(root.campaign) ?? {};
@@ -111,7 +112,7 @@ function normalizeAdminCampaignDetail(
       id: coerceNullableString(owner?.id) ?? '',
       email: coerceNullableString(owner?.email) ?? '',
     },
-  } as unknown as AdminCampaignDetailResponseDto['campaign'];
+  } as AdminCampaignDetail['campaign'];
 
   const normalizedWizard = wizard
     ? ({
@@ -127,7 +128,7 @@ function normalizeAdminCampaignDetail(
           asRecord(wizard.derivedState) ??
           asRecord(wizard.answersJson) ??
           undefined,
-      } as unknown as AdminCampaignDetailResponseDto['wizard'])
+      } as AdminCampaignDetail['wizard'])
     : null;
 
   const normalizedLatestRun = activeRunId
@@ -150,7 +151,7 @@ function normalizeAdminCampaignDetail(
           nowIso,
         startedAt: coerceNullableString(latestRunSource?.startedAt) ?? null,
         endedAt: coerceNullableString(latestRunSource?.endedAt) ?? null,
-      } as unknown as AdminCampaignDetailResponseDto['latestRun'])
+      } as AdminCampaignDetail['latestRun'])
     : null;
 
   return {
@@ -172,7 +173,7 @@ function coerceReviewer(dto: AdminUserDto): AdminReviewerUser {
   };
 }
 
-export const adminReviewRealAdapter = {
+export const adminReviewRealAdapter: AdminReviewAdapter = {
   async createReviewer(payload: CreateReviewerPayload): Promise<AdminReviewerUser | null> {
     const response = await http<ApiResponse<unknown> | undefined>('/v1/admin/users/reviewers', {
       method: 'POST',
@@ -192,7 +193,7 @@ export const adminReviewRealAdapter = {
   },
 
   async listReviewers(params?: { q?: string; page?: number; pageSize?: number }): Promise<AdminReviewerUser[]> {
-    const response = await http<ApiResponse<AdminUserListResponseDto>>('/v1/admin/users', {
+    const response = await http<ApiResponse<AdminUserListResponse>>('/v1/admin/users', {
       query: params,
     });
 
@@ -203,7 +204,7 @@ export const adminReviewRealAdapter = {
 
   async updateReviewerStatus(
     reviewerId: string,
-    payload: AdminUserUpdateDto,
+    payload: AdminUserUpdate,
   ): Promise<AdminReviewerUser | null> {
     const response = await http<ApiResponse<unknown> | undefined>(`/v1/admin/users/${reviewerId}`, {
       method: 'PATCH',
@@ -225,8 +226,8 @@ export const adminReviewRealAdapter = {
     pageSize?: number;
     q?: string;
     status?: CampaignStatus;
-  }): Promise<AdminCampaignSummaryDto[]> {
-    const response = await http<ApiResponse<AdminCampaignListResponseDto>>('/v1/admin/campaigns', {
+  }): Promise<AdminCampaignSummary[]> {
+    const response = await http<ApiResponse<AdminCampaignListResponse>>('/v1/admin/campaigns', {
       query: params,
     });
 
@@ -236,7 +237,7 @@ export const adminReviewRealAdapter = {
   async getAdminCampaignDetail(
     campaignId: string,
     includeRaw?: string,
-  ): Promise<AdminCampaignDetailResponseDto> {
+  ): Promise<AdminCampaignDetail> {
     const response = await http<ApiResponse<unknown> | unknown>(
       `/api/v2/admin/campaigns/${campaignId}`,
       {
@@ -250,8 +251,8 @@ export const adminReviewRealAdapter = {
   async refreshAdminCampaignIntelligence(
     campaignId: string,
     force = false,
-  ): Promise<AdminCampaignRefreshResponseDto> {
-    const response = await http<ApiResponse<AdminCampaignRefreshResponseDto>>(
+  ): Promise<AdminCampaignRefreshResponse> {
+    const response = await http<ApiResponse<AdminCampaignRefreshResponse>>(
       `/v1/admin/campaigns/${campaignId}/intelligence/refresh`,
       {
         method: 'POST',
@@ -267,7 +268,7 @@ export const adminReviewRealAdapter = {
     entityId: string;
     limit?: number;
   }): Promise<AdminJobRunSummary[]> {
-    const response = await http<ApiResponse<JobRunsByEntityResponseDto>>(
+    const response = await http<ApiResponse<JobRunsByEntityResponse>>(
       '/v1/admin/jobs/runs/by-entity',
       {
         query: {
@@ -294,7 +295,7 @@ export const adminReviewRealAdapter = {
     days?: number;
   }): Promise<AdminAiCallSummary[]> {
     const now = new Date();
-    const response = await http<ApiResponse<AiCallListResponseDto>>('/v1/admin/ai/calls', {
+    const response = await http<ApiResponse<AiCallListResponse>>('/v1/admin/ai/calls', {
       query: {
         from: subDays(now, params?.days ?? 14).toISOString(),
         to: now.toISOString(),
@@ -313,8 +314,8 @@ export const adminReviewRealAdapter = {
     return normalizeAdminAiCalls(response.data);
   },
 
-  async getAiCallDetail(callId: string): Promise<AiCallDetailDto> {
-    const response = await http<ApiResponse<AiCallDetailDto>>(`/v1/admin/ai/calls/${callId}`);
+  async getAiCallDetail(callId: string): Promise<AiCallDetail> {
+    const response = await http<ApiResponse<AiCallDetail>>(`/v1/admin/ai/calls/${callId}`);
     return response.data;
   },
 };

@@ -1,0 +1,87 @@
+framework:
+  name: "Next.js App Router"
+  version: "16.2.12"
+  rendering_mode: "hybrid static and server-rendered routes"
+  package_manager: "npm"
+  lockfile: "package-lock.json"
+  node_version: "22.14.0"
+  build_command: "npm run build"
+  container_output: "Next.js standalone"
+  container_port: 3000
+
+backend_contract:
+  revision: "65a37c342e763a7c23eb126c78eae380dd8b0fb6"
+  openapi_version: "2.2.0"
+  openapi_sha256: "f47bdda74803612e550cb21dd6c61e3793d5e64d10c0d0f3765615fb18694aa3"
+  generated_client: "src/generated/openapi.ts"
+
+files_contract:
+  revision: "79324473cab50871875fc8c7472c440125b277a9"
+  openapi_version: "1.0.0"
+  openapi_sha256: "2f93209434783f443f28be35068661c123ee37e402bb0671b43dcd133fe128da"
+  generated_client: "src/generated/files-v1.ts"
+
+api:
+  base_url_source: null
+  uses_relative_paths: true
+  route_prefixes:
+    - "/v1"
+    - "/api/v2"
+  credentials_mode: "include for cookie-related auth operations and the shared OpenAPI client"
+  authorization_header: "Bearer access token read from Frontend memory only"
+  reverse_proxy_contract: "config/deployment/frontend-proxy-contract.v1.json"
+  proxy_reference: "deploy/nginx/adcendy.conf.template"
+  proxy_verification: "npm run proxy:verify"
+
+public_config:
+  endpoint: "/runtime-config.js"
+  cache_policy: "no-store"
+  build_time_variables: []
+  allowed_runtime_variables:
+    - "APP_ENV"
+    - "RELEASE_ID"
+    - "PUBLIC_ERROR_DSN"
+    - "RAZORPAY_KEY_ID"
+    - "PUBLIC_ANALYTICS_ID"
+    - "FEATURE_FLAGS"
+    - "SUPPORT_URL"
+  allowed_feature_flags:
+    - "apiLogging"
+    - "debugPanel"
+    - "useMockData"
+  required_in_deployed_environments:
+    - "APP_ENV"
+    - "RELEASE_ID"
+  production_origin: "https://app.adcendy.com"
+  uat_origin: "https://uat.adcendy.com"
+  mismatch_policy: "fail closed at startup and again in the browser"
+  private_values_allowed: false
+
+container:
+  dockerfile: "Dockerfile"
+  base_image: "node:22.14.0-alpine"
+  user: "nextjs:nodejs (1001:1001)"
+  liveness_path: "/health/live"
+  readiness_path: "/health/ready"
+  startup_validation: "npm run env:check equivalent before server start"
+
+promotion:
+  workflow: ".github/workflows/promotion-gate.yml"
+  policy: "UAT-approved and Production candidate references must have the exact same sha256 digest"
+  rebuild_during_promotion: false
+
+security:
+  browser_source_maps: false
+  production_audit_gate: "npm audit --omit=dev --audit-level=high"
+  browser_bundle_scan: "npm run bundle:scan"
+  runtime_debug_features_allowed_when_deployed: false
+  backend_health_routes_public: false
+  signed_url_persistence: false
+  mutation_replay_default: false
+
+analytics:
+  redaction_module: "shared/analytics/privacy.ts"
+  environment_mismatch_guard: true
+  provider: "pending product decision"
+  uat_destination_id: "pending"
+  production_destination_id: "pending"

@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "files": [
+    "next-env.d.ts",
+    "app/health/live/route.ts",
+    "app/health/ready/route.ts",
+    "app/runtime-config.js/route.ts",
+    "features/auth/auth.ts",
+    "features/auth/refresh-policy.ts",
+    "features/auth/types.ts",
+    "lib/env.ts",
+    "scripts/validate-runtime-config.ts",
+    "shared/api/errors.ts",
+    "shared/api/http.ts",
+    "shared/api/requestId.ts",
+    "shared/run/retry-after.ts",
+    "shared/runtime-config/schema.ts",
+    "shared/runtime-config/server.ts",
+    "shared/runtime-config/types.ts",
+    "src/generated/openapi.ts",
+    "src/lib/api/client.ts",
+    "tests/contracts/wave3-deployment-contract.test.ts",
+    "tests/runtime-config/runtime-config.test.ts"
+  ],
+  "include": []
+}

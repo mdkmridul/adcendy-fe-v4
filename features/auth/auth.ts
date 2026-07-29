@@ -1,141 +1,176 @@
-/**
- * Authentication Token Management
- * 
- * Centralized authentication token and user session handling.
- * Uses localStorage for token persistence (client-side only).
- * 
- * For production, consider:
- * - HttpOnly cookies for enhanced security
- * - Token refresh mechanism
- * - Secure token storage (e.g., encrypted storage)
- */
-
-// Storage keys for auth data
-const TOKEN_KEY = 'adcendy_token';
-const REFRESH_TOKEN_KEY = 'adcendy_refresh_token';
-const USER_KEY = 'adcendy_user';
-
 import type { AuthUser } from './types';
 
-/**
- * Get the current authentication token
- * @returns JWT token string or null if not authenticated
- */
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+const LEGACY_AUTH_STORAGE_KEYS = [
+  'adcendy_token',
+  'adcendy_refresh_token',
+  'adcendy_user',
+] as const;
+const AUTH_SYNC_STORAGE_KEY = 'adcendy_auth_sync';
+const AUTH_CHANNEL_NAME = 'adcendy_auth';
+
+type AuthSyncMessage = 'session-established' | 'session-cleared';
+
+let accessToken: string | null = null;
+let currentUser: AuthUser | null = null;
+let authChannel: BroadcastChannel | null = null;
+
+function isBrowser(): boolean {
+  return typeof window !== 'undefined';
 }
 
-/**
- * Get the current refresh token
- * @returns Refresh token string or null if not available
- */
-export function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+function notifyAuthChange(): void {
+  if (isBrowser()) {
+    window.dispatchEvent(new Event('auth-change'));
+  }
 }
 
-/**
- * Store authentication token
- * @param token - JWT token to store
- */
-export function setToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TOKEN_KEY, token);
-  // Notify components of auth change
-  window.dispatchEvent(new Event('auth-change'));
-}
+function publishAuthSync(message: AuthSyncMessage): void {
+  if (!isBrowser()) return;
 
-/**
- * Store refresh token
- * @param refreshToken - Refresh token to store
- */
-export function setRefreshToken(refreshToken: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-}
-
-/**
- * Remove authentication token
- */
-export function clearToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  // Notify components of auth change
-  window.dispatchEvent(new Event('auth-change'));
-}
-
-/**
- * Get the current authenticated user
- * @returns User object or null if not authenticated
- */
-export function getUser(): AuthUser | null {
-  if (typeof window === 'undefined') return null;
-  const userStr = localStorage.getItem(USER_KEY);
-  if (!userStr) return null;
   try {
-    return JSON.parse(userStr);
+    if (authChannel) {
+      authChannel.postMessage(message);
+      return;
+    }
   } catch {
-    return null;
+    // Fall back to a credential-free storage signal below.
+  }
+
+  try {
+    localStorage.setItem(
+      AUTH_SYNC_STORAGE_KEY,
+      JSON.stringify({ message, nonce: crypto.randomUUID() }),
+    );
+    localStorage.removeItem(AUTH_SYNC_STORAGE_KEY);
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
   }
 }
 
 /**
- * Store authenticated user data
- * @param user - User object to store
+ * Remove credentials persisted by pre-Wave-1 Frontend releases.
+ *
+ * The active access token and authenticated user are held only in this
+ * JavaScript module. The refresh token is owned exclusively by the Backend's
+ * HttpOnly cookie and is never readable by Frontend code.
  */
+export function clearLegacyAuthStorage(): void {
+  if (!isBrowser()) return;
+
+  try {
+    for (const key of LEGACY_AUTH_STORAGE_KEYS) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
+  }
+}
+
+export function getToken(): string | null {
+  return isBrowser() ? accessToken : null;
+}
+
+export function setToken(token: string): void {
+  if (!isBrowser()) return;
+  accessToken = token;
+  notifyAuthChange();
+}
+
+export function getUser(): AuthUser | null {
+  return isBrowser() ? currentUser : null;
+}
+
 export function setUser(user: AuthUser): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  // Notify components of auth change
-  window.dispatchEvent(new Event('auth-change'));
+  if (!isBrowser()) return;
+  currentUser = user;
+  notifyAuthChange();
 }
 
-/**
- * Remove authenticated user data
- */
-export function clearUser(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(USER_KEY);
-  // Notify components of auth change
-  window.dispatchEvent(new Event('auth-change'));
+export function clearAuth(options: { broadcast?: boolean } = {}): void {
+  if (!isBrowser()) return;
+
+  accessToken = null;
+  currentUser = null;
+  clearLegacyAuthStorage();
+  notifyAuthChange();
+
+  if (options.broadcast !== false) {
+    publishAuthSync('session-cleared');
+  }
 }
 
-/**
- * Clear all authentication data (token + user)
- * Use this for logout functionality
- */
-export function clearAuth(): void {
-  clearToken();
-  clearUser();
-}
-
-/**
- * Check if user is currently authenticated
- * @returns true if both token and user data exist
- */
 export function isAuthenticated(): boolean {
-  return !!getToken() && !!getUser();
+  return Boolean(getToken() && getUser());
+}
+
+export function setAuth(
+  token: string,
+  user: AuthUser,
+  options: { broadcast?: boolean } = {},
+): void {
+  setAuthSession({ accessToken: token, user }, options);
+}
+
+export function setAuthSession(
+  session: { accessToken: string; user: AuthUser },
+  options: { broadcast?: boolean } = {},
+): void {
+  if (!isBrowser()) return;
+
+  clearLegacyAuthStorage();
+  accessToken = session.accessToken;
+  currentUser = session.user;
+  notifyAuthChange();
+
+  if (options.broadcast !== false) {
+    publishAuthSync('session-established');
+  }
 }
 
 /**
- * Set authentication data from login/signup response
- * @param token - JWT token
- * @param user - User object
+ * Connect the in-memory session to other tabs without sharing credentials.
+ * Other tabs receive only a session hint and bootstrap independently through
+ * the Backend's HttpOnly refresh cookie.
  */
-export function setAuth(token: string, user: AuthUser): void {
-  setToken(token);
-  setUser(user);
-}
+export function initializeAuthSync(): () => void {
+  if (!isBrowser()) return () => undefined;
 
-/**
- * Set authentication session with tokens and user
- * @param session - Auth session with accessToken, refreshToken, and user
- */
-export function setAuthSession(session: { accessToken: string; refreshToken: string; user: AuthUser }): void {
-  setToken(session.accessToken);
-  setRefreshToken(session.refreshToken);
-  setUser(session.user);
-}
+  clearLegacyAuthStorage();
 
+  const handleMessage = (message: AuthSyncMessage) => {
+    if (message === 'session-cleared') {
+      clearAuth({ broadcast: false });
+      return;
+    }
+
+    window.dispatchEvent(new Event('auth-bootstrap-requested'));
+  };
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== AUTH_SYNC_STORAGE_KEY || !event.newValue) return;
+
+    try {
+      const parsed = JSON.parse(event.newValue) as { message?: AuthSyncMessage };
+      if (parsed.message) handleMessage(parsed.message);
+    } catch {
+      // Ignore malformed cross-tab hints.
+    }
+  };
+
+  try {
+    authChannel = new BroadcastChannel(AUTH_CHANNEL_NAME);
+    authChannel.addEventListener('message', (event: MessageEvent<AuthSyncMessage>) => {
+      handleMessage(event.data);
+    });
+  } catch {
+    authChannel = null;
+  }
+
+  window.addEventListener('storage', handleStorage);
+
+  return () => {
+    window.removeEventListener('storage', handleStorage);
+    authChannel?.close();
+    authChannel = null;
+  };
+}

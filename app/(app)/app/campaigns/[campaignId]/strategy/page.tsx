@@ -9,7 +9,7 @@ import { Sparkles, Download } from 'lucide-react';
 import { StrategyVersionList } from '@/shared/components/strategy/StrategyVersionList';
 import { StrategyViewer } from '@/shared/components/strategy/StrategyViewer';
 import { StrategyFeedbackForm } from '@/shared/components/strategy/StrategyFeedbackForm';
-import { strategyRepository } from '@/shared/api/repositories';
+import { strategyRepository, wizardRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
 
 export default function StrategyPage() {
@@ -23,6 +23,11 @@ export default function StrategyPage() {
     queryKey: queryKeys.strategy.versions(campaignId),
     queryFn: () => strategyRepository.listVersions(campaignId),
   });
+  const { data: wizardState } = useQuery({
+    queryKey: queryKeys.wizard.state(campaignId),
+    queryFn: () => wizardRepository.getWizardState(campaignId),
+    enabled: Boolean(campaignId),
+  });
 
   // Fetch selected or latest version
   const selectedOrLatestVersionId = useMemo(() => {
@@ -34,19 +39,20 @@ export default function StrategyPage() {
   }, [selectedVersionId, versions]);
 
   const { data: selectedVersion, isLoading: versionLoading, error: versionError } = useQuery({
-    queryKey: queryKeys.strategy.version(selectedOrLatestVersionId),
+    queryKey: queryKeys.strategy.version(selectedOrLatestVersionId ?? 'unavailable'),
     queryFn: () =>
-      selectedOrLatestVersionId ? strategyRepository.getVersion(selectedOrLatestVersionId) : null,
+      selectedOrLatestVersionId
+        ? strategyRepository.getVersion(campaignId, selectedOrLatestVersionId)
+        : null,
     enabled: !!selectedOrLatestVersionId,
   });
 
-  const handleGenerateNew = async () => {
-    try {
-      const result = await strategyRepository.startRun(campaignId);
-      router.push(`/app/campaigns/${campaignId}/strategy/runs/${result.strategyRunId}`);
-    } catch (err) {
-      console.error('Failed to start strategy run:', err);
+  const handleGenerationAction = () => {
+    if (wizardState?.run?.runId) {
+      router.push(`/app/campaigns/${campaignId}/runs/${wizardState.run.runId}`);
+      return;
     }
+    router.push(`/app/campaigns/${campaignId}/overview`);
   };
 
   const handleVersionSelect = (versionId: string) => {
@@ -67,9 +73,9 @@ export default function StrategyPage() {
           <Button variant="outline" disabled size="icon" className="gap-2 bg-transparent">
             <Download className="w-4 h-4" />
           </Button>
-          <Button onClick={handleGenerateNew} className="gap-2">
+          <Button onClick={handleGenerationAction} className="gap-2">
             <Sparkles className="w-4 h-4" />
-            Generate New
+            {wizardState?.run?.runId ? 'View Generation' : 'Campaign Overview'}
           </Button>
         </div>
       </div>
@@ -79,9 +85,9 @@ export default function StrategyPage() {
         <Card className="p-12 text-center border border-border bg-card">
           <div className="space-y-4 max-w-md mx-auto">
             <p className="text-muted-foreground">No strategy generated yet.</p>
-            <Button onClick={handleGenerateNew} size="lg" className="w-full gap-2">
+            <Button onClick={handleGenerationAction} size="lg" className="w-full gap-2">
               <Sparkles className="w-4 h-4" />
-              Generate First Strategy
+              {wizardState?.run?.runId ? 'View Generation Status' : 'Review Campaign'}
             </Button>
           </div>
         </Card>
@@ -113,6 +119,7 @@ export default function StrategyPage() {
 
             {selectedVersion && (
               <StrategyFeedbackForm
+                campaignId={campaignId}
                 strategyVersionId={selectedVersion.id}
                 versionNumber={selectedVersion.version}
               />

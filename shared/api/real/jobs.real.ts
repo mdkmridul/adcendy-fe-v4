@@ -1,6 +1,5 @@
 import { endOfDay, startOfDay, subDays } from 'date-fns';
 import { http } from '../index';
-import type { components } from '@/src/generated/openapi';
 import type { ApiResponse } from '../types';
 import type {
   JobFailureSummaryItem,
@@ -11,11 +10,33 @@ import type {
   ListJobRunsParams,
 } from '@/shared/types/jobs';
 
-type JobRunDto = components['schemas']['JobRunDto'];
-type JobRunListResponseDto = components['schemas']['JobRunListResponseDto'];
-type JobRunDetailResponseDto = components['schemas']['JobRunDetailResponseDto'];
-type JobFailureSummaryResponseDto = components['schemas']['JobFailureSummaryResponseDto'];
-type JobStatsResponseDto = components['schemas']['JobStatsResponseDto'];
+interface JobRunDto extends Omit<JobRun, 'maxAttempts' | 'lastErrorCode' | 'lastErrorMessage' | 'queueDurationMs' | 'runDurationMs'> {
+  maxAttempts?: unknown;
+  lastErrorCode?: unknown;
+  lastErrorMessage?: unknown;
+  queueDurationMs?: unknown;
+  runDurationMs?: unknown;
+}
+
+interface JobRunListResponseDto {
+  runs: JobRunDto[];
+}
+
+interface JobRunDetailResponseDto extends JobRunDto {
+  logs: {
+    items: Record<string, unknown>[];
+    pagination: { limit: number; offset: number; total: number };
+  };
+}
+
+interface JobFailureSummaryResponseDto {
+  summary: JobFailureSummaryItem[];
+}
+
+interface JobStatsResponseDto {
+  totals: Omit<JobStats, 'avgDurationMs'>;
+  performance: Pick<JobStats, 'avgDurationMs'>;
+}
 
 function toNullableNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;

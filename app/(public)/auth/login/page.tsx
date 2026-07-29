@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { clearAuth, getToken, getUser, setAuthSession } from '@/features/auth/auth';
 import { authRepository } from '@/shared/api/repositories';
+import { refreshSession } from '@/shared/api/http';
 import { authApi } from '@/src/lib/api/auth';
 import { getAuthRedirectUrl } from '@/src/lib/auth-redirect';
 import { X } from 'lucide-react';
@@ -37,11 +38,14 @@ function LoginContent() {
     let isCancelled = false;
 
     const redirectExistingSession = async () => {
-      const token = getToken();
-      const user = getUser();
+      let token = getToken();
+      let user = getUser();
 
       if (!token || !user) {
-        return;
+        const refreshResult = await refreshSession();
+        if (!refreshResult.ok) return;
+        token = refreshResult.session.accessToken;
+        user = refreshResult.session.user;
       }
 
       try {
@@ -50,6 +54,11 @@ function LoginContent() {
         }
 
         if (isAdminLoginFlow && user.role !== 'ADMIN') {
+          try {
+            await authRepository.logout();
+          } catch {
+            // Continue clearing the local session if logout is unavailable.
+          }
           clearAuth();
           if (!isCancelled) {
             setError('Access denied. This sign-in is for admin users only.');
@@ -90,10 +99,10 @@ function LoginContent() {
         password: formData.password,
       });
 
-      // Store token, refresh token, and user
+      // The access token is held in memory. The Backend already set the
+      // refresh token in its HttpOnly cookie.
       setAuthSession({
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
         user: result.user,
       });
 
@@ -102,6 +111,11 @@ function LoginContent() {
       }
 
       if (isAdminLoginFlow && result.user.role !== 'ADMIN') {
+        try {
+          await authRepository.logout();
+        } catch {
+          // Continue clearing the local session if logout is unavailable.
+        }
         clearAuth();
         setError('Access denied. This sign-in is for admin users only.');
         setIsLoading(false);
@@ -111,9 +125,6 @@ function LoginContent() {
       // Calculate redirect URL
       const redirectUrl = isAdminLoginFlow ? '/admin' : getAuthRedirectUrl(nextParam, result.user.role);
       console.log('Login successful, redirecting to:', redirectUrl);
-      
-      // Dispatch auth-change event for reactive components
-      window.dispatchEvent(new Event('auth-change'));
       
       // Use replace to avoid back button issues
       router.replace(redirectUrl);

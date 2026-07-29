@@ -2,6 +2,8 @@ import { http, httpRaw } from '../index';
 import type { ApiResponse } from '../types';
 import type {
   AdminDownloadResponse,
+  AdminReviewerAssignmentPayload,
+  AdminReviewerAssignmentResult,
   AdminCampaignTriggerType,
   AdminCostsSummary,
   CampaignHealthItem,
@@ -38,6 +40,14 @@ import {
   normalizeSectionReviewList,
   normalizeSectionReviewWorkspaceDetail,
 } from '@/shared/types/opsV2';
+import {
+  buildAdminReviewerAssignmentBody,
+  buildReviewerTaskRespondBody,
+  buildSectionApprovalBody,
+  buildSectionImpactAnalysisBody,
+  buildSectionImpactConfirmationBody,
+  buildSectionRevisionBody,
+} from '../wave1-contract';
 
 function unwrapResponseData<T>(response: ApiResponse<T> | T | undefined): T | undefined {
   if (response && typeof response === 'object' && 'data' in response) {
@@ -57,8 +67,6 @@ function toListQuery(filters?: OpsListFilters) {
     pipelineRunId: filters.pipelineRunId,
     marketId: filters.marketId,
     limit: filters.limit,
-    sortBy: filters.sortBy,
-    sortOrder: filters.sortOrder,
   };
 }
 
@@ -164,10 +172,7 @@ export const opsV2RealAdapter = {
   async respondReviewerTask(taskId: string, payload: ReviewerTaskRespondPayload): Promise<ReviewerTaskRespondResult> {
     const response = await http<ApiResponse<unknown> | unknown>(`/api/v2/reviewer-tasks/${taskId}/respond`, {
       method: 'POST',
-      body: {
-        ...(payload.reviewerId ? { reviewerId: payload.reviewerId } : {}),
-        answer: payload.answer,
-      },
+      body: buildReviewerTaskRespondBody(payload),
     });
     return normalizeReviewerTaskRespondResult(unwrapResponseData(response));
   },
@@ -216,7 +221,7 @@ export const opsV2RealAdapter = {
   async approveSectionReview(sectionReviewTaskId: string, payload: SectionReviewApprovePayload): Promise<SectionReviewDetail> {
     const response = await http<ApiResponse<unknown> | unknown>(`/api/v2/section-reviews/${sectionReviewTaskId}/approve`, {
       method: 'POST',
-      body: payload,
+      body: buildSectionApprovalBody(payload),
     });
     return normalizeSectionReviewDetail(unwrapResponseData(response));
   },
@@ -224,7 +229,7 @@ export const opsV2RealAdapter = {
   async requestSectionRevision(sectionReviewTaskId: string, payload: SectionReviewRevisionPayload): Promise<SectionReviewDetail> {
     const response = await http<ApiResponse<unknown> | unknown>(`/api/v2/section-reviews/${sectionReviewTaskId}/request-revision`, {
       method: 'POST',
-      body: payload,
+      body: buildSectionRevisionBody(payload),
     });
     return normalizeSectionReviewDetail(unwrapResponseData(response));
   },
@@ -237,7 +242,7 @@ export const opsV2RealAdapter = {
       `/api/v2/section-reviews/${sectionReviewTaskId}/revision-impact/analyze`,
       {
         method: 'POST',
-        body: payload,
+        body: buildSectionImpactAnalysisBody(payload),
       },
     );
     const data = unwrapResponseData(response);
@@ -252,11 +257,24 @@ export const opsV2RealAdapter = {
       `/api/v2/section-reviews/revision-impact/${analysisId}/confirm`,
       {
         method: 'POST',
-        body: payload,
+        body: buildSectionImpactConfirmationBody(payload),
       },
     );
     const data = unwrapResponseData(response);
     return (data && typeof data === 'object' ? (data as Record<string, unknown>) : {});
+  },
+
+  async assignCampaignReviewer(
+    campaignId: string,
+    payload: AdminReviewerAssignmentPayload,
+  ): Promise<AdminReviewerAssignmentResult> {
+    const response = await http<
+      ApiResponse<AdminReviewerAssignmentResult>
+    >(`/api/v2/admin/campaigns/${campaignId}/reviewer-assignment`, {
+      method: 'PUT',
+      body: buildAdminReviewerAssignmentBody(payload),
+    });
+    return response.data;
   },
 
   async triggerAdminCampaign(

@@ -1,22 +1,25 @@
 import ENV from '@/lib/env';
 import type { CampaignStatus } from '@/shared/types/campaign';
 import type {
+  AdminCampaignDetail,
+  AdminCampaignRefreshResponse,
+  AdminCampaignSummary,
+  AdminReviewAdapter,
+  AdminUserUpdate,
+  AiCallDetail,
+} from '@/shared/types/admin';
+import type {
   AdminAiCallSummary,
   AdminJobRunSummary,
   AdminReviewerUser,
   CreateReviewerPayload,
 } from '@/shared/types/reviews';
-import type { components } from '@/src/generated/openapi';
-
-type AdminUserUpdateDto = components['schemas']['AdminUserUpdateDto'];
-type AdminCampaignSummaryDto = components['schemas']['AdminCampaignSummaryDto'];
-type AdminCampaignDetailResponseDto = components['schemas']['AdminCampaignDetailResponseDto'];
-type AdminCampaignRefreshResponseDto = components['schemas']['AdminCampaignRefreshResponseDto'];
-type AiCallDetailDto = components['schemas']['AiCallDetailDto'];
 import { adminReviewMockAdapter } from '../mock/adminReview.mock';
 import { adminReviewRealAdapter } from '../real/adminReview.real';
 
-const adapter = ENV.API.isMock ? adminReviewMockAdapter : adminReviewRealAdapter;
+const adapter: AdminReviewAdapter = ENV.API.isMock
+  ? adminReviewMockAdapter
+  : adminReviewRealAdapter;
 
 if (ENV.features.apiLogging && typeof window !== 'undefined') {
   console.log('[Admin Review Repository] Using adapter:', ENV.API.dataSource);
@@ -33,7 +36,7 @@ export const adminReviewRepository = {
 
   async updateReviewerStatus(
     reviewerId: string,
-    payload: AdminUserUpdateDto,
+    payload: AdminUserUpdate,
   ): Promise<AdminReviewerUser | null> {
     return adapter.updateReviewerStatus(reviewerId, payload);
   },
@@ -43,21 +46,21 @@ export const adminReviewRepository = {
     pageSize?: number;
     q?: string;
     status?: CampaignStatus;
-  }): Promise<AdminCampaignSummaryDto[]> {
+  }): Promise<AdminCampaignSummary[]> {
     return adapter.listAdminCampaigns(params);
   },
 
   async getAdminCampaignDetail(
     campaignId: string,
     includeRaw?: string,
-  ): Promise<AdminCampaignDetailResponseDto> {
+  ): Promise<AdminCampaignDetail> {
     return adapter.getAdminCampaignDetail(campaignId, includeRaw);
   },
 
   async refreshAdminCampaignIntelligence(
     campaignId: string,
     force?: boolean,
-  ): Promise<AdminCampaignRefreshResponseDto> {
+  ): Promise<AdminCampaignRefreshResponse> {
     return adapter.refreshAdminCampaignIntelligence(campaignId, force);
   },
 
@@ -84,7 +87,7 @@ export const adminReviewRepository = {
     return adapter.listAiCalls(params);
   },
 
-  async getAiCallDetail(callId: string): Promise<AiCallDetailDto> {
+  async getAiCallDetail(callId: string): Promise<AiCallDetail> {
     return adapter.getAiCallDetail(callId);
   },
 };

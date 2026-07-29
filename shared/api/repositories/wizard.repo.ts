@@ -56,9 +56,10 @@ export const wizardRepository = {
       confirmEconomics: boolean;
       readyToGenerate: boolean;
       dataConsentOptIn: boolean;
-    }
+    },
+    idempotencyKey: string,
   ): Promise<WizardCommitResponseV2> {
-    return adapter.commitAndGenerate(campaignId, payload);
+    return adapter.commitAndGenerate(campaignId, payload, idempotencyKey);
   },
 
   async listReviewerTasks(pipelineRunId: ID, status = 'pending_review'): Promise<Array<Record<string, unknown>>> {

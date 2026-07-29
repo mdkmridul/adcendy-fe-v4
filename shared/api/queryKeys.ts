@@ -11,12 +11,26 @@ export const queryKeys = {
     download: (campaignId: string, documentId: string) =>
       [...queryKeys.documents.all, 'download', campaignId, documentId] as const,
   },
+  artifacts: {
+    all: ['artifacts'] as const,
+    list: (campaignId: string) =>
+      [...queryKeys.artifacts.all, 'list', campaignId] as const,
+    download: (campaignId: string, artifactId: string) =>
+      [...queryKeys.artifacts.all, 'download', campaignId, artifactId] as const,
+  },
   strategy: {
     all: ['strategy'] as const,
     run: (id: string) => [...queryKeys.strategy.all, 'run', id] as const,
     versions: (campaignId: string) => [...queryKeys.strategy.all, 'versions', campaignId] as const,
     version: (versionId: string) => [...queryKeys.strategy.all, 'version', versionId] as const,
     latest: (campaignId: string) => [...queryKeys.strategy.all, 'latest', campaignId] as const,
+  },
+  runsV2: {
+    all: ['runsV2'] as const,
+    status: (runId: string) =>
+      [...queryKeys.runsV2.all, 'status', runId] as const,
+    recovery: (campaignId: string, mode: 'active' | 'latest') =>
+      [...queryKeys.runsV2.all, 'recovery', campaignId, mode] as const,
   },
   weekly: {
     all: ['weekly'] as const,

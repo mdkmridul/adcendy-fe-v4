@@ -1,6 +1,5 @@
 import { endOfDay, startOfDay, subDays } from 'date-fns';
 import { http } from '../index';
-import type { components } from '@/src/generated/openapi';
 import type { ApiResponse } from '../types';
 import type {
   AiDailyUsage,
@@ -9,8 +8,16 @@ import type {
   GetAiUsageSummaryParams,
 } from '@/shared/types/aiUsage';
 
-type AiUsageSummaryDto = components['schemas']['AiUsageSummaryDto'];
-type AiDailyUsageResponseDto = components['schemas']['AiDailyUsageResponseDto'];
+interface AiUsageSummaryDto {
+  totalCalls: number;
+  totalTokens: number;
+  totalCost: number;
+  grouped?: Record<string, unknown>;
+}
+
+interface AiDailyUsageResponseDto {
+  usage: AiDailyUsage[];
+}
 
 function resolveWindow(days?: number) {
   const now = new Date();

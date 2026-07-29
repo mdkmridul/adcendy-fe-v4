@@ -31,11 +31,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCampaignLifecycle } from '@/hooks/useCampaignLifecycle';
 import { useToast } from '@/hooks/use-toast';
 import {
+  useCampaignArtifactDownload,
+  useCampaignArtifacts,
   useCampaignDocumentDownload,
   useCampaignDocuments,
 } from '@/hooks/useCampaignDocuments';
 import { canAccessCampaignFiles } from '@/shared/components/campaigns/campaign-ui';
-import type { CampaignDocument } from '@/shared/types/campaignDocument';
+import { getFreshDownloadAuthorization } from '@/shared/files/file-policy';
+import ENV from '@/lib/env';
+import type {
+  CampaignArtifact,
+  CampaignDocument,
+} from '@/shared/types/campaignDocument';
 
 const PRIORITY_PATTERNS = [
   /launch brief/i,
@@ -45,7 +52,7 @@ const PRIORITY_PATTERNS = [
   /onboarding/i,
 ];
 
-type AvailabilityState = 'available' | 'scheduled' | 'processing' | 'failed';
+type AvailabilityState = 'available' | 'scheduled';
 
 function parseDate(value: string | null): Date | null {
   if (!value) {
@@ -104,17 +111,8 @@ function isPriorityDocument(document: CampaignDocument): boolean {
 }
 
 function getAvailabilityState(document: CampaignDocument): AvailabilityState {
-  const status = document.rawStatus?.toUpperCase();
   const availableAt = parseDate(document.availableAt);
   const now = Date.now();
-
-  if (status === 'FAILED' || status === 'ERROR' || status === 'EXPIRED') {
-    return 'failed';
-  }
-
-  if (status === 'QUEUED' || status === 'GENERATING' || status === 'PROCESSING' || status === 'PENDING') {
-    return 'processing';
-  }
 
   if (availableAt && availableAt.getTime() > now) {
     return 'scheduled';
@@ -134,28 +132,6 @@ function getAvailabilityCopy(document: CampaignDocument) {
       description: `Available ${formatDate(document.availableAt)}`,
       disabled: true,
       actionLabel: 'Scheduled',
-    };
-  }
-
-  if (state === 'processing') {
-    return {
-      state,
-      badgeLabel: 'Preparing',
-      badgeVariant: 'secondary' as const,
-      description: 'This file is still being prepared.',
-      disabled: true,
-      actionLabel: 'Preparing',
-    };
-  }
-
-  if (state === 'failed') {
-    return {
-      state,
-      badgeLabel: 'Unavailable',
-      badgeVariant: 'destructive' as const,
-      description: 'This file is not currently available.',
-      disabled: true,
-      actionLabel: 'Unavailable',
     };
   }
 
@@ -229,10 +205,10 @@ function FileHubSection({
         {documents.map((document) => {
           const availability = getAvailabilityCopy(document);
           const isPriority = isPriorityDocument(document);
-          const isPending = activeDocumentId === document.id;
+          const isPending = activeDocumentId === document.documentId;
 
           return (
-            <Card key={document.id} className="border-border bg-card p-5">
+            <Card key={document.documentId} className="border-border bg-card p-5">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-4">
                   <div className="space-y-3">
@@ -350,6 +326,7 @@ export function CampaignFileHub() {
   const campaignId = params?.campaignId as string | undefined;
   const { toast } = useToast();
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   const { campaign, isLoading: isCampaignLoading } = useCampaignLifecycle(campaignId ?? null);
   const filesAvailable = campaign ? canAccessCampaignFiles(campaign) : false;
 
@@ -357,10 +334,17 @@ export function CampaignFileHub() {
     campaignId && filesAvailable ? campaignId : null,
   );
   const downloadDocument = useCampaignDocumentDownload(campaignId && filesAvailable ? campaignId : null);
+  const artifactsQuery = useCampaignArtifacts(
+    campaignId && filesAvailable ? campaignId : null,
+  );
+  const downloadArtifact = useCampaignArtifactDownload(
+    campaignId && filesAvailable ? campaignId : null,
+  );
 
   const documents = useMemo(() => {
     return [...(data?.items ?? [])].sort(compareDocuments);
   }, [data?.items]);
+  const artifacts = artifactsQuery.data?.items ?? [];
 
   const priorityDocuments = useMemo(
     () => documents.filter((document) => isPriorityDocument(document)),
@@ -390,24 +374,14 @@ export function CampaignFileHub() {
   );
 
   const handleOpenDocument = async (document: CampaignDocument) => {
-    setActiveDocumentId(document.id);
+    setActiveDocumentId(document.documentId);
 
     try {
-      const result = await downloadDocument.mutateAsync(document.id);
-
-      if (!result.url) {
-        toast({
-          variant: 'destructive',
-          title: 'File unavailable',
-          description:
-            result.status && result.status !== 'STORED'
-              ? `This file is currently ${result.status.toLowerCase()}.`
-              : 'A signed download link was not returned.',
-        });
-        return;
-      }
-
-      window.location.assign(result.url);
+      const { url } = await getFreshDownloadAuthorization(
+        () => downloadDocument.mutateAsync(document.documentId),
+        { appEnvironment: ENV.APP_ENV },
+      );
+      window.location.assign(url.toString());
     } catch (downloadError) {
       const message =
         downloadError instanceof Error
@@ -424,7 +398,31 @@ export function CampaignFileHub() {
     }
   };
 
-  if (isCampaignLoading || isLoading) {
+  const handleOpenArtifact = async (artifact: CampaignArtifact) => {
+    if (!artifact.availableForDownload) return;
+    setActiveArtifactId(artifact.artifactId);
+
+    try {
+      const { url } = await getFreshDownloadAuthorization(
+        () => downloadArtifact.mutateAsync(artifact.artifactId),
+        { appEnvironment: ENV.APP_ENV },
+      );
+      window.location.assign(url.toString());
+    } catch (downloadError) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to open generated file',
+        description:
+          downloadError instanceof Error
+            ? downloadError.message
+            : 'Unable to authorize the generated file.',
+      });
+    } finally {
+      setActiveArtifactId(null);
+    }
+  };
+
+  if (isCampaignLoading || isLoading || artifactsQuery.isLoading) {
     return <FileHubLoadingState />;
   }
 
@@ -455,8 +453,12 @@ export function CampaignFileHub() {
     );
   }
 
-  if (error) {
-    const message = error instanceof Error ? error.message : 'Unable to load campaign files.';
+  if (error || artifactsQuery.error) {
+    const loadError = error ?? artifactsQuery.error;
+    const message =
+      loadError instanceof Error
+        ? loadError.message
+        : 'Unable to load campaign files.';
 
     return (
       <div className="space-y-6">
@@ -474,7 +476,9 @@ export function CampaignFileHub() {
             <p>{message}</p>
             <Button
               className="mt-3 gap-2"
-              onClick={() => refetch()}
+              onClick={() => {
+                void Promise.all([refetch(), artifactsQuery.refetch()]);
+              }}
               size="sm"
               variant="outline"
             >
@@ -487,7 +491,7 @@ export function CampaignFileHub() {
     );
   }
 
-  if (documents.length === 0) {
+  if (documents.length === 0 && artifacts.length === 0) {
     return (
       <div className="space-y-6">
         <div className="space-y-2">
@@ -551,9 +555,76 @@ export function CampaignFileHub() {
         <FileMetricCard
           label="Library size"
           value={formatFileSize(totalSizeBytes)}
-          description={`${documents.length} file${documents.length === 1 ? '' : 's'} across the campaign.`}
+          description={`${documents.length + artifacts.length} file${documents.length + artifacts.length === 1 ? '' : 's'} across documents and generated outputs.`}
         />
       </div>
+
+      {artifacts.length > 0 ? (
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="font-space-grotesk text-xl font-semibold text-foreground">
+              Generated outputs
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Pipeline artifacts are downloadable only after Backend storage is ready.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {artifacts.map((artifact) => {
+              const isPending = activeArtifactId === artifact.artifactId;
+              return (
+                <Card
+                  className="flex flex-col justify-between gap-4 border-border bg-card p-5"
+                  key={artifact.artifactId}
+                >
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary">{artifact.type}</Badge>
+                      <Badge
+                        variant={
+                          artifact.status === 'FAILED' ||
+                          artifact.status === 'EXPIRED'
+                            ? 'destructive'
+                            : artifact.availableForDownload
+                              ? 'default'
+                              : 'outline'
+                        }
+                      >
+                        {artifact.status.replaceAll('_', ' ')}
+                      </Badge>
+                    </div>
+                    <p className="font-medium text-foreground">
+                      {artifact.fileName || 'Generated campaign artifact'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Created {formatDate(artifact.createdAt)}
+                      {artifact.fileSizeBytes
+                        ? ` · ${formatFileSize(artifact.fileSizeBytes)}`
+                        : ''}
+                    </p>
+                  </div>
+                  <Button
+                    className="gap-2"
+                    disabled={!artifact.availableForDownload || isPending}
+                    onClick={() => void handleOpenArtifact(artifact)}
+                  >
+                    {isPending ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    {isPending
+                      ? 'Authorizing...'
+                      : artifact.availableForDownload
+                        ? 'Download'
+                        : 'Not available'}
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_320px]">
         <div className="space-y-6">
@@ -594,12 +665,13 @@ export function CampaignFileHub() {
 
               <div className="space-y-3">
                 {recentDocuments.map((document) => {
-                  const isPending = activeDocumentId === document.id;
+                  const isPending =
+                    activeDocumentId === document.documentId;
                   const availability = getAvailabilityCopy(document);
 
                   return (
                     <button
-                      key={document.id}
+                      key={document.documentId}
                       className="flex w-full items-start justify-between gap-3 rounded-lg border border-border/80 bg-background/40 p-3 text-left transition-colors hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={availability.disabled || isPending}
                       onClick={() => handleOpenDocument(document)}
@@ -637,7 +709,7 @@ export function CampaignFileHub() {
               </div>
               <p className="text-sm text-muted-foreground">
                 Opening a file first requests a fresh signed URL from the campaign documents API.
-                Scheduled or processing files stay visible here until they are ready.
+                Scheduled files remain unavailable until their release time.
               </p>
             </div>
           </Card>

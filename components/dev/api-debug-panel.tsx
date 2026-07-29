@@ -4,7 +4,7 @@
  * API Debug Panel
  * 
  * A developer tool that displays API configuration and request status.
- * Only shown in development/staging when NEXT_PUBLIC_ENABLE_DEBUG_PANEL=true
+ * Only shown in local development when the allowlisted runtime flag is true.
  * 
  * Features:
  * - Shows current API base URL and data source
@@ -117,7 +117,7 @@ export function ApiDebugPanel() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Base URL:</span>
                   <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">
-                    {ENV.API.baseURL}
+                    same origin
                   </code>
                 </div>
                 <div className="flex justify-between items-center">
@@ -176,7 +176,7 @@ export function ApiDebugPanel() {
                 onClick={() => {
                   console.group('🔧 Environment Configuration');
                   console.log('NODE_ENV:', ENV.NODE_ENV);
-                  console.log('API Base URL:', ENV.API.baseURL);
+                  console.log('API routing:', 'same origin');
                   console.log('Data Source:', ENV.API.dataSource);
                   console.log('Auth State:', authState);
                   console.groupEnd();
@@ -189,7 +189,7 @@ export function ApiDebugPanel() {
               </Button>
               
               <div className="text-xs text-gray-500 text-center">
-                To switch data source, set NEXT_PUBLIC_DATA_SOURCE
+                Mock data is available only through the local runtime configuration.
               </div>
             </div>
           </div>

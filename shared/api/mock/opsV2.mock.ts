@@ -1,5 +1,7 @@
 import type {
   AdminDownloadResponse,
+  AdminReviewerAssignmentPayload,
+  AdminReviewerAssignmentResult,
   AdminCampaignTriggerType,
   AdminCostsSummary,
   CampaignHealthItem,
@@ -678,8 +680,6 @@ export const opsV2MockAdapter = {
         id: `rr-${Date.now()}`,
         instruction: payload.instruction,
         reviewerNotes: payload.reviewerNotes ?? null,
-        fixtureKey: payload.fixtureKey ?? null,
-        forceMode: payload.forceMode ?? null,
         status: 'REQUESTED',
         createdAt: nowIso(),
         updatedAt: nowIso(),
@@ -703,7 +703,7 @@ export const opsV2MockAdapter = {
       analysisId: `impact-${sectionReviewTaskId}-${Date.now()}`,
       sectionReviewTaskId,
       instruction: payload.instruction,
-      requestedByUserId: payload.requestedByUserId,
+      requestedByUserId: 'reviewer-mock-001',
       impactedSectionReviewTaskIds: Object.values(mockSectionReviewDetails)
         .filter((item) => item.pipelineRunId === mockSectionReviewDetails[sectionReviewTaskId]?.pipelineRunId)
         .map((item) => item.id)
@@ -721,9 +721,23 @@ export const opsV2MockAdapter = {
     return {
       analysisId,
       decision: payload.decision,
-      selectedSectionReviewTaskIds: payload.selectedSectionReviewTaskIds ?? [],
+      selectedScopeKeys: payload.selectedScopeKeys ?? [],
       status: payload.decision === 'confirm_apply' ? 'APPLIED' : 'CANCELLED',
       updatedAt: nowIso(),
+    };
+  },
+
+  async assignCampaignReviewer(
+    campaignId: string,
+    payload: AdminReviewerAssignmentPayload,
+  ): Promise<AdminReviewerAssignmentResult> {
+    await delay(180);
+    return {
+      campaignId,
+      assigneeUserId: payload.assigneeUserId,
+      activeRunCount: 1,
+      reviewerTaskCount: 1,
+      sectionReviewTaskCount: 3,
     };
   },
 

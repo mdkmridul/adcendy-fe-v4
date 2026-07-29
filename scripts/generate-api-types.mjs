@@ -1,74 +1,134 @@
 #!/usr/bin/env node
-/**
- * OpenAPI Type Generation Script
- * 
- * Fetches OpenAPI JSON from the backend and generates TypeScript types
- * Usage:
- *   node scripts/generate-api-types.mjs [openapi-url]
- *   
- * Environment variables:
- *   OPENAPI_URL - URL to fetch OpenAPI JSON from (overrides CLI arg)
- */
 
-import { execSync } from 'child_process';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
+import openapiTS, { astToString } from 'openapi-typescript';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Default to local dev if not specified
-const DEFAULT_OPENAPI_URL = 'http://localhost:3001/api/docs-json';
-
-// Determine OpenAPI URL (priority: env var > CLI arg > default)
-const openapiUrl = process.env.OPENAPI_URL || process.argv[2] || DEFAULT_OPENAPI_URL;
-
+const openapiUrl =
+  process.env.OPENAPI_URL || process.argv[2];
 if (!openapiUrl) {
-  console.error('❌ Error: OpenAPI URL is required');
-  console.error('Usage: node scripts/generate-api-types.mjs <openapi-url>');
-  console.error('   or: OPENAPI_URL=<url> node scripts/generate-api-types.mjs');
-  console.error('   or: Set OPENAPI_URL in .env.local');
-  process.exit(1);
+  throw new Error(
+    'Provide an immutable OpenAPI file path or an explicitly approved OPENAPI_URL.',
+  );
 }
-
-console.log('🔄 Generating API types from OpenAPI spec...');
-console.log(`📍 Source: ${openapiUrl}`);
-
-const outputPath = path.resolve(__dirname, '../src/generated/openapi.ts');
+const outputArgument = process.env.OPENAPI_OUTPUT || process.argv[3];
+const outputPath = outputArgument
+  ? path.resolve(process.cwd(), outputArgument)
+  : path.resolve(__dirname, '../src/generated/openapi.ts');
 const outputDir = path.dirname(outputPath);
 
-// Ensure output directory exists
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
+async function readContract(source) {
+  if (/^https?:\/\//i.test(source)) {
+    const response = await fetch(source);
+    if (!response.ok) {
+      throw new Error(`OpenAPI download failed with HTTP ${response.status}`);
+    }
+    return await response.text();
+  }
+
+  return fs.readFileSync(path.resolve(process.cwd(), source), 'utf8');
 }
 
+/**
+ * OpenAPI requires operationId values to be unique. Some compatibility aliases
+ * intentionally share a controller method and therefore arrive with the same
+ * operationId. Keep the wire contract intact while assigning stable generated
+ * type identifiers to later duplicates.
+ */
+function makeOperationIdsUnique(document) {
+  const seen = new Set();
+  const methods = new Set([
+    'get',
+    'put',
+    'post',
+    'delete',
+    'options',
+    'head',
+    'patch',
+    'trace',
+  ]);
+  let duplicateCount = 0;
+
+  for (const [route, pathItem] of Object.entries(document.paths ?? {})) {
+    for (const [method, operation] of Object.entries(pathItem ?? {})) {
+      if (!methods.has(method) || !operation?.operationId) continue;
+      const original = operation.operationId;
+      if (!seen.has(original)) {
+        seen.add(original);
+        continue;
+      }
+
+      const suffix = route
+        .replace(/[{}]/g, '')
+        .replace(/[^a-zA-Z0-9]+(.)/g, (_, value) => value.toUpperCase())
+        .replace(/^[^a-zA-Z_]+/, '');
+      let candidate = `${original}${suffix || 'Alias'}`;
+      let sequence = 2;
+      while (seen.has(candidate)) {
+        candidate = `${original}${suffix || 'Alias'}${sequence}`;
+        sequence += 1;
+      }
+
+      operation.operationId = candidate;
+      seen.add(candidate);
+      duplicateCount += 1;
+    }
+  }
+
+  return duplicateCount;
+}
+
+console.log('Generating API types from OpenAPI contract...');
+console.log(`Source: ${openapiUrl}`);
+
+fs.mkdirSync(outputDir, { recursive: true });
+const temporaryInput = path.join(
+  outputDir,
+  `.openapi-input-${crypto.randomUUID()}.json`,
+);
+
 try {
-  // Run openapi-typescript CLI
-  const command = `npx openapi-typescript "${openapiUrl}" --output "${outputPath}"`;
-  
-  console.log('⚙️  Running:', command);
-  execSync(command, { stdio: 'inherit' });
-  
-  console.log('✅ API types generated successfully!');
-  console.log(`📄 Output: ${outputPath}`);
-  
-  // Add header comment to generated file
-  const generatedContent = fs.readFileSync(outputPath, 'utf8');
+  const rawContract = await readContract(openapiUrl);
+  const checksum = crypto
+    .createHash('sha256')
+    .update(rawContract)
+    .digest('hex');
+  const contract = JSON.parse(rawContract);
+  const duplicateCount = makeOperationIdsUnique(contract);
+
+  if (duplicateCount > 0) {
+    console.warn(
+      `Normalized ${duplicateCount} duplicate operationId value(s) for TypeScript generation.`,
+    );
+  }
+
+  fs.writeFileSync(temporaryInput, JSON.stringify(contract));
+  const generatedContent = astToString(
+    await openapiTS(pathToFileURL(temporaryInput)),
+  );
   const header = `/**
  * AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
- * 
+ *
  * Generated from: ${openapiUrl}
- * Generated at: ${new Date().toISOString()}
- * 
- * To regenerate, run: pnpm gen:api
+ * Source SHA-256: ${checksum}
+ *
+ * To regenerate, run: npm run gen:api -- <openapi-source> <output-path>
  */
 
 `;
   fs.writeFileSync(outputPath, header + generatedContent);
-  
-  console.log('✨ Done!');
+
+  console.log(`Generated: ${outputPath}`);
+  console.log(`Source SHA-256: ${checksum}`);
 } catch (error) {
-  console.error('❌ Failed to generate API types:', error.message);
-  process.exit(1);
+  console.error('Failed to generate API types:', error.message);
+  process.exitCode = 1;
+} finally {
+  if (fs.existsSync(temporaryInput)) {
+    fs.unlinkSync(temporaryInput);
+  }
 }

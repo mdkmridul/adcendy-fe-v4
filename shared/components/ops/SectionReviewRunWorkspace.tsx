@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useAuth } from '@/features/auth/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import {
   useApproveOpsSectionReview,
@@ -39,7 +38,6 @@ export function SectionReviewRunWorkspace({
   role,
   defaultTab = 'overview',
 }: SectionReviewRunWorkspaceProps) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const workspaceQuery = useOpsSectionReviewWorkspace(runId, Boolean(runId));
   const canReview = role === 'REVIEWER' || role === 'ADMIN';
@@ -79,7 +77,6 @@ export function SectionReviewRunWorkspace({
 
     try {
       await approveMutation.mutateAsync({
-        reviewerId: user?.id ?? undefined,
         reviewerNotes: approveNotes.trim() || undefined,
       });
 
@@ -113,18 +110,8 @@ export function SectionReviewRunWorkspace({
       return;
     }
 
-    if (!user?.id) {
-      toast({
-        title: 'User context missing',
-        description: 'Unable to determine requestedByUserId.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     try {
       await requestRevisionMutation.mutateAsync({
-        requestedByUserId: user.id,
         instruction: revisionInstruction.trim(),
         reviewerNotes: revisionNotes.trim() || undefined,
       });

@@ -1,0 +1,103 @@
+{
+  "contractVersion": "1.0.0",
+  "deploymentModel": "same-origin-reverse-proxy",
+  "backendRevision": "65a37c342e763a7c23eb126c78eae380dd8b0fb6",
+  "backendOpenApiVersion": "2.2.0",
+  "backendOpenApiSha256": "f47bdda74803612e550cb21dd6c61e3793d5e64d10c0d0f3765615fb18694aa3",
+  "externalRoutes": [
+    {
+      "path": "/v1/*",
+      "upstream": "backend",
+      "upstreamPath": "unchanged"
+    },
+    {
+      "path": "/api/v2/*",
+      "upstream": "backend",
+      "upstreamPath": "unchanged"
+    },
+    {
+      "path": "/*",
+      "upstream": "frontend",
+      "upstreamPath": "unchanged"
+    }
+  ],
+  "privateRoutes": [
+    "/v1/health/live",
+    "/v1/health/ready"
+  ],
+  "requestPreservation": {
+    "method": true,
+    "query": true,
+    "body": true,
+    "authorization": true,
+    "cookie": true,
+    "origin": true,
+    "referer": true,
+    "idempotencyKey": true,
+    "requestId": true,
+    "automaticMutationRetries": false
+  },
+  "responsePreservation": {
+    "status": true,
+    "body": true,
+    "headers": [
+      "Set-Cookie",
+      "Retry-After",
+      "X-Request-Id",
+      "Content-Type",
+      "Content-Disposition",
+      "Cache-Control",
+      "Location"
+    ],
+    "streaming": true
+  },
+  "forwardedHeaders": {
+    "acceptedByBackend": [
+      "X-Forwarded-Proto",
+      "X-Forwarded-Host",
+      "X-Forwarded-For"
+    ],
+    "rejectedByBackend": [
+      "Forwarded"
+    ],
+    "ingressMustStripClientSuppliedValues": true,
+    "ingressMustSetAuthoritativeValues": true,
+    "clientIpSource": "CF-Connecting-IP",
+    "trustedBackendHops": 1
+  },
+  "environments": {
+    "uat": {
+      "publicOrigin": "https://uat.adcendy.com",
+      "forwardedHost": "uat.adcendy.com",
+      "forwardedProto": "https",
+      "cors": "disabled"
+    },
+    "production": {
+      "publicOrigin": "https://app.adcendy.com",
+      "forwardedHost": "app.adcendy.com",
+      "forwardedProto": "https",
+      "cors": "disabled"
+    },
+    "local": {
+      "origins": [
+        "http://localhost:3000",
+        "http://localhost:5173"
+      ],
+      "cors": "credentialed-exact-origin"
+    }
+  },
+  "cache": {
+    "apiResponses": "preserve-backend-no-store",
+    "runtimeConfig": "no-store",
+    "sharedProxyCachingAuthenticatedResponses": false
+  },
+  "runtimeConfig": {
+    "path": "/runtime-config.js",
+    "upstream": "frontend",
+    "cacheControl": "no-store"
+  },
+  "source": {
+    "backendContractPath": "config/deployment/frontend-proxy-contract.v1.json",
+    "frontendContractPath": "config/deployment/frontend-proxy-contract.v1.json"
+  }
+}

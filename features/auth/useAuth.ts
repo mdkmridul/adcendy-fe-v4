@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getToken, setToken, getUser, setUser, clearAuth } from './auth';
 import type { AuthUser, Role } from './types';
+import { refreshSession } from '@/shared/api/http';
+import { authRepository } from '@/shared/api/repositories';
 
 export function useAuth() {
   const router = useRouter();
@@ -12,12 +14,39 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize from storage on mount
-    const storedToken = getToken();
-    const storedUser = getUser();
-    setTokenState(storedToken);
-    setUserState(storedUser);
-    setIsLoading(false);
+    let cancelled = false;
+
+    const syncSession = async () => {
+      let nextToken = getToken();
+      let nextUser = getUser();
+
+      if (!nextToken || !nextUser) {
+        const result = await refreshSession();
+        if (result.ok) {
+          nextToken = result.session.accessToken;
+          nextUser = result.session.user;
+        }
+      }
+
+      if (!cancelled) {
+        setTokenState(nextToken);
+        setUserState(nextUser);
+        setIsLoading(false);
+      }
+    };
+
+    const handleAuthChange = () => {
+      setTokenState(getToken());
+      setUserState(getUser());
+    };
+
+    void syncSession();
+    window.addEventListener('auth-change', handleAuthChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('auth-change', handleAuthChange);
+    };
   }, []);
 
   const loginMock = (role: Role) => {
@@ -35,7 +64,12 @@ export function useAuth() {
     setUserState(mockUser);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authRepository.logout();
+    } catch {
+      // Local logout still completes when the network is unavailable.
+    }
     clearAuth();
     setTokenState(null);
     setUserState(null);
@@ -57,12 +91,25 @@ export function useAuthGuard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      const returnTo = window.location.pathname + window.location.search;
-      router.push(`/auth/login?next=${encodeURIComponent(returnTo)}`);
-    }
-    setIsLoading(false);
+    let cancelled = false;
+
+    const guard = async () => {
+      if (!getToken()) {
+        const result = await refreshSession();
+        if (!result.ok && result.kind === 'anonymous') {
+          const returnTo = window.location.pathname + window.location.search;
+          router.push(`/auth/login?next=${encodeURIComponent(returnTo)}`);
+        }
+      }
+
+      if (!cancelled) setIsLoading(false);
+    };
+
+    void guard();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return isLoading;

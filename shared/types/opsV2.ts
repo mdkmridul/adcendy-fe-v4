@@ -1,4 +1,5 @@
 import type { ID, ISODateTime } from './common';
+import type { components } from '@/src/generated/openapi';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -86,10 +87,8 @@ export interface ReviewerTaskDetail extends ReviewerTaskItem {
   closedAt?: ISODateTime | null;
 }
 
-export interface ReviewerTaskRespondPayload {
-  reviewerId?: string | null;
-  answer: UnknownRecord;
-}
+export type ReviewerTaskRespondPayload =
+  components['schemas']['ReviewerTaskRespondV2'];
 
 export interface ReviewerTaskRespondResult {
   resumeOutcome?: string | null;
@@ -163,31 +162,23 @@ export interface SectionReviewWorkspaceDetail {
   sections: SectionReviewWorkspaceSection[];
 }
 
-export interface SectionReviewApprovePayload {
-  reviewerId?: string;
-  reviewerNotes?: string;
-}
+export type SectionReviewApprovePayload =
+  components['schemas']['ApproveSectionReviewV2'];
 
-export interface SectionReviewRevisionPayload {
-  requestedByUserId: string;
-  instruction: string;
-  reviewerNotes?: string;
-  fixtureKey?: string;
-  forceMode?: 'live' | 'fixture';
-}
+export type SectionReviewRevisionPayload =
+  components['schemas']['RequestSectionRevisionV2'];
 
-export interface SectionRevisionImpactAnalyzePayload {
-  requestedByUserId: string;
-  instruction: string;
-  reviewerNotes?: string;
-  fixtureKey?: string;
-  forceMode?: 'live' | 'fixture';
-}
+export type SectionRevisionImpactAnalyzePayload =
+  components['schemas']['AnalyzeSectionRevisionImpactV2'];
 
-export interface SectionRevisionImpactConfirmPayload {
-  decision: 'confirm_apply' | 'cancel';
-  selectedSectionReviewTaskIds?: string[];
-}
+export type SectionRevisionImpactConfirmPayload =
+  components['schemas']['ConfirmSectionRevisionImpactV2'];
+
+export type AdminReviewerAssignmentPayload =
+  components['schemas']['AdminReviewerAssignmentV2'];
+
+export type AdminReviewerAssignmentResult =
+  components['schemas']['AdminReviewerAssignmentResponseV2'];
 
 export type AdminCampaignTriggerType =
   | 'pipeline'

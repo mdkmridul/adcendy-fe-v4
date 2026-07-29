@@ -12,11 +12,16 @@ import { strategyRepository } from '@/shared/api/repositories';
 import type { ID } from '@/shared/types/common';
 
 interface StrategyFeedbackFormProps {
+  campaignId: ID;
   strategyVersionId: ID;
   versionNumber: number;
 }
 
-export function StrategyFeedbackForm({ strategyVersionId, versionNumber }: StrategyFeedbackFormProps) {
+export function StrategyFeedbackForm({
+  campaignId,
+  strategyVersionId,
+  versionNumber,
+}: StrategyFeedbackFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const {
     register,
@@ -32,7 +37,7 @@ export function StrategyFeedbackForm({ strategyVersionId, versionNumber }: Strat
 
   const { mutate: submitFeedback, isPending } = useMutation({
     mutationFn: (data: StrategyFeedbackFormData) =>
-      strategyRepository.submitFeedback(strategyVersionId, data),
+      strategyRepository.submitFeedback(campaignId, strategyVersionId, data),
     onSuccess: () => {
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 2000);

@@ -7,11 +7,8 @@ import { queryKeys } from '@/shared/api/queryKeys';
 import type { CampaignStatus } from '@/shared/types/campaign';
 import type { CampaignOverviewV2 } from '@/shared/types/opsV2';
 import type { CreateReviewerPayload } from '@/shared/types/reviews';
-import type { components } from '@/src/generated/openapi';
+import type { AdminCampaignDetail, AdminUserUpdate } from '@/shared/types/admin';
 import { useStrategyReview } from './useStrategyReviews';
-
-type AdminUserUpdateDto = components['schemas']['AdminUserUpdateDto'];
-type AdminCampaignDetailResponseDto = components['schemas']['AdminCampaignDetailResponseDto'];
 
 function toNonEmptyString(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -25,7 +22,7 @@ function toNonEmptyString(value: unknown): string | null {
 function upsertOpsCampaignCacheFromAdminDetail(
   existing: CampaignOverviewV2[] | undefined,
   campaignId: string,
-  detail: AdminCampaignDetailResponseDto,
+  detail: AdminCampaignDetail,
 ): CampaignOverviewV2[] {
   const list = Array.isArray(existing) ? existing : [];
   const detailCampaignId = toNonEmptyString(detail.campaign?.id) ?? campaignId;
@@ -106,7 +103,7 @@ export function useUpdateReviewerStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ reviewerId, payload }: { reviewerId: string; payload: AdminUserUpdateDto }) =>
+    mutationFn: ({ reviewerId, payload }: { reviewerId: string; payload: AdminUserUpdate }) =>
       adminReviewRepository.updateReviewerStatus(reviewerId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminReview.reviewers() });

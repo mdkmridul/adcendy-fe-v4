@@ -1,5 +1,4 @@
 import { http } from '../index';
-import type { components } from '@/src/generated/openapi';
 import type { ApiResponse } from '../types';
 import type {
   BusinessModel,
@@ -11,7 +10,7 @@ import type {
   UpdateCampaignPayload,
 } from '@/shared/types/campaign';
 
-type CampaignDto = components['schemas']['CampaignDto'];
+type CampaignDto = Record<string, unknown>;
 
 function coerceString(value: unknown, fallback = '') {
   return typeof value === 'string' ? value : fallback;

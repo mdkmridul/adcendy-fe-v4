@@ -5,6 +5,7 @@ import { wizardRepository } from '@/shared/api/repositories/wizard.repo';
 import type { WizardStepState, WizardPreview, SaveWizardStepPayload } from '@/shared/types/wizard';
 import type { ID } from '@/shared/types/common';
 import { useMemo } from 'react';
+import { createIdempotencyKey } from '@/shared/run/idempotency';
 
 export function useWizardStep(campaignId: ID, stepKey: string) {
   const { data, error, isLoading, mutate } = useSWR(
@@ -48,7 +49,11 @@ export function useWizardCommit(campaignId: ID) {
 
   const commit = useMemo(
     () => async (payload: WizardCommitPayload) => {
-      return wizardRepository.commitAndGenerate(campaignId, payload);
+      return wizardRepository.commitAndGenerate(
+        campaignId,
+        payload,
+        createIdempotencyKey(`wizard-commit-${campaignId}`),
+      );
     },
     [campaignId]
   );

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RunEntity, RunPollingConfig } from './types';
-import { isTerminal, isActive } from './guards';
+import { isActive } from './guards';
 
 export function useRunPolling<T extends RunEntity = RunEntity>(
   config: RunPollingConfig<T>,
@@ -19,30 +19,36 @@ export function useRunPolling<T extends RunEntity = RunEntity>(
   } = config;
 
   const queryClient = useQueryClient();
-  const isVisibleRef = useRef(true);
+  const [isVisible, setIsVisible] = useState(
+    () => typeof document === 'undefined' || !document.hidden,
+  );
 
   // Track visibility to pause polling when tab is hidden
   useEffect(() => {
     const handleVisibilityChange = () => {
-      isVisibleRef.current = !document.hidden;
+      setIsVisible(!document.hidden);
+      if (!document.hidden && runId) {
+        void queryClient.invalidateQueries({ queryKey: [queryKeyBase, runId] });
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [queryClient, queryKeyBase, runId]);
 
-  const queryKey = [queryKeyBase, runId];
-  const shouldPoll = enabled && runId && isVisibleRef.current;
+  const queryKey = [queryKeyBase, runId] as const;
+  const shouldPoll = Boolean(enabled && runId && isVisible);
 
-  const query = useQuery<T>({
+  const query = useQuery<T, Error, T, typeof queryKey>({
     queryKey,
     queryFn: async () => {
       if (!runId) throw new Error('runId required');
       return fetchRun(runId);
     },
     enabled: shouldPoll,
-    refetchInterval: (data) => {
-      if (!data || !('status' in data) || !isActive(data.status)) {
+    refetchInterval: (currentQuery) => {
+      const data = currentQuery.state.data;
+      if (!data || !isActive(data.status)) {
         return false; // Stop polling at terminal states
       }
       return shouldPoll ? intervalMs : false;
@@ -59,9 +65,9 @@ export function useRunPolling<T extends RunEntity = RunEntity>(
     if (status === 'SUCCEEDED') {
       onSucceeded?.(query.data);
     } else if (status === 'FAILED') {
-      onFailed?.(query.data, query.data.errorMessage);
+      onFailed?.(query.data, query.data.errorMessage ?? undefined);
     }
-  }, [query.data]);
+  }, [onFailed, onSucceeded, query.data]);
 
   return {
     run: query.data,

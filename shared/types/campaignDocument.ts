@@ -1,24 +1,26 @@
-import type { ID, ISODateTime } from './common';
+import type { components } from '@/src/generated/files-v1';
 
-export interface CampaignDocument {
-  id: ID;
-  title: string;
-  description: string | null;
-  fileName: string;
-  fileSizeBytes: number | null;
-  createdAt: ISODateTime | null;
-  availableAt: ISODateTime | null;
-  contentType: string | null;
-  rawStatus: string | null;
+export type CampaignDocument = components['schemas']['Document'];
+export type CampaignDocumentList = components['schemas']['DocumentList'];
+export type CampaignDocumentDownload =
+  components['schemas']['DocumentDownload'];
+export type CampaignArtifact = components['schemas']['Artifact'];
+export type CampaignArtifactList = components['schemas']['ArtifactList'];
+export type CampaignArtifactDownload =
+  components['schemas']['ArtifactDownload'];
+export type CampaignArtifactTrigger =
+  components['schemas']['ArtifactTrigger'];
+export type CampaignArtifactStatus =
+  components['schemas']['ArtifactStatus'];
+
+export interface CampaignDocumentUploadInput {
+  file: File;
+  title?: string;
+  description?: string;
+  availableAt?: string;
 }
 
-export interface CampaignDocumentList {
-  items: CampaignDocument[];
-  total: number;
-}
-
-export interface CampaignDocumentDownload {
-  status: string | null;
-  url: string | null;
-  expiresAt: ISODateTime | null;
+export interface CampaignDocumentUploadOptions {
+  signal?: AbortSignal;
+  onProgress?: (percentage: number) => void;
 }

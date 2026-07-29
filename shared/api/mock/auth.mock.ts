@@ -2,9 +2,11 @@ import type { AuthUser } from '@/features/auth/types';
 import type { components } from '@/src/generated/openapi';
 
 // Use generated OpenAPI types
-export type LoginRequest = components['schemas']['LoginDto'];
-export type SignupRequest = components['schemas']['SignupStartDto'];
-export type AuthResponse = components['schemas']['AuthSessionDto'];
+export type LoginRequest = components['schemas']['LoginRequest'];
+export type SignupRequest = components['schemas']['SignupStartRequest'];
+export type AuthResponse = components['schemas']['AuthSession'];
+export type SignupStartResponse =
+  components['schemas']['SignupStartEnvelope']['data'];
 
 /**
  * Mock Auth Adapter
@@ -34,11 +36,8 @@ export const authMockAdapter = {
     };
 
     const mockToken = `mock.${role}.${Date.now()}`;
-    const mockRefreshToken = `mock.refresh.${Date.now()}`;
-
     return {
       accessToken: mockToken,
-      refreshToken: mockRefreshToken,
       user: mockUser,
     };
   },
@@ -46,24 +45,13 @@ export const authMockAdapter = {
   /**
    * Mock signup - creates new CLIENT user
    */
-  signup: async (payload: SignupRequest): Promise<AuthResponse> => {
+  signupStart: async (payload: SignupRequest): Promise<SignupStartResponse> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 400));
 
-    const mockUser: AuthResponse['user'] = {
-      id: `user-${Date.now()}`,
-      email: payload.email,
-      role: 'CLIENT',
-      createdAt: new Date().toISOString(),
-    };
-
-    const mockToken = `mock.CLIENT.${Date.now()}`;
-    const mockRefreshToken = `mock.refresh.${Date.now()}`;
-
     return {
-      accessToken: mockToken,
-      refreshToken: mockRefreshToken,
-      user: mockUser,
+      verificationId: `verification-${Date.now()}`,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     };
   },
 
@@ -95,7 +83,7 @@ export const authMockAdapter = {
   /**
    * Mock refresh token
    */
-  refreshToken: async (): Promise<AuthResponse> => {
+  refreshSession: async (): Promise<AuthResponse> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -107,11 +95,8 @@ export const authMockAdapter = {
     };
 
     const mockToken = `mock.CLIENT.${Date.now()}`;
-    const mockRefreshToken = `mock.refresh.${Date.now()}`;
-
     return {
       accessToken: mockToken,
-      refreshToken: mockRefreshToken,
       user: mockUser,
     };
   },
@@ -124,5 +109,9 @@ export const authMockAdapter = {
   verifyAdminAccess: async (): Promise<boolean> => {
     await new Promise(resolve => setTimeout(resolve, 100));
     return true;
+  },
+
+  logoutAll: async (): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
   },
 };

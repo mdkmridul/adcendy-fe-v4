@@ -1,142 +1,201 @@
-import { http } from '../index';
-import type { ApiResponse } from '../types';
+import { getToken } from '@/features/auth/auth';
+import { ApiError, normalizeError } from '@/shared/api/errors';
+import { http } from '@/shared/api';
+import { makeRequestId } from '@/shared/api/requestId';
+import type { components } from '@/src/generated/files-v1';
 import type {
+  CampaignArtifactDownload,
+  CampaignArtifactList,
+  CampaignArtifactTrigger,
   CampaignDocument,
   CampaignDocumentDownload,
   CampaignDocumentList,
+  CampaignDocumentUploadInput,
+  CampaignDocumentUploadOptions,
 } from '@/shared/types/campaignDocument';
 
-type UnknownRecord = Record<string, unknown>;
+type DocumentEnvelope = components['schemas']['DocumentEnvelope'];
+type ErrorEnvelope = components['schemas']['ErrorEnvelope'];
 
-function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === 'object' && value !== null;
+function encodePathSegment(value: string): string {
+  return encodeURIComponent(value);
 }
 
-function readString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+function toUploadError(
+  status: number,
+  requestId: string,
+  payload: ErrorEnvelope | null,
+): ApiError {
+  const error = normalizeError(
+    payload?.message ?? 'Document upload failed.',
+    status,
+    payload?.requestId ?? requestId,
+  );
+  error.code = payload?.errorCode;
+  error.details = payload?.details;
+  return error;
 }
 
-function readNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
+function uploadDocument(
+  campaignId: string,
+  input: CampaignDocumentUploadInput,
+  options: CampaignDocumentUploadOptions = {},
+): Promise<CampaignDocument> {
+  if (typeof XMLHttpRequest === 'undefined') {
+    return Promise.reject(
+      new ApiError({
+        kind: 'Network',
+        message: 'Document upload requires a browser environment.',
+      }),
+    );
+  }
 
-function getRecordValue(record: UnknownRecord, keys: string[]): unknown {
-  for (const key of keys) {
-    if (key in record) {
-      return record[key];
+  const requestId = makeRequestId();
+  const token = getToken();
+  const body = new FormData();
+  body.append('file', input.file);
+  if (input.title?.trim()) body.append('title', input.title.trim());
+  if (input.description?.trim()) {
+    body.append('description', input.description.trim());
+  }
+  if (input.availableAt) body.append('availableAt', input.availableAt);
+
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const abort = () => request.abort();
+
+    request.open(
+      'POST',
+      `/v1/campaigns/${encodePathSegment(campaignId)}/documents`,
+    );
+    request.withCredentials = true;
+    request.responseType = 'json';
+    request.setRequestHeader('X-Request-Id', requestId);
+    if (token) request.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    request.upload.addEventListener('progress', (event) => {
+      if (!event.lengthComputable || event.total <= 0) return;
+      options.onProgress?.(
+        Math.min(100, Math.round((event.loaded / event.total) * 100)),
+      );
+    });
+
+    request.addEventListener('load', () => {
+      options.signal?.removeEventListener('abort', abort);
+      const payload = request.response as DocumentEnvelope | ErrorEnvelope | null;
+      if (request.status >= 200 && request.status < 300) {
+        const envelope = payload as DocumentEnvelope | null;
+        if (envelope?.data?.documentId) {
+          options.onProgress?.(100);
+          resolve(envelope.data);
+          return;
+        }
+        reject(
+          new ApiError({
+            kind: 'Server',
+            status: request.status,
+            code: 'INVALID_UPLOAD_RESPONSE',
+            requestId,
+            message: 'Document upload returned an invalid response.',
+          }),
+        );
+        return;
+      }
+      reject(
+        toUploadError(
+          request.status,
+          requestId,
+          payload as ErrorEnvelope | null,
+        ),
+      );
+    });
+    request.addEventListener('error', () => {
+      options.signal?.removeEventListener('abort', abort);
+      reject(
+        new ApiError({
+          kind: 'Network',
+          requestId,
+          message: 'Document upload failed because of a network error.',
+        }),
+      );
+    });
+    request.addEventListener('abort', () => {
+      options.signal?.removeEventListener('abort', abort);
+      reject(
+        new DOMException('Document upload was cancelled.', 'AbortError'),
+      );
+    });
+
+    if (options.signal?.aborted) {
+      reject(new DOMException('Document upload was cancelled.', 'AbortError'));
+      return;
     }
-  }
-
-  return undefined;
-}
-
-function getString(record: UnknownRecord, keys: string[]): string | null {
-  return readString(getRecordValue(record, keys));
-}
-
-function getNumber(record: UnknownRecord, keys: string[]): number | null {
-  return readNumber(getRecordValue(record, keys));
-}
-
-function deriveTitle(fileName: string, fallbackId: string): string {
-  if (!fileName) {
-    return `Document ${fallbackId}`;
-  }
-
-  const withoutExtension = fileName.replace(/\.[^.]+$/, '');
-  const normalized = withoutExtension.replace(/[-_]+/g, ' ').trim();
-
-  return normalized.length > 0 ? normalized : fileName;
-}
-
-function mapDocumentDto(input: unknown): CampaignDocument {
-  if (!isRecord(input)) {
-    throw new Error('Unexpected campaign document payload.');
-  }
-
-  const fileRecord = isRecord(input.file) ? input.file : null;
-  const id = getString(input, ['id', 'documentId', 'artifactId']);
-
-  if (!id) {
-    throw new Error('Campaign document is missing an id.');
-  }
-
-  const fileName =
-    getString(input, ['fileName', 'filename']) ??
-    (fileRecord ? getString(fileRecord, ['name', 'fileName', 'filename']) : null) ??
-    'document';
-
-  const title =
-    getString(input, ['title', 'name', 'label']) ??
-    deriveTitle(fileName, id);
-
-  return {
-    id,
-    title,
-    description: getString(input, ['description', 'summary', 'notes']),
-    fileName,
-    fileSizeBytes:
-      getNumber(input, ['fileSizeBytes', 'sizeBytes', 'fileSize', 'size']) ??
-      (fileRecord ? getNumber(fileRecord, ['sizeBytes', 'fileSizeBytes', 'size']) : null),
-    createdAt: getString(input, ['createdAt', 'uploadedAt', 'uploadDate', 'uploadedDate']),
-    availableAt: getString(input, ['availableAt', 'availabilityDate', 'availableFrom', 'publishAt']),
-    contentType:
-      getString(input, ['contentType', 'mimeType']) ??
-      (fileRecord ? getString(fileRecord, ['contentType', 'mimeType']) : null),
-    rawStatus: getString(input, ['status', 'availabilityStatus']),
-  };
-}
-
-function extractItems(payload: unknown): { items: unknown[]; total: number | null } {
-  if (Array.isArray(payload)) {
-    return { items: payload, total: payload.length };
-  }
-
-  if (!isRecord(payload)) {
-    throw new Error('Unexpected campaign documents response.');
-  }
-
-  const itemsCandidate = getRecordValue(payload, ['items', 'documents', 'artifacts']);
-  const metaCandidate = isRecord(payload.meta) ? payload.meta : null;
-  const total =
-    (metaCandidate ? getNumber(metaCandidate, ['total']) : null) ??
-    getNumber(payload, ['total']);
-
-  if (Array.isArray(itemsCandidate)) {
-    return { items: itemsCandidate, total };
-  }
-
-  throw new Error('Campaign documents response did not include a document list.');
-}
-
-function extractDownload(payload: unknown): CampaignDocumentDownload {
-  if (!isRecord(payload)) {
-    throw new Error('Unexpected campaign document download response.');
-  }
-
-  return {
-    status: getString(payload, ['status']),
-    url: getString(payload, ['url', 'signedUrl', 'downloadUrl']),
-    expiresAt: getString(payload, ['expiresAt', 'downloadExpiresAt']),
-  };
+    options.signal?.addEventListener('abort', abort, { once: true });
+    request.send(body);
+  });
 }
 
 export const campaignDocumentsRealAdapter = {
-  async listDocuments(campaignId: string): Promise<CampaignDocumentList> {
-    const response = await http<ApiResponse<unknown>>(`/v1/campaigns/${campaignId}/documents`);
-    const { items, total } = extractItems(response.data);
-
-    return {
-      items: items.map(mapDocumentDto),
-      total: total ?? items.length,
-    };
+  async listDocuments(
+    campaignId: string,
+    page = 1,
+    pageSize = 100,
+  ): Promise<CampaignDocumentList> {
+    const response = await http<components['schemas']['DocumentListEnvelope']>(
+      `/v1/campaigns/${encodePathSegment(campaignId)}/documents`,
+      { query: { page, pageSize } },
+    );
+    return response.data;
   },
 
-  async getDownload(campaignId: string, documentId: string): Promise<CampaignDocumentDownload> {
-    const response = await http<ApiResponse<unknown>>(
-      `/v1/campaigns/${campaignId}/documents/${documentId}/download`,
-    );
+  uploadDocument,
 
-    return extractDownload(response.data);
+  async getDownload(
+    campaignId: string,
+    documentId: string,
+  ): Promise<CampaignDocumentDownload> {
+    const response = await http<
+      components['schemas']['DocumentDownloadEnvelope']
+    >(
+      `/v1/campaigns/${encodePathSegment(campaignId)}/documents/${encodePathSegment(documentId)}/download`,
+    );
+    return response.data;
+  },
+
+  async listArtifacts(
+    campaignId: string,
+    page = 1,
+    pageSize = 100,
+  ): Promise<CampaignArtifactList> {
+    const response = await http<components['schemas']['ArtifactListEnvelope']>(
+      `/v1/campaigns/${encodePathSegment(campaignId)}/artifacts`,
+      { query: { page, pageSize } },
+    );
+    return response.data;
+  },
+
+  async getArtifactDownload(
+    campaignId: string,
+    artifactId: string,
+  ): Promise<CampaignArtifactDownload> {
+    const response = await http<
+      components['schemas']['ArtifactDownloadEnvelope']
+    >(
+      `/v1/campaigns/${encodePathSegment(campaignId)}/artifacts/${encodePathSegment(artifactId)}/download`,
+    );
+    return response.data;
+  },
+
+  async requestPdfArtifact(
+    campaignId: string,
+    runId?: string,
+  ): Promise<CampaignArtifactTrigger> {
+    const response = await http<
+      components['schemas']['ArtifactTriggerEnvelope']
+    >(`/v1/campaigns/${encodePathSegment(campaignId)}/artifacts/pdf`, {
+      method: 'POST',
+      query: runId ? { runId } : undefined,
+    });
+    return response.data;
   },
 };

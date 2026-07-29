@@ -14,16 +14,11 @@ import { api } from './client';
 import type { components } from '@/src/generated/openapi';
 
 // Import types directly from OpenAPI schema
-type SignupStartDto = components['schemas']['SignupStartDto'];
-type SignupStartResponse = components['schemas']['SignupStartResponseDto'];
-type SignupVerifyDto = components['schemas']['SignupVerifyDto'];
-type LoginDto = components['schemas']['LoginDto'];
-type ForgotPasswordDto = components['schemas']['ForgotPasswordDto'];
-type PasswordResetStartResponse = components['schemas']['PasswordResetStartResponseDto'];
-type PasswordResetDto = components['schemas']['PasswordResetDto'];
-type PasswordResetResponse = components['schemas']['PasswordResetResponseDto'];
-type AuthSessionDto = components['schemas']['AuthSessionDto'];
-type AuthUserDto = components['schemas']['AuthUserDto'];
+type SignupStartDto = components['schemas']['SignupStartRequest'];
+type SignupVerifyDto = components['schemas']['SignupVerifyRequest'];
+type LoginDto = components['schemas']['LoginRequest'];
+type ForgotPasswordDto = components['schemas']['ForgotPasswordRequest'];
+type PasswordResetDto = components['schemas']['PasswordResetRequest'];
 
 /**
  * Unwrap API response { success, data, meta } structure
@@ -54,7 +49,8 @@ export const authApi = {
    * POST /v1/auth/signup/verify
    * 
    * @param payload - Verification ID and OTP code
-   * @returns Auth session with user data and tokens
+   * @returns Access token plus the database-derived user. The refresh token is
+   * stored only in the Backend's HttpOnly cookie.
    */
   async signupVerify(payload: SignupVerifyDto) {
     const result = await api.execute(() =>
@@ -70,7 +66,8 @@ export const authApi = {
    * POST /v1/auth/login
    * 
    * @param payload - Email and password
-   * @returns Auth session with user data and tokens
+   * @returns Access token plus the database-derived user. The refresh token is
+   * stored only in the Backend's HttpOnly cookie.
    */
   async login(payload: LoginDto) {
     const result = await api.execute(() =>
@@ -114,16 +111,13 @@ export const authApi = {
   },
 
   /**
-   * Refresh access token using refresh token
+   * Rotate the HttpOnly refresh cookie and return a new in-memory session.
    * POST /v1/auth/refresh
-   * 
-   * @param refreshToken - Current refresh token
-   * @returns New auth session with refreshed tokens
    */
-  async refresh(refreshToken: string) {
+  async refresh() {
     const result = await api.execute(() =>
       api.client.POST('/v1/auth/refresh', {
-        body: { refreshToken },
+        body: {},
       })
     );
     return unwrapData(result);
@@ -141,12 +135,25 @@ export const authApi = {
   },
 
   /**
-   * Get current authenticated user
-   * GET /v1/auth/protected/me
+   * Logout every session for the authenticated user.
+   * POST /v1/auth/logout-all
+   */
+  async logoutAll() {
+    const result = await api.execute(() =>
+      api.client.POST('/v1/auth/logout-all', {
+        body: {},
+      })
+    );
+    return unwrapData(result);
+  },
+
+  /**
+   * Get current authenticated user.
+   * GET /v1/auth/me
    */
   async getMe() {
     const result = await api.execute(() =>
-      api.client.GET('/v1/auth/protected/me', {})
+      api.client.GET('/v1/auth/me', {})
     );
     return unwrapData(result);
   },

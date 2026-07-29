@@ -1,78 +1,193 @@
 'use client';
 
+import type { components } from '@/src/generated/openapi';
 import { makeRequestId } from './requestId';
 import { ApiError, normalizeError } from './errors';
-import { getToken, getRefreshToken, setToken, setRefreshToken, clearAuth } from '@/features/auth/auth';
-import ENV from '@/lib/env';
+import {
+  clearAuth,
+  getToken,
+  setAuthSession,
+} from '@/features/auth/auth';
+import {
+  classifyRefreshFailure,
+  shouldRetryRefresh,
+  type RefreshFailureKind,
+} from '@/features/auth/refresh-policy';
+import { parseRetryAfterMs } from '@/shared/run/retry-after';
+import { shouldReplayAfterAuthRefresh } from './auth-replay-policy';
 
-// Flag to prevent multiple simultaneous refresh attempts
-let isRefreshing = false;
-let refreshPromise: Promise<string | null> | null = null;
+export { parseRetryAfterMs } from '@/shared/run/retry-after';
+export { shouldReplayAfterAuthRefresh } from './auth-replay-policy';
+
+type AuthSession = components['schemas']['AuthSession'];
+type ErrorEnvelope = components['schemas']['ErrorEnvelope'];
+
+export type RefreshSessionResult =
+  | { ok: true; session: AuthSession }
+  | {
+      ok: false;
+      kind: RefreshFailureKind;
+      status?: number;
+      errorCode?: string;
+      message: string;
+    };
+
+let refreshPromise: Promise<RefreshSessionResult> | null = null;
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function getErrorCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const value = payload as Record<string, unknown>;
+  const nested = value.error;
+
+  if (typeof value.errorCode === 'string') return value.errorCode;
+  if (typeof value.code === 'string') return value.code;
+  if (nested && typeof nested === 'object') {
+    const nestedValue = nested as Record<string, unknown>;
+    if (typeof nestedValue.errorCode === 'string') return nestedValue.errorCode;
+    if (typeof nestedValue.code === 'string') return nestedValue.code;
+  }
+
+  return undefined;
+}
+
+function getErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== 'object') return fallback;
+  const value = payload as Record<string, unknown>;
+  const nested = value.error;
+
+  if (typeof value.message === 'string') return value.message;
+  if (nested && typeof nested === 'object') {
+    const nestedValue = nested as Record<string, unknown>;
+    if (typeof nestedValue.message === 'string') return nestedValue.message;
+  }
+  if (typeof nested === 'string') return nested;
+
+  return fallback;
+}
+
+async function readJsonSafely(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return undefined;
+  }
+}
+
+async function performRefresh(): Promise<RefreshSessionResult> {
+  const retryDelays = [200, 500];
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const response = await fetch('/v1/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'X-Request-Id': makeRequestId(),
+        },
+      });
+      const payload = await readJsonSafely(response);
+
+      if (response.ok) {
+        const session = (
+          payload as { data?: AuthSession } | undefined
+        )?.data;
+
+        if (session?.accessToken && session.user) {
+          setAuthSession(session, { broadcast: false });
+          return { ok: true, session };
+        }
+
+        clearAuth({ broadcast: false });
+        return {
+          ok: false,
+          kind: 'anonymous',
+          status: response.status,
+          errorCode: 'INVALID_REFRESH_RESPONSE',
+          message: 'The session refresh response was incomplete.',
+        };
+      }
+
+      const errorCode = getErrorCode(payload);
+      if (
+        shouldRetryRefresh(
+          attempt,
+          response.status,
+          errorCode,
+          retryDelays.length,
+        )
+      ) {
+        await wait(retryDelays[attempt]);
+        continue;
+      }
+
+      const kind = classifyRefreshFailure(response.status, errorCode);
+      if (kind !== 'retryable') {
+        clearAuth({ broadcast: false });
+      }
+
+      return {
+        ok: false,
+        kind,
+        status: response.status,
+        errorCode,
+        message: getErrorMessage(
+          payload,
+          kind === 'retryable'
+            ? 'Session refresh is temporarily unavailable.'
+            : 'Your session has ended. Please sign in again.',
+        ),
+      };
+    } catch {
+      return {
+        ok: false,
+        kind: 'retryable',
+        errorCode: 'NETWORK_ERROR',
+        message: 'Session refresh is temporarily unavailable.',
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    kind: 'retryable',
+    status: 409,
+    errorCode: 'REFRESH_IN_PROGRESS',
+    message: 'Another session refresh is still in progress.',
+  };
+}
 
 /**
- * Attempt to refresh the access token using the refresh token
- * @returns New access token or null if refresh failed
+ * Rotate the Backend-owned refresh cookie and replace the in-memory access
+ * token. Concurrent callers in this tab share one request.
  */
-async function refreshAccessToken(): Promise<string | null> {
-  // If already refreshing, wait for that to complete
-  if (isRefreshing && refreshPromise) {
-    return refreshPromise;
-  }
-
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    return null;
-  }
-
-  isRefreshing = true;
-  refreshPromise = (async () => {
-    try {
-      const response = await fetch(`${ENV.API.baseURL}/v1/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!response.ok) {
-        // Refresh failed, clear auth and return null
-        clearAuth();
-        return null;
-      }
-
-      const data = await response.json();
-      const newAccessToken = data?.data?.accessToken;
-      const newRefreshToken = data?.data?.refreshToken;
-
-      if (newAccessToken && newRefreshToken) {
-        setToken(newAccessToken);
-        setRefreshToken(newRefreshToken);
-        return newAccessToken;
-      }
-
-      clearAuth();
-      return null;
-    } catch (error) {
-      console.error('[Auth] Token refresh failed:', error);
-      clearAuth();
-      return null;
-    } finally {
-      isRefreshing = false;
+export async function refreshSession(): Promise<RefreshSessionResult> {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
       refreshPromise = null;
-    }
-  })();
+    });
+  }
 
   return refreshPromise;
 }
 
 export interface HttpOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  body?: any;
-  query?: Record<string, any>;
+  body?: unknown;
+  query?: Record<string, unknown>;
   headers?: Record<string, string>;
   skipAuth?: boolean;
   responseType?: 'auto' | 'json' | 'blob' | 'text' | 'arrayBuffer';
+  signal?: AbortSignal;
+  /**
+   * Opts a mutation into one replay after a successful access-token refresh.
+   * Prefer a stable Idempotency-Key header; this flag is only for operations
+   * whose Backend contract guarantees replay safety without one.
+   */
+  allowAuthReplay?: boolean;
 }
 
 export interface HttpRawResponse<T> {
@@ -86,12 +201,15 @@ async function performRequest(
   url: string,
   method: NonNullable<HttpOptions['method']>,
   headers: Record<string, string>,
-  body: any,
+  body: unknown,
+  signal?: AbortSignal,
 ) {
   return fetch(url, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include',
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
   });
 }
 
@@ -101,18 +219,9 @@ async function parseSuccessResponse<T>(
 ): Promise<T> {
   const contentType = response.headers.get('content-type');
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  if (responseType === 'blob') {
-    return (await response.blob()) as T;
-  }
-
-  if (responseType === 'text') {
-    return (await response.text()) as T;
-  }
-
+  if (response.status === 204) return undefined as T;
+  if (responseType === 'blob') return (await response.blob()) as T;
+  if (responseType === 'text') return (await response.text()) as T;
   if (responseType === 'arrayBuffer') {
     return (await response.arrayBuffer()) as T;
   }
@@ -129,17 +238,43 @@ async function parseSuccessResponse<T>(
   return undefined as T;
 }
 
-async function parseErrorResponse(response: Response) {
+async function parseErrorResponse(response: Response): Promise<unknown> {
   const contentType = response.headers.get('content-type');
-
-  if (contentType?.includes('application/json')) {
-    return response.json();
-  }
+  if (contentType?.includes('application/json')) return readJsonSafely(response);
 
   const text = await response.text();
-  return {
-    message: text || response.statusText,
-  };
+  return { message: text || response.statusText };
+}
+
+function createResponseError(
+  response: Response,
+  payload: unknown,
+  requestId: string,
+): ApiError {
+  const error = normalizeError(
+    getErrorMessage(payload, response.statusText || 'API Error'),
+    response.status,
+    requestId,
+  );
+  error.code = getErrorCode(payload);
+  error.details =
+    (payload as Partial<ErrorEnvelope> | undefined)?.details ?? payload;
+  error.retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
+
+  if (response.status === 409) {
+    error.data =
+      (payload as { data?: unknown } | undefined)?.data ?? payload;
+  }
+
+  return error;
+}
+
+function redirectToLogin(): void {
+  if (typeof window === 'undefined') return;
+  const currentPath = `${window.location.pathname}${window.location.search}`;
+  if (!window.location.pathname.startsWith('/auth/')) {
+    window.location.href = `/auth/login?next=${encodeURIComponent(currentPath)}`;
+  }
 }
 
 export async function httpRaw<T>(
@@ -153,13 +288,12 @@ export async function httpRaw<T>(
     headers = {},
     skipAuth = false,
     responseType = 'auto',
+    signal,
+    allowAuthReplay = false,
   } = options;
-
-  const baseUrl = ENV.API.baseURL;
   const requestId = makeRequestId();
 
-  // Build URL with query params
-  let url = `${baseUrl}${path}`;
+  let url = path;
   if (query && Object.keys(query).length > 0) {
     const searchParams = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
@@ -170,72 +304,60 @@ export async function httpRaw<T>(
     url += `?${searchParams.toString()}`;
   }
 
-  // Build headers
   const finalHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Request-Id': requestId,
     ...headers,
   };
 
-  // Add auth header if token exists and not skipped
   if (!skipAuth) {
     const token = getToken();
-    if (token) {
-      finalHeaders.Authorization = `Bearer ${token}`;
-    }
+    if (token) finalHeaders.Authorization = `Bearer ${token}`;
   }
 
   try {
-    let response = await performRequest(url, method, finalHeaders, body);
+    let response = await performRequest(url, method, finalHeaders, body, signal);
 
-    // Handle 401 Unauthorized - attempt token refresh
-    if (response.status === 401 && !skipAuth) {
-      if (ENV.features.apiLogging) {
-        console.log('[API] 401 Unauthorized - attempting token refresh');
-      }
+    if (
+      response.status === 401 &&
+      !skipAuth &&
+      path !== '/v1/auth/refresh'
+    ) {
+      const refreshResult = await refreshSession();
 
-      const newToken = await refreshAccessToken();
-      
-      if (newToken) {
-        // Retry the request with the new token
-        finalHeaders.Authorization = `Bearer ${newToken}`;
-
-        response = await performRequest(url, method, finalHeaders, body);
-
-        if (!response.ok) {
-          const data = await parseErrorResponse(response);
-          const errorMessage = data?.message || data?.error || data?.data?.message || response.statusText || 'API Error';
-          const error = normalizeError(errorMessage, response.status, requestId);
-          error.details = data?.details || data;
-          throw error;
+      if (refreshResult.ok) {
+        if (
+          shouldReplayAfterAuthRefresh(
+            method,
+            finalHeaders,
+            allowAuthReplay,
+          )
+        ) {
+          finalHeaders.Authorization = `Bearer ${refreshResult.session.accessToken}`;
+          response = await performRequest(url, method, finalHeaders, body, signal);
         }
       } else {
-        // Refresh failed, redirect to login
-        if (typeof window !== 'undefined') {
-          const currentPath = window.location.pathname;
-          // Don't redirect if already on auth pages
-          if (!currentPath.startsWith('/auth/')) {
-            window.location.href = `/auth/login?next=${encodeURIComponent(currentPath)}`;
-          }
+        const error = normalizeError(
+          refreshResult.message,
+          refreshResult.status,
+          requestId,
+        );
+        error.code = refreshResult.errorCode;
+
+        if (refreshResult.kind === 'anonymous') {
+          redirectToLogin();
         }
-        
-        const error = normalizeError('Session expired. Please sign in again.', 401, requestId);
+
         throw error;
       }
     }
 
-    // Handle other errors
     if (!response.ok) {
-      const data = await parseErrorResponse(response);
-      // Extract error message from various possible formats
-      const errorMessage = data?.message || data?.error || data?.data?.message || response.statusText || 'API Error';
-      const error = normalizeError(errorMessage, response.status, requestId);
-      error.details = data?.details || data;
-      // For 409 Conflict, preserve the full response data (contains latest draft)
-      if (response.status === 409) {
-        error.data = data?.data || data;
-      }
-      throw error;
+      throw createResponseError(
+        response,
+        await parseErrorResponse(response),
+        requestId,
+      );
     }
 
     return {
@@ -245,10 +367,7 @@ export async function httpRaw<T>(
       contentType: response.headers.get('content-type'),
     };
   } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    // Network error
+    if (error instanceof ApiError) throw error;
     throw normalizeError(error, undefined, requestId);
   }
 }
@@ -257,6 +376,5 @@ export async function http<T>(
   path: string,
   options: HttpOptions = {},
 ): Promise<T> {
-  const response = await httpRaw<T>(path, options);
-  return response.data;
+  return (await httpRaw<T>(path, options)).data;
 }

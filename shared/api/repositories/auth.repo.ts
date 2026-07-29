@@ -1,11 +1,16 @@
 import type { components } from '@/src/generated/openapi';
-import type { LoginRequest, SignupRequest, AuthResponse } from '../mock/auth.mock';
+import type {
+  LoginRequest,
+  SignupRequest,
+  AuthResponse,
+  SignupStartResponse,
+} from '../mock/auth.mock';
 import { authMockAdapter } from '../mock/auth.mock';
 import { authRealAdapter } from '../real/auth.real';
 import ENV from '@/lib/env';
 
 // Use OpenAPI generated types
-type AuthUser = components['schemas']['AuthUserDto'];
+type AuthUser = components['schemas']['AuthUser'];
 
 // Route to mock or real adapter based on DATA_SOURCE environment variable
 const adapter = ENV.API.isMock ? authMockAdapter : authRealAdapter;
@@ -32,7 +37,8 @@ export const authRepository = {
    * @param payload - Name, email, and password
    * @returns Access token and user data
    */
-  signup: async (payload: SignupRequest): Promise<AuthResponse> => adapter.signup(payload),
+  signupStart: async (payload: SignupRequest): Promise<SignupStartResponse> =>
+    adapter.signupStart(payload),
 
   /**
    * Get current authenticated user
@@ -46,10 +52,15 @@ export const authRepository = {
   logout: async (): Promise<void> => adapter.logout(),
 
   /**
+   * Revoke every session for the authenticated user.
+   */
+  logoutAll: async (): Promise<void> => adapter.logoutAll(),
+
+  /**
    * Refresh access token
    * @returns New access token and user data
    */
-  refreshToken: async (): Promise<AuthResponse> => adapter.refreshToken(),
+  refreshSession: async (): Promise<AuthResponse> => adapter.refreshSession(),
 
   /**
    * Verify reviewer-protected access with the backend.

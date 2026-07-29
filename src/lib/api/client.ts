@@ -36,7 +36,8 @@ export interface ApiErrorResponse {
  */
 function createTypedClient() {
   const client = createClient<paths>({
-    baseUrl: ENV.API.baseURL,
+    baseUrl: '',
+    credentials: 'include',
   });
 
   // Middleware: Add authentication and request ID headers
@@ -104,7 +105,7 @@ export function normalizeApiError(
   if (error instanceof ApiError) {
     return {
       status: error.status || 500,
-      code: error.kind || 'UNKNOWN_ERROR',
+      code: error.code || error.kind || 'UNKNOWN_ERROR',
       message: error.message,
       details: error.details,
       requestId: error.requestId || requestId,
@@ -122,6 +123,16 @@ export function normalizeApiError(
       message: data.message || data.error_description || error.response.statusText || 'API request failed',
       details: data.details || data,
       requestId,
+    };
+  }
+
+  if (error?.errorCode || error?.statusCode) {
+    return {
+      status: error.statusCode || 500,
+      code: error.errorCode || 'UNKNOWN_ERROR',
+      message: error.message || 'API request failed',
+      details: error.details,
+      requestId: error.requestId || requestId,
     };
   }
 

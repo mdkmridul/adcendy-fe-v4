@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import {
   AlertCircle,
   BrainCircuit,
@@ -22,9 +22,13 @@ import {
 } from '@/hooks/useAdminReview';
 import { useOpsCampaignOverviews } from '@/hooks/useOpsV2';
 import { useToast } from '@/hooks/use-toast';
-import { opsV2Repository } from '@/shared/api/repositories';
+import { ApiError } from '@/shared/api/errors';
+import { opsV2Repository, runsV2Repository } from '@/shared/api/repositories';
+import { createIdempotencyKey } from '@/shared/run/idempotency';
 import { toJsonPreview } from '@/shared/components/ops/opsUtils';
 import { ReviewStatusBadge } from '@/shared/components/reviews/ReviewStatusBadge';
+import { CampaignDocumentUploader } from '@/shared/components/campaigns/CampaignDocumentUploader';
+import { CampaignArtifactGenerator } from '@/shared/components/campaigns/CampaignArtifactGenerator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -343,6 +347,8 @@ export default function AdminCampaignDetailPage() {
   const [triggerPayloadJson, setTriggerPayloadJson] = useState<string>('{}');
   const [pipelineMarketSelection, setPipelineMarketSelection] = useState<string>(PIPELINE_MARKET_SELECTION_CUSTOM);
   const [lastTriggerResult, setLastTriggerResult] = useState<unknown>(null);
+  const startRunIdempotencyKeyRef = useRef<string | null>(null);
+  const retryRunIdempotencyKeyRef = useRef<string | null>(null);
   const triggerCampaignMutation = useMutation({
     mutationFn: ({
       trigger,
@@ -351,6 +357,53 @@ export default function AdminCampaignDetailPage() {
       trigger: AdminCampaignTriggerType;
       payload?: Record<string, unknown>;
     }) => opsV2Repository.triggerAdminCampaign(campaignId, trigger, payload),
+  });
+  const startRunMutation = useMutation({
+    mutationFn: async () => {
+      const key =
+        startRunIdempotencyKeyRef.current ??
+        createIdempotencyKey(`start-run-${campaignId}`);
+      startRunIdempotencyKeyRef.current = key;
+      return runsV2Repository.start(campaignId, key);
+    },
+    onSuccess: () => {
+      startRunIdempotencyKeyRef.current = null;
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status && error.status < 500) {
+        startRunIdempotencyKeyRef.current = null;
+      }
+    },
+  });
+  const retryRunMutation = useMutation({
+    mutationFn: async () => {
+      const recovery = await runsV2Repository.recover(campaignId, 'latest');
+      if (!recovery.run) {
+        throw new Error('No pipeline run is available for this campaign.');
+      }
+      if (!recovery.run.capabilities.canRetry) {
+        throw new Error(
+          `Run ${recovery.run.runId} is ${recovery.run.status} and is not retryable.`,
+        );
+      }
+      const key =
+        retryRunIdempotencyKeyRef.current ??
+        createIdempotencyKey(`retry-run-${recovery.run.runId}`);
+      retryRunIdempotencyKeyRef.current = key;
+      const result = await runsV2Repository.retry(recovery.run.runId, key);
+      if (result.runId !== recovery.run.runId) {
+        throw new Error('Backend retry changed the canonical run ID.');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      retryRunIdempotencyKeyRef.current = null;
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status && error.status < 500) {
+        retryRunIdempotencyKeyRef.current = null;
+      }
+    },
   });
   const downloadCampaignOutputMutation = useMutation({
     mutationFn: (payload?: Record<string, unknown>) => opsV2Repository.downloadAdminCampaignOutput(campaignId, payload),
@@ -424,6 +477,40 @@ export default function AdminCampaignDetailPage() {
     } catch (error) {
       toast({
         title: `Unable to ${label.toLowerCase()}`,
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStartPipelineRun = async () => {
+    try {
+      const result = await startRunMutation.mutateAsync();
+      setLastTriggerResult(result);
+      toast({
+        title: 'Full pipeline queued',
+        description: `Run ${result.runId} was queued for campaign ${campaignId}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Unable to start pipeline',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRetryPipelineRun = async () => {
+    try {
+      const result = await retryRunMutation.mutateAsync();
+      setLastTriggerResult(result);
+      toast({
+        title: 'Pipeline retry queued',
+        description: `Run ${result.runId} is continuing as attempt ${result.attemptNumber}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Unable to retry pipeline',
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
@@ -608,6 +695,14 @@ export default function AdminCampaignDetailPage() {
         </CardContent>
       </Card>
 
+      <div className="grid gap-6 xl:grid-cols-2">
+        <CampaignDocumentUploader campaignId={campaignId} />
+        <CampaignArtifactGenerator
+          campaignId={campaignId}
+          runId={latestRunId}
+        />
+      </div>
+
       {campaignDetailQuery.isLoading ? (
         <div className="text-sm text-muted-foreground">Loading campaign detail...</div>
       ) : campaignDetailQuery.error || !campaignDetail ? (
@@ -749,7 +844,7 @@ export default function AdminCampaignDetailPage() {
                     <div className="rounded-lg border border-border/70 bg-background/35 p-3">
                       <div className="grid gap-3 md:grid-cols-[minmax(0,260px)_1fr] md:items-end">
                         <div className="space-y-1.5">
-                          <Label htmlFor="admin-campaign-pipeline-market-target-select">Pipeline Market Target</Label>
+                          <Label htmlFor="admin-campaign-pipeline-market-target-select">Legacy Pipeline Market Target</Label>
                           <Select value={pipelineMarketSelection} onValueChange={setPipelineMarketSelection}>
                             <SelectTrigger id="admin-campaign-pipeline-market-target-select">
                               <SelectValue placeholder="Choose market target" />
@@ -773,9 +868,7 @@ export default function AdminCampaignDetailPage() {
                           </Select>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Applied to <span className="font-semibold text-foreground">Run Full Pipeline</span> and
-                          <span className="font-semibold text-foreground"> Run From Last Failure</span>. Other trigger
-                          buttons ignore this selector.
+                          Wave 2 full start and retry use the Backend-owned run plan and ignore this legacy selector.
                         </p>
                       </div>
                     </div>
@@ -787,26 +880,22 @@ export default function AdminCampaignDetailPage() {
                         tooltipTitle="Full Pipeline"
                         badge="End-to-end"
                         description="End-to-end run from intelligence to final assembly."
-                        onClick={() => void handleTriggerCampaign('pipeline', 'Run Full Pipeline')}
-                        disabled={triggerCampaignMutation.isPending}
-                        pending={triggerCampaignMutation.isPending}
+                        onClick={() => void handleStartPipelineRun()}
+                        disabled={startRunMutation.isPending}
+                        pending={startRunMutation.isPending}
                         pendingLabel="Queuing..."
                         tone="accent"
                         icon={<Workflow className="h-4 w-4" />}
                       />
                       <ActionButton
                         label="Run From Last Failure"
-                        tooltip="Run pipeline using the campaign's latest active run ID only."
+                        tooltip="Retry the latest failed run through the dedicated idempotent retry operation."
                         tooltipTitle="Pipeline Recovery"
                         badge="Recovery"
-                        description="Resume/retrigger pipeline context from latest active run."
-                        onClick={() =>
-                          void handleTriggerCampaign('pipeline', 'Run From Last Failure', {
-                            includeRunIdForPipeline: true,
-                          })
-                        }
-                        disabled={triggerCampaignMutation.isPending}
-                        pending={triggerCampaignMutation.isPending}
+                        description="Continue the same run ID from its retryable failed phase."
+                        onClick={() => void handleRetryPipelineRun()}
+                        disabled={retryRunMutation.isPending}
+                        pending={retryRunMutation.isPending}
                         pendingLabel="Queuing..."
                         icon={<RefreshCcw className="h-4 w-4" />}
                       />
@@ -889,8 +978,8 @@ export default function AdminCampaignDetailPage() {
                     <div className="space-y-1">
                       <Label htmlFor="admin-campaign-trigger-payload-json">Campaign Trigger Payload</Label>
                       <p className="text-xs text-muted-foreground">
-                        Shared payload sent to trigger operations. Run From Last Failure auto-selects latest active
-                        runId. Generate Strategy Document bypasses this payload and uses the latest run directly.
+                        Shared payload for scoped legacy trigger operations. Wave 2 full start and retry use their
+                        operation-specific contracts and ignore this payload.
                       </p>
                     </div>
                     <Textarea

@@ -181,6 +181,16 @@ function buildState(campaignId: string): WizardStateResponseV2 {
     campaignId,
     status: runState?.pipelineRunId ? 'committed' : lastCompletedStep > 0 ? 'in_progress' : 'in_progress',
     version,
+    run:
+      runState?.pipelineRunId && runState.status
+        ? {
+            runId: runState.pipelineRunId,
+            status: runState.status,
+            statusUrl: `/api/v2/pipeline/runs/${runState.pipelineRunId}`,
+            attemptNumber: 1,
+            updatedAt: new Date().toISOString(),
+          }
+        : null,
     lastCompletedStep,
     committedSnapshotId: runState?.pipelineRunId ? `snapshot-${campaignId}` : null,
     updatedAt: new Date().toISOString(),
@@ -412,6 +422,7 @@ export const wizardMockAdapter = {
       readyToGenerate: boolean;
       dataConsentOptIn: boolean;
     },
+    _idempotencyKey: string,
   ): Promise<WizardCommitResponseV2> {
     await delay(220);
     const generationTriggered = Boolean(payload.readyToGenerate && payload.dataConsentOptIn);
@@ -428,6 +439,14 @@ export const wizardMockAdapter = {
     return {
       pipelineRunId,
       pipelineStatus,
+      run: pipelineRunId && pipelineStatus
+        ? {
+            campaignId,
+            runId: pipelineRunId,
+            status: pipelineStatus,
+            statusUrl: `/api/v2/pipeline/runs/${pipelineRunId}`,
+          }
+        : null,
       normalizationRecordId: `normalization-${Date.now()}`,
       wizardSnapshotId: `wizard-snapshot-${Date.now()}`,
       reviewerTasks: [],

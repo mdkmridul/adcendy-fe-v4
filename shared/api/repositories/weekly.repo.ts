@@ -55,7 +55,7 @@ export const weeklyRepository = {
   },
 
   async listTweaks(tweakRunId: ID, visibility?: 'ALL' | 'APPROVED_ONLY'): Promise<TweakItem[]> {
-    return adapter.listTweaks(tweakRunId, visibility);
+    return adapter.listTweaks(tweakRunId, visibility ?? 'ALL');
   },
 
   async updateTweakStatus(tweakItemId: ID, payload: UpdateTweakStatusPayload): Promise<TweakItem> {
