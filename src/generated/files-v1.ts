@@ -2,7 +2,7 @@
  * AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
  *
  * Generated from: contracts/backend/files-v1/1.0.0/adcendy-files.openapi.json
- * Source SHA-256: 2f93209434783f443f28be35068661c123ee37e402bb0671b43dcd133fe128da
+ * Source SHA-256: 9801f8ada9814bf91ee56c267b13105b92cdea6733df10323e56346b1b2c88ba
  *
  * To regenerate, run: npm run gen:api -- <openapi-source> <output-path>
  */

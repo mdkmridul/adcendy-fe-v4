@@ -18,11 +18,7 @@ export interface RuntimePublicConfig {
 }
 
 export const APP_ORIGINS: Record<AppEnvironment, readonly string[]> = {
-  local: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:34100',
-  ],
+  local: ['https://adcendy.localhost'],
   uat: ['https://uat.adcendy.com'],
   production: ['https://app.adcendy.com'],
 };

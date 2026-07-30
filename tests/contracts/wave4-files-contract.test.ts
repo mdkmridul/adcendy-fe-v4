@@ -16,12 +16,12 @@ const openapi = JSON.parse(rawContract);
 test('pins the immutable Backend files contract and checksum', () => {
   assert.equal(
     manifest.backendRevision,
-    '79324473cab50871875fc8c7472c440125b277a9',
+    'working-tree@79324473cab50871875fc8c7472c440125b277a9',
   );
   assert.equal(manifest.openApiVersion, '1.0.0');
   assert.equal(
     createHash('sha256').update(rawContract).digest('hex'),
-    '2f93209434783f443f28be35068661c123ee37e402bb0671b43dcd133fe128da',
+    '9801f8ada9814bf91ee56c267b13105b92cdea6733df10323e56346b1b2c88ba',
   );
 });
 

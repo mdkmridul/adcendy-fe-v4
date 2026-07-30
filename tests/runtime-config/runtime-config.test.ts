@@ -186,3 +186,27 @@ test('runtime script and browser guard enforce the authoritative host', () => {
     /cannot run/,
   );
 });
+
+test('local runtime accepts only the integrated HTTPS origin', () => {
+  const config = buildRuntimePublicConfig({
+    NODE_ENV: 'production',
+    APP_ENV: 'local',
+    RELEASE_ID: 'local-integration',
+  });
+
+  assert.doesNotThrow(() =>
+    assertBrowserOrigin(config, 'https://adcendy.localhost'),
+  );
+  for (const rejectedOrigin of [
+    'http://localhost:8080',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:34100',
+    'https://adcendy.localhost.evil.example',
+  ]) {
+    assert.throws(
+      () => assertBrowserOrigin(config, rejectedOrigin),
+      /cannot run/,
+    );
+  }
+});

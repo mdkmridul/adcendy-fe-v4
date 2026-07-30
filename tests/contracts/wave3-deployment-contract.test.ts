@@ -10,18 +10,18 @@ const proxyContract = JSON.parse(
   read('config/deployment/frontend-proxy-contract.v1.json'),
 );
 
-test('pins the Backend Wave 3 revision and OpenAPI checksum', () => {
+test('pins the current Backend working tree and OpenAPI checksum', () => {
   const backendContract = JSON.parse(
     read('config/deployment/backend-contract.json'),
   );
   assert.equal(
     backendContract.backendRevision,
-    '65a37c342e763a7c23eb126c78eae380dd8b0fb6',
+    'working-tree@79324473cab50871875fc8c7472c440125b277a9',
   );
-  assert.equal(backendContract.openApiVersion, '2.2.0');
+  assert.equal(backendContract.openApiVersion, '2.3.0');
   assert.equal(
     backendContract.openApiSha256,
-    'f47bdda74803612e550cb21dd6c61e3793d5e64d10c0d0f3765615fb18694aa3',
+    '7caaad0010324eaf2dc12dee8c5975c117a852eb07bf0d471bad2dc42158d8fe',
   );
   assert.match(
     read('src/generated/openapi.ts'),

@@ -3,8 +3,10 @@
   "info": {
     "title": "Adcendy Campaign Files API",
     "version": "1.0.0",
-    "description": "Authoritative V1 contract for campaign documents and generated artifacts used by the Frontend File Hub."
+    "description": "Derived V1 compatibility slice for campaign documents and generated artifacts used by the Frontend File Hub. The combined V1 + V2 artifact is authoritative."
   },
+  "x-adcendy-authoritative-contract": false,
+  "x-adcendy-derived-from": "docs/openapi/v2/adcendy-api.openapi.json (combined V1 + V2 contract)",
   "servers": [
     {
       "url": "/",
