@@ -177,6 +177,7 @@ test('runtime script and browser guard enforce the authoritative host', () => {
   const config = buildRuntimePublicConfig(production);
   const script = serializeRuntimeConfigScript(config);
   assert.match(script, /app\.adcendy\.com/);
+  assert.match(script, /adcendy-runtime-config-ready/);
   assert.doesNotMatch(script, /api\.adcendy\.com/);
   assert.doesNotThrow(() =>
     assertBrowserOrigin(config, 'https://app.adcendy.com'),

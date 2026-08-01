@@ -1,4 +1,4 @@
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 import type {
   AdminDownloadResponse,
   AdminReviewerAssignmentPayload,
@@ -29,7 +29,7 @@ import type {
 import { opsV2MockAdapter } from '../mock/opsV2.mock';
 import { opsV2RealAdapter } from '../real/opsV2.real';
 
-const adapter = ENV.API.isMock ? opsV2MockAdapter : opsV2RealAdapter;
+const adapter = createRuntimeRepositoryAdapter(opsV2MockAdapter, opsV2RealAdapter);
 
 if (ENV.features.apiLogging && typeof window !== 'undefined') {
   console.log('[Ops V2 Repository] Using adapter:', ENV.API.dataSource);

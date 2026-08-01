@@ -58,8 +58,8 @@ export default function RootLayout({
       <body className={`${_inter.variable} ${_spaceGrotesk.variable} ${_dmSans.variable} font-sans antialiased`} suppressHydrationWarning>
         <Providers>
           {children}
+          <ApiDebugPanel />
         </Providers>
-        <ApiDebugPanel />
       </body>
     </html>
   )

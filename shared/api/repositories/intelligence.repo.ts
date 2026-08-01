@@ -3,10 +3,10 @@ import type { ID } from '@/shared/types/common';
 import { intelligenceMockAdapter } from '../mock/intelligence.mock';
 import { intelligenceRealAdapter } from '../real/intelligence.real';
 
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 
 // Route to mock or real adapter based on DATA_SOURCE environment variable
-const adapter = ENV.API.isMock ? intelligenceMockAdapter : intelligenceRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(intelligenceMockAdapter, intelligenceRealAdapter);
 
 // Log adapter selection in development
 if (ENV.features.apiLogging && typeof window !== 'undefined') {

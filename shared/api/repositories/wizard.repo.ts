@@ -10,10 +10,10 @@ import type { ID } from '@/shared/types/common';
 import { wizardMockAdapter } from '../mock/wizard.mock';
 import { wizardRealAdapter } from '../real/wizard.real';
 
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 
 // Route to mock or real adapter based on DATA_SOURCE environment variable
-const adapter = ENV.API.isMock ? wizardMockAdapter : wizardRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(wizardMockAdapter, wizardRealAdapter);
 
 // Log adapter selection in development
 if (ENV.features.apiLogging && typeof window !== 'undefined') {

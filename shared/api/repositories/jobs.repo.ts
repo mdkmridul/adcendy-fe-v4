@@ -9,10 +9,10 @@ import type { ID } from '@/shared/types/common';
 import { jobsMockAdapter } from '../mock/jobs.mock';
 import { jobsRealAdapter } from '../real/jobs.real';
 
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 
 // Route to mock or real adapter based on DATA_SOURCE environment variable
-const adapter = ENV.API.isMock ? jobsMockAdapter : jobsRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(jobsMockAdapter, jobsRealAdapter);
 
 // Log adapter selection in development
 if (ENV.features.apiLogging && typeof window !== 'undefined') {

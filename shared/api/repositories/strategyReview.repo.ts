@@ -1,4 +1,4 @@
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 import type {
   FinalizeStrategyReviewPayload,
   StrategyReviewDetail,
@@ -8,7 +8,7 @@ import type {
 import { strategyReviewMockAdapter } from '../mock/strategyReview.mock';
 import { strategyReviewRealAdapter } from '../real/strategyReview.real';
 
-const adapter = ENV.API.isMock ? strategyReviewMockAdapter : strategyReviewRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(strategyReviewMockAdapter, strategyReviewRealAdapter);
 
 if (ENV.features.apiLogging && typeof window !== 'undefined') {
   console.log('[Strategy Review Repository] Using adapter:', ENV.API.dataSource);

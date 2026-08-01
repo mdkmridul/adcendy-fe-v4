@@ -1,10 +1,27 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import { getBrowserRuntimeConfig } from './types';
+import {
+  getBrowserRuntimeConfig,
+  RUNTIME_CONFIG_READY_EVENT,
+} from './types';
 
-function subscribe(): () => void {
+function subscribeToStaticConfig(): () => void {
   return () => undefined;
+}
+
+function subscribeToRuntimeConfig(onStoreChange: () => void): () => void {
+  window.addEventListener(RUNTIME_CONFIG_READY_EVENT, onStoreChange);
+  return () =>
+    window.removeEventListener(RUNTIME_CONFIG_READY_EVENT, onStoreChange);
+}
+
+function getRuntimeConfigReadySnapshot(): boolean {
+  return getBrowserRuntimeConfig() !== null;
+}
+
+function getRuntimeConfigServerSnapshot(): boolean {
+  return false;
 }
 
 function getLegacyPerformanceSnapshot(): boolean {
@@ -25,8 +42,16 @@ function getServerSnapshot(): boolean {
  */
 export function useLegacyPerformanceWorkspacesEnabled(): boolean {
   return useSyncExternalStore(
-    subscribe,
+    subscribeToStaticConfig,
     getLegacyPerformanceSnapshot,
     getServerSnapshot,
+  );
+}
+
+export function useRuntimeConfigReady(): boolean {
+  return useSyncExternalStore(
+    subscribeToRuntimeConfig,
+    getRuntimeConfigReadySnapshot,
+    getRuntimeConfigServerSnapshot,
   );
 }

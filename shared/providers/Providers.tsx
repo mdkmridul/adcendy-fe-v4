@@ -7,6 +7,7 @@ import { SWRConfig } from 'swr';
 import { Toaster } from '@/components/ui/toaster';
 import { initializeAuthSync } from '@/features/auth/auth';
 import { refreshSession } from '@/shared/api/http';
+import { useRuntimeConfigReady } from '@/shared/runtime-config/features';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,21 +38,37 @@ function AuthSessionBootstrap() {
   return null;
 }
 
+function RuntimeConfigGate({ children }: { children: React.ReactNode }) {
+  const runtimeConfigReady = useRuntimeConfigReady();
+
+  if (!runtimeConfigReady) {
+    return (
+      <main className="flex min-h-screen items-center justify-center" role="status">
+        Loading application configuration…
+      </main>
+    );
+  }
+
+  return children;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <AuthSessionBootstrap />
-      <SWRConfig
-        value={{
-          shouldRetryOnError: false,
-          errorRetryCount: 0,
-        }}
-      >
-        <QueryClientProvider client={queryClient}>
-          {children}
-          <Toaster />
-        </QueryClientProvider>
-      </SWRConfig>
+      <RuntimeConfigGate>
+        <AuthSessionBootstrap />
+        <SWRConfig
+          value={{
+            shouldRetryOnError: false,
+            errorRetryCount: 0,
+          }}
+        >
+          <QueryClientProvider client={queryClient}>
+            {children}
+            <Toaster />
+          </QueryClientProvider>
+        </SWRConfig>
+      </RuntimeConfigGate>
     </ThemeProvider>
   );
 }

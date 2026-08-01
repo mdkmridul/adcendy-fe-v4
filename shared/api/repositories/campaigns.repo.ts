@@ -2,10 +2,10 @@ import type { Campaign, CreateCampaignPayload, UpdateCampaignPayload } from '@/s
 import type { ID } from '@/shared/types/common';
 import { campaignsMockAdapter } from '../mock/campaigns.mock';
 import { campaignsRealAdapter } from '../real/campaigns.real';
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 
 // Route to mock or real adapter based on DATA_SOURCE environment variable
-const adapter = ENV.API.isMock ? campaignsMockAdapter : campaignsRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(campaignsMockAdapter, campaignsRealAdapter);
 
 // Log adapter selection in development
 if (ENV.features.apiLogging && typeof window !== 'undefined') {

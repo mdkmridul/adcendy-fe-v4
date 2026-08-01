@@ -17,6 +17,8 @@ export interface RuntimePublicConfig {
   SUPPORT_URL: string | null;
 }
 
+export const RUNTIME_CONFIG_READY_EVENT = 'adcendy-runtime-config-ready';
+
 export const APP_ORIGINS: Record<AppEnvironment, readonly string[]> = {
   local: ['https://adcendy.localhost'],
   uat: ['https://uat.adcendy.com'],

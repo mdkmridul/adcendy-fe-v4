@@ -1,12 +1,12 @@
-import ENV from '@/lib/env';
+import { createRuntimeRepositoryAdapter } from '@/lib/env';
 import { runsV2MockAdapter } from '@/shared/api/mock/runsV2.mock';
 import { runsV2RealAdapter } from '@/shared/api/real/runsV2.real';
 
-const adapter = ENV.API.isMock ? runsV2MockAdapter : runsV2RealAdapter;
+const adapter = createRuntimeRepositoryAdapter(runsV2MockAdapter, runsV2RealAdapter);
 
 export const runsV2Repository = {
-  start: adapter.start.bind(adapter),
-  getStatus: adapter.getStatus.bind(adapter),
-  retry: adapter.retry.bind(adapter),
-  recover: adapter.recover.bind(adapter),
+  start: (...args: Parameters<typeof runsV2RealAdapter.start>) => adapter.start(...args),
+  getStatus: (...args: Parameters<typeof runsV2RealAdapter.getStatus>) => adapter.getStatus(...args),
+  retry: (...args: Parameters<typeof runsV2RealAdapter.retry>) => adapter.retry(...args),
+  recover: (...args: Parameters<typeof runsV2RealAdapter.recover>) => adapter.recover(...args),
 };

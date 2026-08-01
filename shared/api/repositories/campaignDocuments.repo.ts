@@ -1,6 +1,6 @@
 import { campaignDocumentsMockAdapter } from '../mock/campaignDocuments.mock';
 import { campaignDocumentsRealAdapter } from '../real/campaignDocuments.real';
-import ENV from '@/lib/env';
+import { createRuntimeRepositoryAdapter } from '@/lib/env';
 import type {
   CampaignDocument,
   CampaignDocumentDownload,
@@ -9,7 +9,7 @@ import type {
   CampaignDocumentUploadOptions,
 } from '@/shared/types/campaignDocument';
 
-const adapter = ENV.API.isMock ? campaignDocumentsMockAdapter : campaignDocumentsRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(campaignDocumentsMockAdapter, campaignDocumentsRealAdapter);
 
 export const campaignDocumentsRepository = {
   listDocuments: (campaignId: string, page?: number, pageSize?: number): Promise<CampaignDocumentList> =>

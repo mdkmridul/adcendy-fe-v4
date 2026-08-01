@@ -7,13 +7,13 @@ import type {
 } from '../mock/auth.mock';
 import { authMockAdapter } from '../mock/auth.mock';
 import { authRealAdapter } from '../real/auth.real';
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 
 // Use OpenAPI generated types
 type AuthUser = components['schemas']['AuthUser'];
 
 // Route to mock or real adapter based on DATA_SOURCE environment variable
-const adapter = ENV.API.isMock ? authMockAdapter : authRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(authMockAdapter, authRealAdapter);
 
 // Log adapter selection in development
 if (ENV.features.apiLogging && typeof window !== 'undefined') {

@@ -1,5 +1,6 @@
 import {
   APP_ORIGINS,
+  RUNTIME_CONFIG_READY_EVENT,
   type AppEnvironment,
   type PublicFeatureFlags,
   type RuntimePublicConfig,
@@ -274,5 +275,6 @@ export function serializeRuntimeConfigScript(
     `const allowedOrigins=${allowedOrigins};`,
     `if(!allowedOrigins.includes(globalThis.location.origin)){throw new Error("Runtime environment and browser origin do not match.");}`,
     'globalThis.__ADCENDY_RUNTIME_CONFIG__=Object.freeze(config);',
+    `globalThis.dispatchEvent(new Event(${JSON.stringify(RUNTIME_CONFIG_READY_EVENT)}));`,
   ].join('');
 }

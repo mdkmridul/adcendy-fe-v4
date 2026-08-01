@@ -1,4 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import {
+  RUNTIME_CONFIG_READY_EVENT,
+  type RuntimePublicConfig,
+} from '../../shared/runtime-config/types';
 
 const clientUser = {
   id: 'e2e-client-user',
@@ -12,8 +16,37 @@ const authSession = {
   user: clientUser,
 };
 
+const browserRuntimeConfig: RuntimePublicConfig = {
+  APP_ENV: 'local',
+  RELEASE_ID: 'e2e-local',
+  PUBLIC_ERROR_DSN: null,
+  RAZORPAY_KEY_ID: null,
+  PUBLIC_ANALYTICS_ID: null,
+  FEATURE_FLAGS: {
+    apiLogging: false,
+    debugPanel: false,
+    legacyPerformanceWorkspaces: false,
+    useMockData: true,
+  },
+  SUPPORT_URL: null,
+};
+
+const browserRuntimeScript = [
+  `globalThis.__ADCENDY_RUNTIME_CONFIG__=Object.freeze(${JSON.stringify(browserRuntimeConfig)});`,
+  `globalThis.dispatchEvent(new Event(${JSON.stringify(RUNTIME_CONFIG_READY_EVENT)}));`,
+].join('');
+
 async function installAuthBackend(page: Page) {
   let sessionAvailable = false;
+
+  await page.route('**/runtime-config.js', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      headers: { 'Cache-Control': 'no-store' },
+      body: browserRuntimeScript,
+    });
+  });
 
   await page.route('**/v1/auth/**', async (route) => {
     const request = route.request();

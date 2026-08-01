@@ -1,4 +1,4 @@
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 import { legalMockAdapter } from '../mock/legal.mock';
 import { legalRealAdapter } from '../real/legal.real';
 import type {
@@ -9,7 +9,7 @@ import type {
   LegalDocumentVersion,
 } from '@/shared/types/legal';
 
-const adapter = ENV.API.isMock ? legalMockAdapter : legalRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(legalMockAdapter, legalRealAdapter);
 
 if (ENV.features.apiLogging && typeof window !== 'undefined') {
   console.log('[Legal Repository] Using adapter:', ENV.API.dataSource);

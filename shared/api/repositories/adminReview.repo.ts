@@ -1,4 +1,4 @@
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 import type { CampaignStatus } from '@/shared/types/campaign';
 import type {
   AdminCampaignDetail,
@@ -17,9 +17,10 @@ import type {
 import { adminReviewMockAdapter } from '../mock/adminReview.mock';
 import { adminReviewRealAdapter } from '../real/adminReview.real';
 
-const adapter: AdminReviewAdapter = ENV.API.isMock
-  ? adminReviewMockAdapter
-  : adminReviewRealAdapter;
+const adapter: AdminReviewAdapter = createRuntimeRepositoryAdapter(
+  adminReviewMockAdapter,
+  adminReviewRealAdapter,
+);
 
 if (ENV.features.apiLogging && typeof window !== 'undefined') {
   console.log('[Admin Review Repository] Using adapter:', ENV.API.dataSource);

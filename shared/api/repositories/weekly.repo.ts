@@ -3,10 +3,10 @@ import type { ID } from '@/shared/types/common';
 import { weeklyMockAdapter } from '../mock/weekly.mock';
 import { weeklyRealAdapter } from '../real/weekly.real';
 
-import ENV from '@/lib/env';
+import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 
 // Route to mock or real adapter based on DATA_SOURCE environment variable
-const adapter = ENV.API.isMock ? weeklyMockAdapter : weeklyRealAdapter;
+const adapter = createRuntimeRepositoryAdapter(weeklyMockAdapter, weeklyRealAdapter);
 
 // Log adapter selection in development
 if (ENV.features.apiLogging && typeof window !== 'undefined') {
