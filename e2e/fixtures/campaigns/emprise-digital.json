@@ -1,0 +1,99 @@
+{
+  "fixtureVersion": "1.0",
+  "fixtureStatus": "ready",
+  "slug": "emprise-digital",
+  "displayName": "Emprise Digital",
+  "wizard": {
+    "step1": {
+      "marketingTargetType": "whole_business",
+      "focusName": "Emprise Digital",
+      "sourceType": "manual_only",
+      "targetMarkets": ["IN"],
+      "primaryMarket": "IN",
+      "marketScope": "national"
+    },
+    "step2": {
+      "businessName": "Emprise Digital",
+      "industryCategory": "professional_services",
+      "businessModel": "B2B",
+      "audienceModel": "single_sided",
+      "lifecycleStage": "growth",
+      "businessDescription": "Emprise Digital is a United States-based digital growth and performance marketing agency that helps established small businesses, local service providers, ecommerce brands, churches, nonprofits and pregnancy resource centres acquire customers, leads and supporters. The agency provides paid search, Local Services Ads, SEO, answer-engine optimisation, paid social advertising, website development, Google Ad Grant management, conversion tracking and AI-assisted customer-response services. It operates remotely from Conway, Arkansas and serves clients across the United States.",
+      "productCategory": "Performance marketing, lead-generation and digital growth services",
+      "productsServices": [
+        "Google Ads campaign setup, management and optimisation",
+        "Google Local Services Ads setup and management for local service businesses",
+        "Search engine optimisation, answer-engine optimisation and generative-engine optimisation",
+        "Meta, LinkedIn, TikTok and other paid social advertising management",
+        "Google Ad Grant application and campaign management for eligible nonprofit organisations",
+        "Conversion-focused website design, development and hosting",
+        "Ecommerce advertising, Google Shopping and product-feed optimisation",
+        "Conversion tracking, analytics, reporting and landing-page optimisation",
+        "AI-powered website chat and telephone lead-response services",
+        "Free marketing assessment and customised growth-plan consultation"
+      ],
+      "priceRange": "not_sure",
+      "sensitiveCategoryFlags": ["none"]
+    },
+    "step3": {
+      "primaryTargetSegment": "Indian SMBs seeking measurable lead generation or online sales and able to fund an external performance-marketing agency.",
+      "targetPersona": "A founder, owner, managing director, head of marketing or growth leader at an established small or medium-sized business who is responsible for generating qualified leads or online sales, managing advertising expenditure and proving marketing return on investment.",
+      "language": "english",
+      "painPoints": [
+        "The business spends money on digital advertising but cannot reliably connect clicks and impressions to qualified leads, purchases or revenue.",
+        "Internal teams lack the specialist expertise or capacity required to manage Google Ads, paid social, SEO, conversion tracking and ongoing campaign optimisation effectively.",
+        "The business has experienced poor transparency, weak communication, long contracts or vanity-metric reporting from previous marketing agencies."
+      ],
+      "desiredOutcome": "Generate a predictable and measurable flow of qualified leads, calls, appointments or online purchases while improving advertising efficiency, marketing transparency and confidence in return on investment.",
+      "decisionProcess": "The owner or marketing leader identifies inconsistent leads, weak advertising or limited internal capacity. They review Emprise Digital's scope, pricing, case studies and approach, complete a consultation and receive a growth plan. Marketing, finance and management assess channels, expected outcomes, ad spend, fees and reporting before approving a monthly engagement.",
+      "buyerRoles": [
+        "Founder or Business Owner",
+        "Managing Director",
+        "Head of Marketing",
+        "Growth or Demand Generation Leader",
+        "Ecommerce Manager",
+        "Finance Approver"
+      ]
+    },
+    "step4": {
+      "salesChannels": [
+        {
+          "channel": "direct_sales",
+          "rank": 1
+        }
+      ],
+      "primaryConversionPath": "book_call",
+      "trustSignals": [
+        "Emprise Digital states that it has managed paid search campaigns since 2016 and currently manages more than 64 active advertising accounts.",
+        "The agency reports managing more than USD 3 million in annual advertising spend and generating more than 2,000 leads, calls and purchases per month across its portfolio.",
+        "Emprise Digital publishes its service prices and offers month-to-month engagements instead of requiring long-term contracts.",
+        "The agency provides prospective clients with a free customised growth plan before requesting a commercial commitment.",
+        "Published case studies and testimonials include local service businesses, ecommerce brands, churches, nonprofits and pregnancy resource centres.",
+        "Each client is assigned a dedicated client advocate and receives ongoing reporting and campaign-performance visibility."
+      ]
+    },
+    "step5": {
+      "primaryGoal": "lead_generation",
+      "monthlyMarketingSpend": "nothing",
+      "paidMediaBudgetRange": "not_sure",
+      "marketingHandler": "not_sure",
+      "contentCapacity": "not_sure",
+      "salesCapacity": "not_sure",
+      "knownCompetitorStatus": "not_sure"
+    },
+    "step6": {
+      "averageContractValue": "not_sure"
+    },
+    "step7": {
+      "confirmFocus": true,
+      "confirmBusiness": true,
+      "confirmAudience": true,
+      "confirmGoals": true,
+      "confirmEconomics": true,
+      "readyToGenerate": true,
+      "dataConsentOptIn": false,
+      "privacyProcessingConsent": true,
+      "aiProcessingConsent": true
+    }
+  }
+}

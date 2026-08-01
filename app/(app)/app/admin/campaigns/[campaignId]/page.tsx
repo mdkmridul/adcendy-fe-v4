@@ -4,22 +4,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { ReactNode, useRef, useState } from 'react';
-import {
-  AlertCircle,
-  BrainCircuit,
-  CheckCircle2,
-  FileText,
-  Layers,
-  RefreshCcw,
-  Workflow,
-  Wrench,
-} from 'lucide-react';
+import { AlertCircle, BrainCircuit, CheckCircle2, FileText, Layers, RefreshCcw, Workflow, Wrench } from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
-import {
-  useAdminAiCalls,
-  useAdminCampaignDetail,
-  useRefreshAdminCampaignIntelligence,
-} from '@/hooks/useAdminReview';
+import { useAdminAiCalls, useAdminCampaignDetail, useRefreshAdminCampaignIntelligence } from '@/hooks/useAdminReview';
 import { useOpsCampaignOverviews } from '@/hooks/useOpsV2';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/shared/api/errors';
@@ -28,9 +15,16 @@ import { createIdempotencyKey } from '@/shared/run/idempotency';
 import { toJsonPreview } from '@/shared/components/ops/opsUtils';
 import { ReviewStatusBadge } from '@/shared/components/reviews/ReviewStatusBadge';
 import { CampaignDocumentUploader } from '@/shared/components/campaigns/CampaignDocumentUploader';
-import { CampaignArtifactGenerator } from '@/shared/components/campaigns/CampaignArtifactGenerator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -265,15 +259,13 @@ function ActionButton({
             ) : null}
             <span className="flex min-w-0 flex-col items-start">
               <span className="text-sm font-semibold leading-5">
-                {pending ? pendingLabel ?? 'Working...' : label}
+                {pending ? (pendingLabel ?? 'Working...') : label}
               </span>
               {badge ? (
                 <span
                   className={cn(
                     'mt-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]',
-                    tone === 'accent'
-                      ? 'bg-zinc-950/10 text-zinc-900/85'
-                      : 'bg-amber-300/10 text-amber-200',
+                    tone === 'accent' ? 'bg-zinc-950/10 text-zinc-900/85' : 'bg-amber-300/10 text-amber-200',
                   )}
                 >
                   {badge}
@@ -283,9 +275,7 @@ function ActionButton({
                 <span
                   className={cn(
                     'mt-1 text-xs font-normal leading-4',
-                    tone === 'accent'
-                      ? 'text-zinc-900/80'
-                      : 'text-muted-foreground group-hover:text-foreground/80',
+                    tone === 'accent' ? 'text-zinc-900/80' : 'text-muted-foreground group-hover:text-foreground/80',
                   )}
                 >
                   {description}
@@ -301,9 +291,7 @@ function ActionButton({
         className="max-w-[360px] rounded-lg border border-border/70 bg-popover px-3.5 py-2.5 text-xs leading-5 text-popover-foreground shadow-xl"
       >
         <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-amber-300">
-            {tooltipTitle ?? label}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-amber-300">{tooltipTitle ?? label}</p>
           <p className="text-xs leading-5 text-popover-foreground/90">{tooltip}</p>
         </div>
       </TooltipContent>
@@ -347,22 +335,16 @@ export default function AdminCampaignDetailPage() {
   const [triggerPayloadJson, setTriggerPayloadJson] = useState<string>('{}');
   const [pipelineMarketSelection, setPipelineMarketSelection] = useState<string>(PIPELINE_MARKET_SELECTION_CUSTOM);
   const [lastTriggerResult, setLastTriggerResult] = useState<unknown>(null);
+  const [isDeliverableKitDialogOpen, setIsDeliverableKitDialogOpen] = useState(false);
   const startRunIdempotencyKeyRef = useRef<string | null>(null);
   const retryRunIdempotencyKeyRef = useRef<string | null>(null);
   const triggerCampaignMutation = useMutation({
-    mutationFn: ({
-      trigger,
-      payload,
-    }: {
-      trigger: AdminCampaignTriggerType;
-      payload?: Record<string, unknown>;
-    }) => opsV2Repository.triggerAdminCampaign(campaignId, trigger, payload),
+    mutationFn: ({ trigger, payload }: { trigger: AdminCampaignTriggerType; payload?: Record<string, unknown> }) =>
+      opsV2Repository.triggerAdminCampaign(campaignId, trigger, payload),
   });
   const startRunMutation = useMutation({
     mutationFn: async () => {
-      const key =
-        startRunIdempotencyKeyRef.current ??
-        createIdempotencyKey(`start-run-${campaignId}`);
+      const key = startRunIdempotencyKeyRef.current ?? createIdempotencyKey(`start-run-${campaignId}`);
       startRunIdempotencyKeyRef.current = key;
       return runsV2Repository.start(campaignId, key);
     },
@@ -382,13 +364,9 @@ export default function AdminCampaignDetailPage() {
         throw new Error('No pipeline run is available for this campaign.');
       }
       if (!recovery.run.capabilities.canRetry) {
-        throw new Error(
-          `Run ${recovery.run.runId} is ${recovery.run.status} and is not retryable.`,
-        );
+        throw new Error(`Run ${recovery.run.runId} is ${recovery.run.status} and is not retryable.`);
       }
-      const key =
-        retryRunIdempotencyKeyRef.current ??
-        createIdempotencyKey(`retry-run-${recovery.run.runId}`);
+      const key = retryRunIdempotencyKeyRef.current ?? createIdempotencyKey(`retry-run-${recovery.run.runId}`);
       retryRunIdempotencyKeyRef.current = key;
       const result = await runsV2Repository.retry(recovery.run.runId, key);
       if (result.runId !== recovery.run.runId) {
@@ -414,6 +392,10 @@ export default function AdminCampaignDetailPage() {
   const assembleInternalOutputMutation = useMutation({
     mutationFn: (runId: string) => opsV2Repository.assembleAdminRunInternalOutput(runId),
   });
+  const generateDeliverableKitMutation = useMutation({
+    mutationFn: ({ runId, notifyOwner }: { runId: string; notifyOwner: boolean }) =>
+      opsV2Repository.generateAdminDeliverableKit(runId, { notifyOwner }),
+  });
   const campaignDetail = campaignDetailQuery.data;
   const latestRunId = campaignDetail?.latestRun?.id ?? null;
   const reviewWorkspaceHref = latestRunId ? `/app/admin/runs/${latestRunId}` : null;
@@ -437,8 +419,7 @@ export default function AdminCampaignDetailPage() {
       if (trigger === 'pipeline' && options?.includeRunIdForPipeline) {
         const refreshedCampaignDetail = (await campaignDetailQuery.refetch().catch(() => null))?.data ?? campaignDetail;
         const latestRunIdCandidate =
-          toNonEmptyString(refreshedCampaignDetail?.latestRun?.id) ??
-          toNonEmptyString(campaignDetail?.latestRun?.id);
+          toNonEmptyString(refreshedCampaignDetail?.latestRun?.id) ?? toNonEmptyString(campaignDetail?.latestRun?.id);
         let latestRunStatus =
           toNonEmptyString(refreshedCampaignDetail?.latestRun?.status) ??
           toNonEmptyString(campaignDetail?.latestRun?.status);
@@ -590,6 +571,38 @@ export default function AdminCampaignDetailPage() {
     }
   };
 
+  const handleGenerateDeliverableKit = async (notifyOwner: boolean) => {
+    if (!latestRunId) {
+      toast({
+        title: 'No run available',
+        description: 'A latest pipeline run is required before the complete deliverable kit can be generated.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const result = await generateDeliverableKitMutation.mutateAsync({
+        runId: latestRunId,
+        notifyOwner,
+      });
+      setIsDeliverableKitDialogOpen(false);
+      setLastTriggerResult(result);
+      toast({
+        title: 'Complete deliverable kit queued',
+        description: notifyOwner
+          ? `Generation ${result.kitGenerationId} will email the campaign owner after all four documents succeed.`
+          : `Generation ${result.kitGenerationId} was queued without an owner email.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Unable to generate complete deliverable kit',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (isLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading campaign detail...</div>;
   }
@@ -695,12 +708,8 @@ export default function AdminCampaignDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6">
         <CampaignDocumentUploader campaignId={campaignId} />
-        <CampaignArtifactGenerator
-          campaignId={campaignId}
-          runId={latestRunId}
-        />
       </div>
 
       {campaignDetailQuery.isLoading ? (
@@ -708,7 +717,9 @@ export default function AdminCampaignDetailPage() {
       ) : campaignDetailQuery.error || !campaignDetail ? (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardContent className="py-8 text-sm text-destructive">
-            {campaignDetailQuery.error instanceof Error ? campaignDetailQuery.error.message : 'Failed to load campaign detail.'}
+            {campaignDetailQuery.error instanceof Error
+              ? campaignDetailQuery.error.message
+              : 'Failed to load campaign detail.'}
           </CardContent>
         </Card>
       ) : (
@@ -748,56 +759,58 @@ export default function AdminCampaignDetailPage() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-6">
               <Card className="border-border bg-card">
-              <CardHeader>
-                <CardTitle>Campaign Detail</CardTitle>
-                <CardDescription>Fields from the admin campaign detail response.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Business type</p>
-                  <p className="mt-2 font-medium">
-                    {formatNullable(formatBusinessType(getRecordString(campaignDetail.campaign, 'businessType')))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Business model</p>
-                  <p className="mt-2 font-medium">
-                    {formatNullable(formatBusinessModel(getRecordString(campaignDetail.campaign, 'businessModel')))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Market scope</p>
-                  <p className="mt-2 font-medium">
-                    {formatNullable(formatMarketScope(getRecordString(campaignDetail.campaign, 'marketScope')))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Website</p>
-                  <p className="mt-2 font-medium">{formatNullable(campaignDetail.campaign.websiteUrl)}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4 md:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Description</p>
-                  <p className="mt-2 text-sm text-foreground">{formatNullable(campaignDetail.campaign.description)}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Wizard status</p>
-                  <p className="mt-2 font-medium">{campaignDetail.wizard?.status ?? 'No wizard state'}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Wizard step</p>
-                  <p className="mt-2 font-medium">
-                    {campaignDetail.wizard ? campaignDetail.wizard.lastCompletedStep : 'Not available'}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Wizard version</p>
-                  <p className="mt-2 font-medium">{campaignDetail.wizard?.version ?? 'Not available'}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-background p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Latest run</p>
-                  <p className="mt-2 font-medium">{campaignDetail.latestRun?.status ?? 'No admin run returned'}</p>
-                </div>
-              </CardContent>
+                <CardHeader>
+                  <CardTitle>Campaign Detail</CardTitle>
+                  <CardDescription>Fields from the admin campaign detail response.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Business type</p>
+                    <p className="mt-2 font-medium">
+                      {formatNullable(formatBusinessType(getRecordString(campaignDetail.campaign, 'businessType')))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Business model</p>
+                    <p className="mt-2 font-medium">
+                      {formatNullable(formatBusinessModel(getRecordString(campaignDetail.campaign, 'businessModel')))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Market scope</p>
+                    <p className="mt-2 font-medium">
+                      {formatNullable(formatMarketScope(getRecordString(campaignDetail.campaign, 'marketScope')))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Website</p>
+                    <p className="mt-2 font-medium">{formatNullable(campaignDetail.campaign.websiteUrl)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4 md:col-span-2">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Description</p>
+                    <p className="mt-2 text-sm text-foreground">
+                      {formatNullable(campaignDetail.campaign.description)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Wizard status</p>
+                    <p className="mt-2 font-medium">{campaignDetail.wizard?.status ?? 'No wizard state'}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Wizard step</p>
+                    <p className="mt-2 font-medium">
+                      {campaignDetail.wizard ? campaignDetail.wizard.lastCompletedStep : 'Not available'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Wizard version</p>
+                    <p className="mt-2 font-medium">{campaignDetail.wizard?.version ?? 'Not available'}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Latest run</p>
+                    <p className="mt-2 font-medium">{campaignDetail.latestRun?.status ?? 'No admin run returned'}</p>
+                  </div>
+                </CardContent>
               </Card>
 
               <Card className="relative overflow-hidden border-border bg-card/95 shadow-[0_18px_48px_rgba(0,0,0,0.35)]">
@@ -821,7 +834,9 @@ export default function AdminCampaignDetailPage() {
                     </div>
                     <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Run</p>
-                      <p className="mt-1 truncate font-mono text-xs text-foreground">{latestRunId ?? 'Not available'}</p>
+                      <p className="mt-1 truncate font-mono text-xs text-foreground">
+                        {latestRunId ?? 'Not available'}
+                      </p>
                     </div>
                     <div className="rounded-lg border border-border/70 bg-gradient-to-br from-background/75 to-background/30 p-3">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -844,13 +859,17 @@ export default function AdminCampaignDetailPage() {
                     <div className="rounded-lg border border-border/70 bg-background/35 p-3">
                       <div className="grid gap-3 md:grid-cols-[minmax(0,260px)_1fr] md:items-end">
                         <div className="space-y-1.5">
-                          <Label htmlFor="admin-campaign-pipeline-market-target-select">Legacy Pipeline Market Target</Label>
+                          <Label htmlFor="admin-campaign-pipeline-market-target-select">
+                            Legacy Pipeline Market Target
+                          </Label>
                           <Select value={pipelineMarketSelection} onValueChange={setPipelineMarketSelection}>
                             <SelectTrigger id="admin-campaign-pipeline-market-target-select">
                               <SelectValue placeholder="Choose market target" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={PIPELINE_MARKET_SELECTION_CUSTOM}>Use market from payload JSON</SelectItem>
+                              <SelectItem value={PIPELINE_MARKET_SELECTION_CUSTOM}>
+                                Use market from payload JSON
+                              </SelectItem>
                               <SelectItem
                                 value={PIPELINE_MARKET_SELECTION_ALL}
                                 disabled={campaignMarketOptions.length === 0}
@@ -948,6 +967,19 @@ export default function AdminCampaignDetailPage() {
                         icon={<CheckCircle2 className="h-4 w-4" />}
                       />
                       <ActionButton
+                        label="Generate Complete Kit"
+                        tooltip="Generate the four official deliverables from approved V2 sections. The job remains blocked until every selected section is approved."
+                        tooltipTitle="Approval-gated Deliverable Kit"
+                        badge="4 documents"
+                        description="Launch Brief, Tracking Guide, Strategy Document, and Execution Kit."
+                        onClick={() => setIsDeliverableKitDialogOpen(true)}
+                        disabled={generateDeliverableKitMutation.isPending || !latestRunId}
+                        pending={generateDeliverableKitMutation.isPending}
+                        pendingLabel="Queuing..."
+                        tone="accent"
+                        icon={<Layers className="h-4 w-4" />}
+                      />
+                      <ActionButton
                         label="Generate Strategy Document"
                         tooltip="Assemble internal output for the latest run without waiting for section approval flow."
                         tooltipTitle="Direct Strategy Assembly"
@@ -1005,7 +1037,9 @@ export default function AdminCampaignDetailPage() {
               <Card className="border-border bg-card">
                 <CardHeader>
                   <CardTitle>Linked AI Calls</CardTitle>
-                  <CardDescription>Recent traces from `GET /v1/admin/ai/calls` filtered to this campaign.</CardDescription>
+                  <CardDescription>
+                    Recent traces from `GET /v1/admin/ai/calls` filtered to this campaign.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {aiCallsQuery.isLoading ? (
@@ -1029,7 +1063,8 @@ export default function AdminCampaignDetailPage() {
                           <ReviewStatusBadge status={call.status} />
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Started {formatDate(call.startedAt)}. Tokens {call.totalTokens?.toLocaleString() ?? 'Unknown'}.
+                          Started {formatDate(call.startedAt)}. Tokens {call.totalTokens?.toLocaleString() ?? 'Unknown'}
+                          .
                         </p>
                       </div>
                     ))
@@ -1054,15 +1089,59 @@ export default function AdminCampaignDetailPage() {
                     </Link>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No latest run is available for this campaign yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No latest run is available for this campaign yet.</p>
                 )}
               </CardContent>
             </Card>
           </div>
         </>
       )}
+
+      <Dialog
+        open={isDeliverableKitDialogOpen}
+        onOpenChange={(open) => {
+          if (!generateDeliverableKitMutation.isPending) {
+            setIsDeliverableKitDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Notify the campaign owner?</DialogTitle>
+            <DialogDescription>
+              The complete kit requires every selected section to be approved. Choose whether to send the owner one
+              email after all four documents finish successfully.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <Button
+              type="button"
+              onClick={() => void handleGenerateDeliverableKit(true)}
+              disabled={generateDeliverableKitMutation.isPending}
+            >
+              {generateDeliverableKitMutation.isPending ? 'Queuing...' : 'Generate and notify owner'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleGenerateDeliverableKit(false)}
+              disabled={generateDeliverableKitMutation.isPending}
+            >
+              Generate without email
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsDeliverableKitDialogOpen(false)}
+              disabled={generateDeliverableKitMutation.isPending}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

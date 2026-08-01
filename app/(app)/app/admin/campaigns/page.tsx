@@ -104,6 +104,8 @@ export default function AdminCampaignsPage() {
                 <SelectItem value="DRAFT">In Setup</SelectItem>
                 <SelectItem value="SUBMITTED_FOR_REVIEW">Generating</SelectItem>
                 <SelectItem value="IN_REVIEW">Under Review</SelectItem>
+                <SelectItem value="GENERATING_DELIVERABLES">Preparing Files</SelectItem>
+                <SelectItem value="DELIVERABLE_GENERATION_FAILED">File Generation Failed</SelectItem>
                 <SelectItem value="ACTIVE">Active</SelectItem>
                 <SelectItem value="FAILED">Needs Attention</SelectItem>
                 <SelectItem value="ARCHIVED">Archived</SelectItem>

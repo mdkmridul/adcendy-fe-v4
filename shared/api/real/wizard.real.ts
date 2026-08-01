@@ -1138,6 +1138,11 @@ export const wizardRealAdapter = {
           campaignId,
           version: payload.version ?? 0,
           step7: {
+            confirmFocus: payload.confirmFocus,
+            confirmBusiness: payload.confirmBusiness,
+            confirmAudience: payload.confirmAudience,
+            confirmGoals: payload.confirmGoals,
+            confirmEconomics: payload.confirmEconomics,
             readyToGenerate: payload.readyToGenerate,
             dataConsentOptIn: payload.dataConsentOptIn,
           },

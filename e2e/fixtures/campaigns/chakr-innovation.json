@@ -1,0 +1,98 @@
+{
+  "fixtureVersion": "1.0",
+  "fixtureStatus": "ready",
+  "slug": "chakr-innovation",
+  "displayName": "Chakr Innovation",
+  "wizard": {
+    "step1": {
+      "marketingTargetType": "whole_business",
+      "focusName": "Chakr Innovation",
+      "sourceType": "manual_only",
+      "targetMarkets": ["IN"],
+      "primaryMarket": "IN",
+      "marketScope": "national"
+    },
+    "step2": {
+      "businessName": "Chakr Innovation",
+      "industryCategory": "manufacturing_industrial",
+      "businessModel": "B2B",
+      "audienceModel": "single_sided",
+      "lifecycleStage": "growth",
+      "businessDescription": "Chakr Innovation is an Indian clean-technology and material-science company that develops emission-control, fuel-efficiency, environmental-monitoring and clean-energy solutions for businesses and institutions. Its products help organisations reduce harmful emissions from diesel and gas generators, control dust at industrial and construction sites, monitor environmental compliance, lower diesel consumption and pursue cleaner energy alternatives.",
+      "productCategory": "Industrial emission-control, environmental-compliance and clean-energy technology",
+      "productsServices": [
+        "Chakr Shield retrofit emission control devices for reducing particulate matter, carbon monoxide and hydrocarbon emissions from diesel generators",
+        "Chakr Dual Fuel Kit for operating diesel generators using a diesel and natural-gas fuel mixture",
+        "Chakr DeNOx systems for reducing nitrogen oxide emissions from diesel and gas generators",
+        "Chakr DeSmog automated dust-suppression systems for construction and industrial sites",
+        "Chakr Emission Monitoring System for continuous emissions and ambient-air-quality monitoring",
+        "Chakr Aluminium-Air clean-energy technology for mobility and stationary energy applications",
+        "Site assessment, installation, commissioning, compliance support and ongoing maintenance for emission-control systems"
+      ],
+      "priceRange": "not_sure",
+      "sensitiveCategoryFlags": ["none"]
+    },
+    "step3": {
+      "primaryTargetSegment": "Indian organisations operating diesel or gas generators or emission-intensive facilities, especially manufacturing, data centres, hospitals and infrastructure.",
+      "targetPersona": "A senior facilities, engineering, operations, sustainability, environment-health-and-safety, procurement or compliance decision-maker responsible for generator operations, environmental compliance, pollution reduction, fuel costs and ESG performance across one or more business locations.",
+      "language": "english",
+      "painPoints": [
+        "Existing diesel and gas generators produce particulate matter, carbon monoxide, hydrocarbons and nitrogen oxide emissions that create regulatory, environmental and reputational risks.",
+        "Businesses need to comply with CPCB, state pollution-control, CAQM, NCAP and related environmental requirements without replacing functioning generator infrastructure.",
+        "Facilities struggle to reduce emissions and diesel consumption while maintaining reliable backup power, controlling operating costs and avoiding excessive downtime."
+      ],
+      "desiredOutcome": "Achieve measurable reductions in generator and site emissions, maintain environmental and regulatory compliance, avoid penalties or operating restrictions, reduce diesel consumption where applicable, and improve ESG performance without replacing existing power infrastructure.",
+      "decisionProcess": "Facilities, engineering or compliance teams identify an emissions requirement and assess the generator fleet. Technical teams evaluate compatibility, certification, emission reduction, installation and maintenance. Procurement and finance review cost and total ownership, while management approves based on compliance risk, continuity, environmental impact and return.",
+      "buyerRoles": [
+        "Facilities Head",
+        "Plant or Engineering Head",
+        "Environment, Health and Safety Head",
+        "Sustainability or ESG Head",
+        "Operations Head",
+        "Procurement Head",
+        "Chief Financial Officer",
+        "Business Unit or Site Head"
+      ]
+    },
+    "step4": {
+      "salesChannels": [
+        {
+          "channel": "direct_sales",
+          "rank": 1
+        }
+      ],
+      "primaryConversionPath": "book_call",
+      "trustSignals": [
+        "Chakr Shield is presented as India's first type-approved retrofit emission control device for diesel generators and has received approval through government-recognised testing laboratories.",
+        "The company reports more than 4,000 installations and more than 1,500 customers for its emission-control solutions.",
+        "Chakr Innovation states that its technologies have been deployed by organisations including HPCL, Indian Oil Corporation, Amazon, Reliance Industries and Kirloskar Oil Engines.",
+        "The company holds multiple granted and pending patents covering its clean-technology and material-science innovations.",
+        "Chakr Innovation raised USD 23 million in Series C funding in September 2025 from investors including Iron Pillar, SBI Cap Ventures, ONGC, Indian Angel Network and Inflexor Ventures.",
+        "Its work has received recognition from organisations and programmes including Forbes, WWF, NITI Aayog and the Economic Times Startup Awards."
+      ]
+    },
+    "step5": {
+      "primaryGoal": "lead_generation",
+      "monthlyMarketingSpend": "nothing",
+      "paidMediaBudgetRange": "not_sure",
+      "marketingHandler": "not_sure",
+      "contentCapacity": "not_sure",
+      "salesCapacity": "not_sure",
+      "knownCompetitorStatus": "not_sure"
+    },
+    "step6": {
+      "averageContractValue": "not_sure"
+    },
+    "step7": {
+      "confirmFocus": true,
+      "confirmBusiness": true,
+      "confirmAudience": true,
+      "confirmGoals": true,
+      "confirmEconomics": true,
+      "readyToGenerate": true,
+      "dataConsentOptIn": false,
+      "privacyProcessingConsent": true,
+      "aiProcessingConsent": true
+    }
+  }
+}

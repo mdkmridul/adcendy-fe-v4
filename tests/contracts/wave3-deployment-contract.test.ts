@@ -16,12 +16,12 @@ test('pins the current Backend working tree and OpenAPI checksum', () => {
   );
   assert.equal(
     backendContract.backendRevision,
-    'working-tree@79324473cab50871875fc8c7472c440125b277a9',
+    'working-tree@e8e31b036fcf36ebea9cf1a28b90754cde93e964',
   );
-  assert.equal(backendContract.openApiVersion, '2.3.0');
+  assert.equal(backendContract.openApiVersion, '2.4.0');
   assert.equal(
     backendContract.openApiSha256,
-    '7caaad0010324eaf2dc12dee8c5975c117a852eb07bf0d471bad2dc42158d8fe',
+    '9ab9056aabeeb4a2223a939f7e63c8a3e3fb54678f76deebb2488d65ed9531a0',
   );
   assert.match(
     read('src/generated/openapi.ts'),

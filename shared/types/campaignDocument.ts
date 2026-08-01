@@ -2,16 +2,7 @@ import type { components } from '@/src/generated/files-v1';
 
 export type CampaignDocument = components['schemas']['Document'];
 export type CampaignDocumentList = components['schemas']['DocumentList'];
-export type CampaignDocumentDownload =
-  components['schemas']['DocumentDownload'];
-export type CampaignArtifact = components['schemas']['Artifact'];
-export type CampaignArtifactList = components['schemas']['ArtifactList'];
-export type CampaignArtifactDownload =
-  components['schemas']['ArtifactDownload'];
-export type CampaignArtifactTrigger =
-  components['schemas']['ArtifactTrigger'];
-export type CampaignArtifactStatus =
-  components['schemas']['ArtifactStatus'];
+export type CampaignDocumentDownload = components['schemas']['DocumentDownload'];
 
 export interface CampaignDocumentUploadInput {
   file: File;

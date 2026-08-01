@@ -7,7 +7,9 @@ import type {
   AdminCostsSummary,
   CampaignHealthItem,
   CampaignOverviewV2,
+  GenerateDeliverableKitV2Payload,
   OpsListFilters,
+  QueuedDeliverableKitV2,
   ReviewerOutcomesSummary,
   ReviewerTaskDetail,
   ReviewerTaskItem,
@@ -145,6 +147,13 @@ export const opsV2Repository = {
 
   async assembleAdminRunInternalOutput(runId: string): Promise<Record<string, unknown>> {
     return adapter.assembleAdminRunInternalOutput(runId);
+  },
+
+  async generateAdminDeliverableKit(
+    runId: string,
+    payload: GenerateDeliverableKitV2Payload,
+  ): Promise<QueuedDeliverableKitV2> {
+    return adapter.generateAdminDeliverableKit(runId, payload);
   },
 
   async getCampaignHealth(params?: { limit?: number; onlyUnhealthy?: boolean }): Promise<CampaignHealthItem[]> {

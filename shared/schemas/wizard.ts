@@ -213,15 +213,15 @@ export const step2Schema = z.object({
 });
 
 export const step3Schema = z.object({
-  primaryTargetSegment: z.string().trim().min(1, 'Primary target segment is required').max(240, 'Keep this under 240 characters'),
-  targetPersona: z.string().trim().min(1, 'Target persona is required').max(700, 'Keep the target persona under 700 characters'),
+  primaryTargetSegment: z.string().trim().min(1, 'Primary target segment is required').max(160, 'Keep this under 160 characters'),
+  targetPersona: z.string().trim().min(1, 'Target persona is required').max(500, 'Keep the target persona under 500 characters'),
   targetAudience: z.string().trim().max(700, 'Keep the target audience under 700 characters').optional().or(z.literal('')),
   audienceSegments: z.array(tagItemSchema).max(10, 'Add up to 10 audience segments').default([]),
   language: z.string().trim().min(1, 'Language is required'),
   reportLanguage: z.string().trim().max(80, 'Keep report language under 80 characters').optional().or(z.literal('')),
   painPoints: z.array(tagItemSchema).min(1, 'Add at least one pain point').default([]),
-  desiredOutcome: z.string().trim().min(1, 'Desired outcome is required').max(350, 'Keep the desired outcome under 350 characters'),
-  decisionProcess: z.string().trim().min(1, 'Decision process is required').max(350, 'Keep this under 350 characters'),
+  desiredOutcome: z.string().trim().min(1, 'Desired outcome is required').max(300, 'Keep the desired outcome under 300 characters'),
+  decisionProcess: z.string().trim().min(1, 'Decision process is required').max(500, 'Keep this under 500 characters'),
   buyerRoles: z.array(tagItemSchema).max(10, 'Add up to 10 buyer roles').default([]),
   constraints: z.array(tagItemSchema).default([]),
   monthlyMarketingSpend: z.enum(MONTHLY_MARKETING_SPEND_VALUES, {

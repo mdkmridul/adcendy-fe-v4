@@ -91,7 +91,11 @@ export function isCampaignUnderReview(campaign: Campaign) {
 }
 
 export function canAccessCampaignFiles(campaign: Campaign) {
-  return !isCampaignUnderReview(campaign);
+  return (
+    campaign.status === 'ACTIVE' ||
+    campaign.status === 'ARCHIVED' ||
+    campaign.status === 'FAILED'
+  );
 }
 
 export function getCampaignLifecycleStage(
@@ -118,7 +122,8 @@ export function getCampaignLifecycleStatus(stage: CampaignLifecycleStage, campai
     return {
       label: mappedLabel,
       tone:
-        campaign.status === 'FAILED'
+        campaign.status === 'FAILED' ||
+        campaign.status === 'DELIVERABLE_GENERATION_FAILED'
           ? 'attention'
           : campaign.status === 'ARCHIVED'
             ? 'archived'
@@ -168,6 +173,34 @@ export function deriveCampaignState(campaign: Campaign): DerivedCampaignState {
       primaryActionLabel: 'Open Overview',
       primaryActionHref: `/app/campaigns/${campaign.id}/overview`,
       needsAttention: true,
+      marketLabel,
+      websiteHost,
+    };
+  }
+
+  if (campaign.status === 'DELIVERABLE_GENERATION_FAILED') {
+    return {
+      statusLabel: 'File Generation Failed',
+      statusTone: 'attention',
+      progressLabel: 'Retry required',
+      progressValue: 100,
+      primaryActionLabel: 'Open Overview',
+      primaryActionHref: `/app/campaigns/${campaign.id}/overview`,
+      needsAttention: true,
+      marketLabel,
+      websiteHost,
+    };
+  }
+
+  if (campaign.status === 'GENERATING_DELIVERABLES') {
+    return {
+      statusLabel: 'Preparing Files',
+      statusTone: 'waiting',
+      progressLabel: 'Preparing downloads',
+      progressValue: 100,
+      primaryActionLabel: 'Open Overview',
+      primaryActionHref: `/app/campaigns/${campaign.id}/overview`,
+      needsAttention: false,
       marketLabel,
       websiteHost,
     };

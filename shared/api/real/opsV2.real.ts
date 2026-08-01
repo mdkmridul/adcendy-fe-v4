@@ -8,7 +8,9 @@ import type {
   AdminCostsSummary,
   CampaignHealthItem,
   CampaignOverviewV2,
+  GenerateDeliverableKitV2Payload,
   OpsListFilters,
+  QueuedDeliverableKitV2,
   ReviewerOutcomesSummary,
   ReviewerTaskDetail,
   ReviewerTaskItem,
@@ -345,6 +347,20 @@ export const opsV2RealAdapter = {
     );
     const data = unwrapResponseData(response);
     return (data && typeof data === 'object' ? (data as Record<string, unknown>) : {});
+  },
+
+  async generateAdminDeliverableKit(
+    runId: string,
+    payload: GenerateDeliverableKitV2Payload,
+  ): Promise<QueuedDeliverableKitV2> {
+    const response = await http<ApiResponse<QueuedDeliverableKitV2>>(
+      `/api/v2/admin/runs/${runId}/deliverable-kits`,
+      {
+        method: 'POST',
+        body: payload,
+      },
+    );
+    return response.data;
   },
 
   async getCampaignHealth(params?: { limit?: number; onlyUnhealthy?: boolean }): Promise<CampaignHealthItem[]> {

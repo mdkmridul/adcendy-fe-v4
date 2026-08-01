@@ -1,9 +1,9 @@
 {
-  "backendRevision": "working-tree@79324473cab50871875fc8c7472c440125b277a9",
-  "openApiVersion": "1.0.0",
+  "backendRevision": "working-tree@e8e31b036fcf36ebea9cf1a28b90754cde93e964",
+  "openApiVersion": "2.0.0",
   "openApiFormat": "3.0.3",
-  "openApiSha256": "9801f8ada9814bf91ee56c267b13105b92cdea6733df10323e56346b1b2c88ba",
-  "vendoredContract": "contracts/backend/files-v1/1.0.0/adcendy-files.openapi.json",
+  "openApiSha256": "5609111fab1a4212749153af32efc0c2677ffdfbb2eba6c9c590f08de64506b9",
+  "vendoredContract": "contracts/backend/files-v1/2.0.0/adcendy-files.openapi.json",
   "generatedClient": "src/generated/files-v1.ts",
-  "generatedClientSha256": "9fdcaea1914dc39996c842545b903f1daf1dc1f7ead5fb291d091dc231e4a282"
+  "generatedClientSha256": "d9cfbeb2e720f89bef5aefa9093a334d097f70f0c77ed8062c8ee213b6d5a220"
 }

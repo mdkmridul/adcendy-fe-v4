@@ -6,7 +6,9 @@ import type {
   AdminCostsSummary,
   CampaignHealthItem,
   CampaignOverviewV2,
+  GenerateDeliverableKitV2Payload,
   OpsListFilters,
+  QueuedDeliverableKitV2,
   ReviewerOutcomesSummary,
   ReviewerTaskDetail,
   ReviewerTaskItem,
@@ -810,6 +812,24 @@ trailer
       status: 'QUEUED',
       action: 'assemble-internal-output',
       queuedAt: nowIso(),
+    };
+  },
+
+  async generateAdminDeliverableKit(
+    runId: string,
+    _payload: GenerateDeliverableKitV2Payload,
+  ): Promise<QueuedDeliverableKitV2> {
+    await delay(220);
+    void _payload.notifyOwner;
+    const kitGenerationId = crypto.randomUUID();
+    return {
+      pipelineRunId: runId,
+      kitGenerationId,
+      jobId: `deliverable-kit-${kitGenerationId}`,
+      jobName: 'admin-deliverable-kit-assembly-v2',
+      status: 'queued',
+      statusUrl: `/api/v2/pipeline/runs/${runId}`,
+      telemetryUrl: `/api/v2/telemetry/runs/${runId}/aggregate`,
     };
   },
 

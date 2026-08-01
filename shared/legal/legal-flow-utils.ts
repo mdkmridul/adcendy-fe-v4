@@ -159,6 +159,14 @@ export function getCheckoutRequiredDocumentIds(
   return getRequiredDocumentIds(documents, CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES);
 }
 
+export function resolveConsentPolicyVersion(
+  documents: LegalDocumentVersion[],
+): string | null {
+  const privacyPolicy = buildDocumentTypeIndex(documents).PRIVACY_POLICY;
+  const version = privacyPolicy?.versionLabel?.trim();
+  return version || null;
+}
+
 export function buildConsentMutationSource(
   source: LegalAcceptanceSource,
 ): LegalAcceptanceSource {

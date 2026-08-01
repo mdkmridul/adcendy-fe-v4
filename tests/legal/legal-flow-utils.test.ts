@@ -9,6 +9,7 @@ import {
   buildSignupAcceptPayload,
   getCheckoutRequiredDocumentIds,
   getSignupRequiredDocumentIds,
+  resolveConsentPolicyVersion,
   resolveConsentAction,
   resolveConsentMutationEndpoint,
 } from '../../shared/legal/legal-flow-utils.ts';
@@ -154,4 +155,18 @@ test('8. withdraw flow resolves to /consents/withdraw endpoint', () => {
   const action = resolveConsentAction(true, false);
   assert.equal(action, 'withdraw');
   assert.equal(resolveConsentMutationEndpoint(action), '/api/v2/legal/consents/withdraw');
+});
+
+test('9. consent mutations use the active privacy policy version', () => {
+  assert.equal(resolveConsentPolicyVersion(activeDocumentsFixture), 'v2');
+  assert.equal(
+    resolveConsentPolicyVersion(
+      activeDocumentsFixture.map((document) =>
+        document.documentType === 'PRIVACY_POLICY'
+          ? { ...document, versionLabel: null }
+          : document,
+      ),
+    ),
+    null,
+  );
 });

@@ -7,6 +7,10 @@ export type CampaignLifecycleStatusV2 =
   | 'WIZARD_DRAFT'
   | 'STRATEGY_GENERATION'
   | 'SUBMITTED_FOR_REVIEW'
+  | 'IN_REVIEW'
+  | 'GENERATING_DELIVERABLES'
+  | 'DELIVERABLE_GENERATION_FAILED'
+  | 'ACTIVE'
   | string;
 
 export interface CampaignOverviewV2 {
@@ -179,6 +183,12 @@ export type AdminReviewerAssignmentPayload =
 
 export type AdminReviewerAssignmentResult =
   components['schemas']['AdminReviewerAssignmentResponseV2'];
+
+export type GenerateDeliverableKitV2Payload =
+  components['schemas']['GenerateDeliverableKitV2Request'];
+
+export type QueuedDeliverableKitV2 =
+  components['schemas']['QueuedDeliverableKitV2'];
 
 export type AdminCampaignTriggerType =
   | 'pipeline'
@@ -467,6 +477,14 @@ export function formatCampaignLifecycleStatus(status?: string | null) {
 
   if (normalized === 'SUBMITTED_FOR_REVIEW') {
     return 'Submitted for Review';
+  }
+
+  if (normalized === 'GENERATING_DELIVERABLES') {
+    return 'Preparing Files';
+  }
+
+  if (normalized === 'DELIVERABLE_GENERATION_FAILED') {
+    return 'File Generation Failed';
   }
 
   if (!normalized) {

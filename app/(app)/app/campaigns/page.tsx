@@ -30,6 +30,7 @@ export default function CampaignsPage() {
   const { setLastCampaignId } = useLastCampaign();
   const [wizardModalState, setWizardModalState] = useState<WizardModalState | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const isWizardModalOpen = wizardModalState !== null;
 
   const filteredCampaigns = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -103,6 +104,11 @@ export default function CampaignsPage() {
 
     const targetedCampaign = campaigns.find((campaign) => campaign.id === draftCampaignId);
     if (!targetedCampaign) {
+      // Creating Step 1 updates the URL before the revalidated campaign list is
+      // applied. Keep the active create wizard open during that transient render.
+      if (isWizardModalOpen) {
+        return;
+      }
       setWizardModalState(null);
       router.replace('/app/campaigns');
       return;
@@ -159,7 +165,7 @@ export default function CampaignsPage() {
     return () => {
       isCancelled = true;
     };
-  }, [campaigns, isLoading, router, searchParams]);
+  }, [campaigns, isLoading, isWizardModalOpen, router, searchParams]);
 
   if (error) {
     return (

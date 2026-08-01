@@ -1,0 +1,89 @@
+{
+  "fixtureVersion": "1.0",
+  "fixtureStatus": "ready",
+  "slug": "fuzzy-ai",
+  "displayName": "Fuzzy AI",
+  "wizard": {
+    "step1": {
+      "marketingTargetType": "whole_business",
+      "focusName": "Fuzzy AI",
+      "sourceType": "manual_only",
+      "targetMarkets": ["IN"],
+      "primaryMarket": "IN",
+      "marketScope": "national"
+    },
+    "step2": {
+      "businessName": "Fuzzy AI",
+      "industryCategory": "saas_digital",
+      "businessModel": "B2B",
+      "audienceModel": "single_sided",
+      "lifecycleStage": "growth",
+      "businessDescription": "Fuzzy AI is a B2B sales automation and social-selling platform that helps founders, sales representatives and revenue teams research prospects, build familiarity through LinkedIn engagement, create personalised outreach and follow-up sequences, and book qualified meetings while reducing repetitive manual sales work.",
+      "productCategory": "AI-powered sales automation and LinkedIn social-selling software",
+      "productsServices": [
+        "AI-assisted prospect research and prioritisation",
+        "LinkedIn social-selling and prospect-warming workflows",
+        "Personalised LinkedIn and email outreach sequences",
+        "AI-generated sales content and personal-brand support",
+        "Automated follow-ups and meeting-generation workflows"
+      ],
+      "priceRange": "not_sure",
+      "sensitiveCategoryFlags": ["none"]
+    },
+    "step3": {
+      "primaryTargetSegment": "Founder-led Indian B2B SaaS and professional-services companies with small sales teams using LinkedIn and outbound prospecting for qualified leads.",
+      "targetPersona": "A founder, head of sales, sales development leader or growth leader responsible for generating B2B pipeline with a limited sales team and seeking to improve outbound productivity, personalisation and response rates.",
+      "language": "english",
+      "painPoints": [
+        "Sales teams spend excessive time manually researching prospects, preparing outreach and following up.",
+        "Cold and generic LinkedIn messages receive poor response rates because prospects have no prior familiarity with the sender.",
+        "Small sales teams struggle to maintain personalised outreach and consistent LinkedIn engagement at scale."
+      ],
+      "desiredOutcome": "Generate more qualified B2B conversations and booked meetings while reducing the time sales teams spend on prospect research, repetitive outreach, content creation and follow-up.",
+      "decisionProcess": "The founder, sales leader or growth leader identifies an outbound pipeline or productivity problem, evaluates Fuzzy AI against LinkedIn automation and AI SDR alternatives, reviews its capabilities and evidence, completes a trial or product demonstration, and approves a subscription based on expected productivity and pipeline value.",
+      "buyerRoles": [
+        "Founder or co-founder",
+        "Head of Sales",
+        "Sales Development Leader",
+        "Growth or Revenue Leader"
+      ]
+    },
+    "step4": {
+      "salesChannels": [
+        {
+          "channel": "direct_sales",
+          "rank": 1
+        }
+      ],
+      "primaryConversionPath": "book_call",
+      "trustSignals": [
+        "The product provides customer evidence and testimonials from founders and B2B sales teams.",
+        "Founder Serena Lam has publicly demonstrated and presented Fuzzy AI, including an appearance on Meet the Drapers.",
+        "The company offers product demonstrations and trial access so potential customers can evaluate the platform before purchasing."
+      ]
+    },
+    "step5": {
+      "primaryGoal": "lead_generation",
+      "monthlyMarketingSpend": "nothing",
+      "paidMediaBudgetRange": "not_sure",
+      "marketingHandler": "not_sure",
+      "contentCapacity": "not_sure",
+      "salesCapacity": "not_sure",
+      "knownCompetitorStatus": "not_sure"
+    },
+    "step6": {
+      "averageContractValue": "not_sure"
+    },
+    "step7": {
+      "confirmFocus": true,
+      "confirmBusiness": true,
+      "confirmAudience": true,
+      "confirmGoals": true,
+      "confirmEconomics": true,
+      "readyToGenerate": true,
+      "dataConsentOptIn": false,
+      "privacyProcessingConsent": true,
+      "aiProcessingConsent": true
+    }
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "fixtureVersion": "1.0",
+  "fixtureStatus": "ready",
+  "slug": "nxtface",
+  "displayName": "NXTFACE",
+  "wizard": {
+    "step1": {
+      "marketingTargetType": "whole_business",
+      "focusName": "NXTFACE",
+      "sourceType": "manual_only",
+      "targetMarkets": [
+        "IN"
+      ],
+      "primaryMarket": "IN",
+      "marketScope": "national"
+    },
+    "step2": {
+      "businessName": "NXTFACE",
+      "industryCategory": "healthcare_wellness",
+      "businessModel": "B2B",
+      "audienceModel": "single_sided",
+      "lifecycleStage": "growth",
+      "businessDescription": "NXTFACE is an Indian skincare brand focused on younger consumers transitioning from adolescence into adulthood. It combines science-backed skincare formulations with an AI-powered skin analysis and product-recommendation experience. The brand sells affordable, cruelty-free skincare products through its own website, ecommerce marketplaces, retail outlets, pharmacies and the Naturals Salon network.",
+      "productCategory": "AI-assisted skincare and personal-care products for Gen Z and young adults",
+      "productsServices": [
+        "Facial serums for hydration, brightening, oil control, pigmentation and skin renewal",
+        "Gel, mineral, spray, stick and tinted sunscreens for different skin types and usage occasions",
+        "Face washes, day creams and overnight sleeping masks",
+        "Lip-care and body-care products",
+        "AI-powered skin analysis and personalised product recommendations",
+        "Skincare routines and product bundles designed for specific skin concerns"
+      ],
+      "priceRange": "not_sure",
+      "sensitiveCategoryFlags": [
+        "none"
+      ]
+    },
+    "step3": {
+      "primaryTargetSegment": "Gen Z and young adults in Indian markets seeking affordable, simple, science-led skincare for Indian climates and diverse skin tones.",
+      "targetPersona": "A skincare-conscious consumer aged approximately 18 to 30 who discovers products through social media, creators, ecommerce platforms or salons, wants visible results without a complicated routine, compares ingredients and reviews before purchasing, and prefers accessible products tailored to individual skin concerns.",
+      "language": "english",
+      "painPoints": [
+        "Young consumers find skincare confusing because brands offer complex routines, technical ingredient claims and too many similar product choices.",
+        "Changing hormones, stress, pollution, sun exposure and different Indian climates can cause concerns such as acne, excess oil, dryness, pigmentation and uneven skin tone.",
+        "Consumers struggle to identify affordable products that suit their individual skin type and concerns without relying on trial and error."
+      ],
+      "desiredOutcome": "Help young Indian consumers understand their skin, select an appropriate and manageable skincare routine, address specific concerns and achieve healthier-looking skin through affordable, personalised and easy-to-use products.",
+      "decisionProcess": "The consumer becomes aware of NXTFACE through social media, an influencer, ecommerce discovery, advertising, a Naturals Salon visit or a recommendation. They identify a skin concern, use the AI skin analyser or review relevant products, compare ingredients, claims, ratings and prices, and then purchase through the brand website, an ecommerce marketplace or a physical retail location.",
+      "buyerRoles": [
+        "Primary skincare user",
+        "Self-purchasing consumer",
+        "Parent or family purchaser for a younger user",
+        "Beauty creator or salon professional influencing the purchase"
+      ]
+    },
+    "step4": {
+      "salesChannels": [
+        {
+          "channel": "direct_sales",
+          "rank": 1
+        }
+      ],
+      "primaryConversionPath": "book_call",
+      "trustSignals": [
+        "NXTFACE was launched by Dhamyanthi Kumaravel from the family behind Naturals Salon, giving the brand access to an established Indian beauty-services network.",
+        "The product formulations were developed with support from Connell R&D, an established cosmetic ingredient and formulation organisation.",
+        "NXTFACE states that its products are cruelty-free and formulated without parabens, sulphates and toxins.",
+        "The official store publishes customer ratings and reviews across products such as sunscreens, serums, face washes and creams.",
+        "The brand offers an AI-powered skin-analysis experience intended to help consumers understand their skin and identify relevant products.",
+        "NXTFACE is distributed through its website and is positioned for availability through ecommerce, modern retail, pharmacies and more than 800 Naturals Salon locations."
+      ]
+    },
+    "step5": {
+      "primaryGoal": "lead_generation",
+      "monthlyMarketingSpend": "nothing",
+      "paidMediaBudgetRange": "not_sure",
+      "marketingHandler": "not_sure",
+      "contentCapacity": "not_sure",
+      "salesCapacity": "not_sure",
+      "knownCompetitorStatus": "not_sure"
+    },
+    "step6": {
+      "averageContractValue": "not_sure"
+    },
+    "step7": {
+      "confirmFocus": true,
+      "confirmBusiness": true,
+      "confirmAudience": true,
+      "confirmGoals": true,
+      "confirmEconomics": true,
+      "readyToGenerate": true,
+      "dataConsentOptIn": false,
+      "privacyProcessingConsent": true,
+      "aiProcessingConsent": true
+    }
+  }
+}

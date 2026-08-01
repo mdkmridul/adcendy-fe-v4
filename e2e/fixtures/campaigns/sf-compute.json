@@ -1,0 +1,103 @@
+{
+  "fixtureVersion": "1.0",
+  "fixtureStatus": "ready",
+  "slug": "sf-compute",
+  "displayName": "SF Compute",
+  "wizard": {
+    "step1": {
+      "marketingTargetType": "whole_business",
+      "focusName": "SF Compute",
+      "sourceType": "manual_only",
+      "targetMarkets": [
+        "US"
+      ],
+      "primaryMarket": "US",
+      "marketScope": "national"
+    },
+    "step2": {
+      "businessName": "SF Compute",
+      "industryCategory": "saas_digital",
+      "businessModel": "B2B",
+      "audienceModel": "single_sided",
+      "lifecycleStage": "growth",
+      "businessDescription": "SF Compute is a United States-based GPU cloud infrastructure company and compute marketplace that provides flexible access to large-scale, vetted GPU clusters for artificial-intelligence training, inference, research and other high-performance computing workloads. Customers can obtain virtual machines, bare-metal clusters and managed infrastructure for periods ranging from short on-demand workloads to multi-year contracts, with the ability to resell unused committed capacity through SF Compute's market.",
+      "productCategory": "GPU cloud infrastructure and flexible AI compute marketplace",
+      "productsServices": [
+        "On-demand and reserved access to NVIDIA H100, H200 and other high-performance GPU capacity",
+        "Virtual-machine GPU clusters for AI training, inference and research workloads",
+        "Dedicated bare-metal GPU clusters with high-performance networking",
+        "Managed Slurm and customised high-performance computing cluster deployments",
+        "Flexible GPU-capacity contracts that allow customers to resell unused compute",
+        "GPU capacity procurement and marketplace-based purchasing through a web dashboard, command-line interface and API",
+        "Cluster deployment, infrastructure management, technical support and hardware-failure remediation"
+      ],
+      "priceRange": "not_sure",
+      "sensitiveCategoryFlags": [
+        "none"
+      ]
+    },
+    "step3": {
+      "primaryTargetSegment": "US AI startups, research organisations, technology companies and enterprise teams needing flexible access to medium- or large-scale GPU clusters.",
+      "targetPersona": "A chief technology officer, vice president of engineering, head of AI infrastructure, machine-learning engineering leader, research leader or technical founder responsible for obtaining reliable GPU capacity, controlling infrastructure expenditure and ensuring that AI training or inference workloads can scale without excessive contractual lock-in.",
+      "language": "english",
+      "painPoints": [
+        "AI companies struggle to secure sufficient quantities of modern GPUs when required, particularly for large training runs or rapidly changing workloads.",
+        "Traditional GPU infrastructure contracts often require long-term capacity commitments that create financial risk when demand, funding or product requirements change.",
+        "Engineering teams face fragmented GPU supply, inconsistent cluster quality, hardware failures and significant operational work when deploying and managing high-performance compute infrastructure."
+      ],
+      "desiredOutcome": "Secure reliable, scalable and competitively priced GPU capacity for AI training and inference while reducing procurement delays, infrastructure-management burden and the financial risk associated with inflexible long-term compute commitments.",
+      "decisionProcess": "Technical teams forecast GPU requirements for training, inference or product workloads. Engineering leaders assess GPU type, cluster size, networking, availability, deployment, reliability and support. Finance and executives compare pricing, commitments and risk against other providers, possibly run a pilot, then approve on-demand capacity or a dedicated cluster.",
+      "buyerRoles": [
+        "Chief Technology Officer",
+        "Technical Founder",
+        "Vice President of Engineering",
+        "Head of AI Infrastructure",
+        "Machine Learning Engineering Leader",
+        "AI Research Leader",
+        "Cloud or Infrastructure Architect",
+        "Finance or Procurement Approver"
+      ]
+    },
+    "step4": {
+      "salesChannels": [
+        {
+          "channel": "direct_sales",
+          "rank": 1
+        }
+      ],
+      "primaryConversionPath": "book_call",
+      "trustSignals": [
+        "SF Compute publicly identifies customers and users including DatologyAI, Ultravox, Mach9 and Roboflow.",
+        "The company states that it operates large-scale vetted clusters containing thousands of GPUs and supports customers that need anything from small deployments to hundreds of GPUs.",
+        "SF Compute provides transparent market-based pricing for available GPU capacity on its website.",
+        "Large cluster customers receive direct technical support through dedicated Slack channels and emergency escalation.",
+        "The company states that its team has managed more than USD 1 billion of computing hardware and has experience working on major supercomputers.",
+        "SF Compute provides refunds for failed nodes and can move affected workloads onto healthy hardware.",
+        "The platform supports purchasing, selling and managing compute through a web interface, command-line tool and documented API."
+      ]
+    },
+    "step5": {
+      "primaryGoal": "lead_generation",
+      "monthlyMarketingSpend": "nothing",
+      "paidMediaBudgetRange": "not_sure",
+      "marketingHandler": "not_sure",
+      "contentCapacity": "not_sure",
+      "salesCapacity": "not_sure",
+      "knownCompetitorStatus": "not_sure"
+    },
+    "step6": {
+      "averageContractValue": "not_sure"
+    },
+    "step7": {
+      "confirmFocus": true,
+      "confirmBusiness": true,
+      "confirmAudience": true,
+      "confirmGoals": true,
+      "confirmEconomics": true,
+      "readyToGenerate": true,
+      "dataConsentOptIn": false,
+      "privacyProcessingConsent": true,
+      "aiProcessingConsent": true
+    }
+  }
+}

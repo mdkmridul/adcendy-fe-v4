@@ -14,8 +14,25 @@ test('generated client publishes all canonical Wave 2 operations', () => {
     'operations["getRunStatusV2"]',
     'operations["retryRunV2"]',
     'operations["getCampaignRecoveryV2"]',
+    'operations["generateDeliverableKitForRunV2"]',
   ]) {
     assert.match(generatedContract, new RegExp(operation.replaceAll('[', '\\[').replaceAll(']', '\\]')));
+  }
+});
+
+test('admin complete-kit contract is approval-gated orchestration with typed notification control', () => {
+  for (const contractFragment of [
+    'GenerateDeliverableKitV2Request',
+    'notifyOwner: boolean',
+    'QueuedDeliverableKitV2',
+    'jobName: "admin-deliverable-kit-assembly-v2"',
+    'status: "queued"',
+    'kitGenerationId: string',
+  ]) {
+    assert.ok(
+      generatedContract.includes(contractFragment),
+      `Missing ${contractFragment}`,
+    );
   }
 });
 

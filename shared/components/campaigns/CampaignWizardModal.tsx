@@ -249,6 +249,7 @@ type WizardStringOption = {
   value: string;
   label: string;
   canonicalToken?: string;
+  sourceValue?: string;
 };
 
 const STEP1_MARKETING_TARGET_FALLBACK_OPTIONS: WizardStringOption[] = [
@@ -468,6 +469,10 @@ function SummaryField({
   );
 }
 
+function wizardFieldTestId(field: string) {
+  return `campaign-wizard-${field}`;
+}
+
 function FieldLabel({
   label,
   helper,
@@ -574,7 +579,7 @@ function ReviewSection({
   onCheckedChange?: (checked: boolean) => void;
 }) {
   return (
-    <Card className="rounded-[18px] border-border/80 bg-card/95 shadow-none">
+    <Card data-testid={`campaign-wizard-review-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="rounded-[18px] border-border/80 bg-card/95 shadow-none">
       <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 py-5">
         <div className="space-y-1">
           <CardTitle className="text-[17px] font-semibold text-foreground">{title}</CardTitle>
@@ -594,6 +599,7 @@ function ReviewSection({
         <CardFooter className="px-6 pb-5 pt-0">
           <div className="flex w-full items-start gap-4 rounded-2xl border border-border/80 bg-card/95 p-4">
             <Checkbox
+              data-testid={confirmationId}
               id={confirmationId}
               checked={checked}
               onCheckedChange={(next) => onCheckedChange(next === true)}
@@ -798,7 +804,7 @@ function FixedCheckboxRow({
 }) {
   return (
     <div className="flex w-full items-start gap-4 rounded-2xl border border-[rgba(242,234,219,0.16)] bg-[rgba(10,11,13,0.88)] p-4">
-      <Checkbox id={id} checked={checked} onCheckedChange={(next) => onCheckedChange(next === true)} className="mt-1" />
+      <Checkbox data-testid={id} id={id} checked={checked} onCheckedChange={(next) => onCheckedChange(next === true)} className="mt-1" />
       <label htmlFor={id} className="cursor-pointer text-sm font-medium text-[rgba(242,234,219,0.88)]">
         {label}
       </label>
@@ -1156,12 +1162,15 @@ function FieldMeta({
 
   return (
     <div className="space-y-1">
-      <p className="text-xs leading-5 text-destructive">{error}</p>
+      <p role="alert" className="text-xs leading-5 text-destructive">
+        {error}
+      </p>
     </div>
   );
 }
 
 function TagInputField({
+  fieldKey,
   label,
   helper,
   required,
@@ -1175,6 +1184,7 @@ function TagInputField({
   error,
   className,
 }: {
+  fieldKey: string;
   label: string;
   helper?: string;
   required?: boolean;
@@ -1215,6 +1225,7 @@ function TagInputField({
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
+          data-testid={wizardFieldTestId(fieldKey)}
           className="h-[46px] rounded-[12px] border-border/80 bg-card/95 px-4 text-[15px] text-foreground shadow-none placeholder:text-foreground/60"
           value={pendingValue}
           onChange={(event) => onPendingChange(event.target.value)}
@@ -1238,6 +1249,7 @@ function TagInputField({
 }
 
 function SelectCardGroup<T extends string>({
+  fieldKey,
   label,
   value,
   options,
@@ -1248,6 +1260,7 @@ function SelectCardGroup<T extends string>({
   columnsClassName = 'md:grid-cols-3',
   density = 'default',
 }: {
+  fieldKey: string;
   label: string;
   value?: T;
   options: Array<{ value: T; label: string; description?: string }>;
@@ -1271,6 +1284,8 @@ function SelectCardGroup<T extends string>({
           return (
             <button
               key={option.value}
+              data-testid={`${wizardFieldTestId(fieldKey)}-${option.value}`}
+              aria-pressed={isSelected}
               type="button"
               onClick={() => onChange(option.value)}
               className={cn(
@@ -1375,9 +1390,10 @@ function getStringFieldOptions(
   const options = getFieldOptions(wizardOptions, fieldKey)
     .filter((option): option is WizardFieldOptionV2 & { value: string } => typeof option.value === 'string')
     .map((option) => ({
-      value: option.value,
+      value: option.canonicalToken || option.value,
       label: option.label || option.value,
       canonicalToken: option.canonicalToken,
+      sourceValue: option.value,
     }));
 
   return options.length ? options : fallbackOptions;
@@ -1405,12 +1421,22 @@ function normalizeStringOptionValue(value: unknown, options: WizardStringOption[
     return '';
   }
 
-  return options.some((option) => option.value === normalizedValue) ? normalizedValue : '';
+  const matchingOption = options.find(
+    (option) =>
+      option.value === normalizedValue ||
+      option.canonicalToken === normalizedValue ||
+      option.sourceValue === normalizedValue,
+  );
+
+  return matchingOption?.value ?? '';
 }
 
 function getDefaultStringOptionValue(options: WizardStringOption[], preferredValue?: string) {
-  if (preferredValue && options.some((option) => option.value === preferredValue)) {
-    return preferredValue;
+  if (preferredValue) {
+    const normalizedPreferredValue = normalizeStringOptionValue(preferredValue, options);
+    if (normalizedPreferredValue) {
+      return normalizedPreferredValue;
+    }
   }
 
   return options[0]?.value ?? '';
@@ -3791,6 +3817,7 @@ export function CampaignWizardModal({
                 {step === 1 ? (
               <form
                 id="campaign-wizard-step-1"
+                data-testid="campaign-wizard-step-1"
                 onSubmit={step1Form.handleSubmit(async (data) => {
                   if (isDismissClosingRef.current) {
                     return;
@@ -3822,6 +3849,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Campaign title" />
                     <Input
+                      data-testid={wizardFieldTestId('title')}
                       className={wizardInputClassName}
                       placeholder="e.g. Summer sale push for GlowSkin"
                       {...step1Form.register('title')}
@@ -3836,6 +3864,7 @@ export function CampaignWizardModal({
                     control={step1Form.control}
                     render={({ field }) => (
                       <SelectCardGroup
+                        fieldKey="marketingTargetType"
                         label="What is being marketed?"
                         required
                         value={field.value}
@@ -3856,6 +3885,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label={getFocusNameLabel(watchedMarketingTargetType)} helper={getFocusNameHelper(watchedMarketingTargetType)} required />
                     <Input
+                      data-testid={wizardFieldTestId('focusName')}
                       className={wizardInputClassName}
                       placeholder={
                         watchedMarketingTargetType === 'product_or_service'
@@ -3876,6 +3906,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="targetMarkets"
                     label="Target markets"
                     helper="Add up to 4 markets you want this run to target."
                     required
@@ -3926,7 +3957,7 @@ export function CampaignWizardModal({
                               onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)}
                               value={field.value || OPTIONAL_SELECT_VALUE}
                             >
-                              <SelectTrigger className={wizardInputClassName}>
+                              <SelectTrigger data-testid={wizardFieldTestId('primaryMarket')} className={wizardInputClassName}>
                                 <SelectValue placeholder="Select primary market" />
                               </SelectTrigger>
                               <SelectContent>
@@ -3951,7 +3982,7 @@ export function CampaignWizardModal({
                         control={step1Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('marketScope')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select scope" />
                             </SelectTrigger>
                             <SelectContent>
@@ -3972,6 +4003,7 @@ export function CampaignWizardModal({
                     <>
                       <InlineDivider />
                       <TagInputField
+                        fieldKey="operationalLocations"
                         label="Operational locations"
                         helper="Required for local and regional market scope."
                         required
@@ -4009,6 +4041,7 @@ export function CampaignWizardModal({
                         control={step1Form.control}
                         render={({ field }) => (
                           <Switch
+                            data-testid={wizardFieldTestId('regionalLanguageExpansionEnabled')}
                             checked={Boolean(field.value)}
                             onCheckedChange={field.onChange}
                           />
@@ -4022,6 +4055,7 @@ export function CampaignWizardModal({
                     <>
                       <InlineDivider />
                       <TagInputField
+                        fieldKey="regionalLanguages"
                         label="Regional languages"
                         helper="Add all regional languages to include for this campaign."
                         required
@@ -4057,6 +4091,7 @@ export function CampaignWizardModal({
                     control={step1Form.control}
                     render={({ field }) => (
                       <SelectCardGroup
+                        fieldKey="sourceType"
                         label="What source should we use?"
                         required
                         value={field.value}
@@ -4077,6 +4112,7 @@ export function CampaignWizardModal({
                     <div className="space-y-2">
                       <FieldLabel label={getSourceUrlLabel(watchedSourceType)} helper="Use the page that best explains the business or offer." required />
                       <Input
+                        data-testid={wizardFieldTestId('primaryUrl')}
                         className={wizardInputClassName}
                         placeholder="https://example.com"
                         {...step1Form.register('primaryUrl')}
@@ -4096,6 +4132,7 @@ export function CampaignWizardModal({
                 {step === 2 ? (
               <form
                 id="campaign-wizard-step-2"
+                data-testid="campaign-wizard-step-2"
                 onSubmit={step2Form.handleSubmit(async (data) => {
                   if (isDismissClosingRef.current) {
                     return;
@@ -4136,7 +4173,7 @@ export function CampaignWizardModal({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <FieldLabel label="Business name" helper="Required when focus is not whole-business or when focus name differs." />
-                      <Input className={wizardInputClassName} placeholder="e.g. EFourNine Coaching & Consulting" {...step2Form.register('businessName')} />
+                      <Input data-testid={wizardFieldTestId('businessName')} className={wizardInputClassName} placeholder="e.g. EFourNine Coaching & Consulting" {...step2Form.register('businessName')} />
                       <FieldMeta error={step2Form.formState.errors.businessName?.message} />
                     </div>
 
@@ -4156,7 +4193,7 @@ export function CampaignWizardModal({
                             }}
                             value={field.value}
                           >
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('industryCategory')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select industry category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -4179,7 +4216,7 @@ export function CampaignWizardModal({
                         control={step2Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('businessModel')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select business model" />
                             </SelectTrigger>
                             <SelectContent>
@@ -4202,7 +4239,7 @@ export function CampaignWizardModal({
                         control={step2Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('audienceModel')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select audience model" />
                             </SelectTrigger>
                             <SelectContent>
@@ -4225,7 +4262,7 @@ export function CampaignWizardModal({
                         control={step2Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('lifecycleStage')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select lifecycle stage" />
                             </SelectTrigger>
                             <SelectContent>
@@ -4247,6 +4284,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Business description" required />
                     <Textarea
+                      data-testid={wizardFieldTestId('businessDescription')}
                       placeholder="Explain what the business does, who it serves, and how customers usually buy."
                       {...step2Form.register('businessDescription')}
                       className={cn(wizardTextareaClassName, 'min-h-[120px]')}
@@ -4263,12 +4301,13 @@ export function CampaignWizardModal({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <FieldLabel label="Product category" required />
-                      <Input className={wizardInputClassName} placeholder="e.g. Skincare, CRM software, home decor" {...step2Form.register('productCategory')} />
+                      <Input data-testid={wizardFieldTestId('productCategory')} className={wizardInputClassName} placeholder="e.g. Skincare, CRM software, home decor" {...step2Form.register('productCategory')} />
                       <FieldMeta error={step2Form.formState.errors.productCategory?.message} />
                     </div>
 
                     <div className="space-y-2">
                       <TagInputField
+                        fieldKey="productsServices"
                         label="Product or service"
                         required
                         helper="Add one offering per item."
@@ -4298,7 +4337,7 @@ export function CampaignWizardModal({
 
                   <div className="max-w-[360px] space-y-2">
                     <FieldLabel label="Price range" required />
-                    <Input className={wizardInputClassName} placeholder="e.g. INR 999-INR 2,999 or INR 2,500/month" {...step2Form.register('priceRange')} />
+                    <Input data-testid={wizardFieldTestId('priceRange')} className={wizardInputClassName} placeholder="e.g. INR 999-INR 2,999 or INR 2,500/month" {...step2Form.register('priceRange')} />
                     <FieldMeta error={step2Form.formState.errors.priceRange?.message} />
                   </div>
 
@@ -4307,6 +4346,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Offer summary" />
                     <Textarea
+                      data-testid={wizardFieldTestId('offerSummary')}
                       placeholder="Optional summary of the offer, positioning, or buyer promise."
                       {...step2Form.register('offerSummary')}
                       className={cn(wizardTextareaClassName, 'min-h-[104px]')}
@@ -4315,6 +4355,7 @@ export function CampaignWizardModal({
                   </div>
 
                   <TagInputField
+                    fieldKey="differentiators"
                     label="Differentiators"
                     helper="Add what makes this offer easier to choose."
                     footnote="Press Enter or click Add to save each differentiator"
@@ -4360,7 +4401,9 @@ export function CampaignWizardModal({
                           return (
                             <div
                               key={option.value}
+                              data-testid={`${wizardFieldTestId('sensitiveCategoryFlags')}-${option.value}`}
                               role="button"
+                              aria-pressed={checked}
                               tabIndex={0}
                               onClick={toggleSensitiveFlag}
                               onKeyDown={(event) => {
@@ -4399,6 +4442,7 @@ export function CampaignWizardModal({
                     </div>
                   ) : (
                     <TagInputField
+                      fieldKey="sensitiveCategoryFlags"
                       label="Sensitive category flags"
                       helper="Use backend-defined risk/compliance category values."
                       required
@@ -4426,6 +4470,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="complianceSensitiveClaims"
                     label="Compliance sensitive claims"
                     helper="Optional claim phrases requiring validation."
                     footnote="Add only if you plan to use high-risk or regulated claims."
@@ -4459,6 +4504,7 @@ export function CampaignWizardModal({
                 {step === 3 ? (
               <form
                 id="campaign-wizard-step-3"
+                data-testid="campaign-wizard-step-3"
                 onSubmit={async (event) => {
                   event.preventDefault();
                   if (isDismissClosingRef.current) {
@@ -4541,6 +4587,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Primary target segment" required />
                     <Input
+                      data-testid={wizardFieldTestId('primaryTargetSegment')}
                       className={wizardInputClassName}
                       placeholder="e.g. Founder-led service businesses in the US"
                       {...step3Form.register('primaryTargetSegment')}
@@ -4553,6 +4600,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Target persona" required />
                     <Textarea
+                      data-testid={wizardFieldTestId('targetPersona')}
                       placeholder="e.g. Founders of small D2C brands who need repeatable growth without building a large team"
                       {...step3Form.register('targetPersona')}
                       className={wizardTextareaClassName}
@@ -4566,6 +4614,7 @@ export function CampaignWizardModal({
                     <div className="space-y-2">
                       <FieldLabel label="Broader target audience" />
                       <Textarea
+                        data-testid={wizardFieldTestId('targetAudience')}
                         placeholder="Optional broader audience description beyond the core persona"
                         {...step3Form.register('targetAudience')}
                         className={wizardTextareaClassName}
@@ -4580,7 +4629,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('language')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select language" />
                             </SelectTrigger>
                             <SelectContent>
@@ -4609,7 +4658,7 @@ export function CampaignWizardModal({
                           onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)}
                           value={field.value || OPTIONAL_SELECT_VALUE}
                         >
-                          <SelectTrigger className={wizardInputClassName}>
+                          <SelectTrigger data-testid={wizardFieldTestId('reportLanguage')} className={wizardInputClassName}>
                             <SelectValue placeholder="Select report language" />
                           </SelectTrigger>
                           <SelectContent>
@@ -4629,6 +4678,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="audienceSegments"
                     label="Audience segments"
                     helper={audienceSegmentsRequired ? 'Required for selected audience model.' : 'Optional segments under the primary target.'}
                     required={audienceSegmentsRequired}
@@ -4657,6 +4707,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Desired outcome" required />
                     <Textarea
+                      data-testid={wizardFieldTestId('desiredOutcome')}
                       placeholder="e.g. Generate more qualified consult calls from people ready to buy this month"
                       {...step3Form.register('desiredOutcome')}
                       className={wizardTextareaClassName}
@@ -4669,6 +4720,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Decision process" required />
                     <Textarea
+                      data-testid={wizardFieldTestId('decisionProcess')}
                       placeholder="e.g. Founder decides after one consult call, with finance sign-off before payment."
                       {...step3Form.register('decisionProcess')}
                       className={wizardTextareaClassName}
@@ -4679,6 +4731,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="painPoints"
                     label="Pain points"
                     helper="Add at least one customer frustration or need."
                     required
@@ -4705,6 +4758,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="buyerRoles"
                     label="Buyer roles"
                     helper={buyerRolesRequired ? 'Required for this buying context.' : 'Optional stakeholders involved in buying decisions.'}
                     required={buyerRolesRequired}
@@ -4735,6 +4789,7 @@ export function CampaignWizardModal({
                 {step === 4 ? (
               <form
                 id="campaign-wizard-step-4"
+                data-testid="campaign-wizard-step-4"
                 onSubmit={async (event) => {
                   event.preventDefault();
                   if (isDismissClosingRef.current) {
@@ -4788,6 +4843,7 @@ export function CampaignWizardModal({
                     <div className="flex items-center justify-between gap-3">
                       <FieldLabel label="Ranked sales channels" required />
                       <Button
+                        data-testid="campaign-wizard-add-salesChannel"
                         type="button"
                         variant="outline"
                         size="sm"
@@ -4823,7 +4879,7 @@ export function CampaignWizardModal({
                                   }}
                                   value={controllerField.value}
                                 >
-                                  <SelectTrigger className={cn(wizardRowControlClassName, 'px-4 text-[15px] text-foreground')}>
+                                  <SelectTrigger data-testid={wizardFieldTestId(`salesChannels.${index}.channel`)} className={cn(wizardRowControlClassName, 'px-4 text-[15px] text-foreground')}>
                                     <SelectValue placeholder="Select channel" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -4838,6 +4894,7 @@ export function CampaignWizardModal({
                             />
 
                             <Input
+                              data-testid={wizardFieldTestId(`salesChannels.${index}.rank`)}
                               className={cn(wizardRowControlClassName, 'px-4 text-[15px] text-foreground text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none')}
                               type="number"
                               min={1}
@@ -4854,7 +4911,7 @@ export function CampaignWizardModal({
 
                             {showCustomName ? (
                               <div className="lg:col-span-2">
-                                <Input className={wizardInputClassName} placeholder="Custom channel name" {...step2Form.register(`salesChannels.${index}.customName`)} />
+                                <Input data-testid={wizardFieldTestId(`salesChannels.${index}.customName`)} className={wizardInputClassName} placeholder="Custom channel name" {...step2Form.register(`salesChannels.${index}.customName`)} />
                               </div>
                             ) : null}
 
@@ -4887,7 +4944,7 @@ export function CampaignWizardModal({
                       control={step2Form.control}
                       render={({ field }) => (
                         <Select onValueChange={field.onChange} value={field.value || undefined}>
-                          <SelectTrigger className={wizardInputClassName}>
+                          <SelectTrigger data-testid={wizardFieldTestId('primaryConversionPath')} className={wizardInputClassName}>
                             <SelectValue placeholder="Select primary conversion path" />
                           </SelectTrigger>
                           <SelectContent>
@@ -4915,6 +4972,7 @@ export function CampaignWizardModal({
                         <p className="text-xs leading-5 text-foreground/75">Add active profile handles if relevant.</p>
                       </div>
                       <Button
+                        data-testid="campaign-wizard-add-socialHandle"
                         type="button"
                         variant="outline"
                         size="sm"
@@ -4934,7 +4992,7 @@ export function CampaignWizardModal({
                             control={step2Form.control}
                             render={({ field: controllerField }) => (
                               <Select onValueChange={controllerField.onChange} value={controllerField.value}>
-                                <SelectTrigger className={wizardInputClassName}>
+                                <SelectTrigger data-testid={wizardFieldTestId(`socialHandles.${index}.platform`)} className={wizardInputClassName}>
                                   <SelectValue placeholder="Platform" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -4948,7 +5006,7 @@ export function CampaignWizardModal({
                             )}
                           />
 
-                          <Input className={wizardInputClassName} placeholder="@yourbrand or channel name" {...step2Form.register(`socialHandles.${index}.handle`)} />
+                          <Input data-testid={wizardFieldTestId(`socialHandles.${index}.handle`)} className={wizardInputClassName} placeholder="@yourbrand or channel name" {...step2Form.register(`socialHandles.${index}.handle`)} />
 
                           <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl border-border/80 bg-card/95" onClick={() => removeSocialHandle(index)}>
                             <X className="h-4 w-4" />
@@ -4976,6 +5034,7 @@ export function CampaignWizardModal({
                         <p className="text-xs leading-5 text-foreground/75">Add URLs for marketplaces, profiles, or listings.</p>
                       </div>
                       <Button
+                        data-testid="campaign-wizard-add-digitalPresenceLink"
                         type="button"
                         variant="outline"
                         size="sm"
@@ -4995,7 +5054,7 @@ export function CampaignWizardModal({
                             control={step2Form.control}
                             render={({ field: controllerField }) => (
                               <Select onValueChange={controllerField.onChange} value={controllerField.value}>
-                                <SelectTrigger className={wizardInputClassName}>
+                                <SelectTrigger data-testid={wizardFieldTestId(`digitalPresenceLinks.${index}.type`)} className={wizardInputClassName}>
                                   <SelectValue placeholder="Type" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -5009,9 +5068,9 @@ export function CampaignWizardModal({
                             )}
                           />
 
-                          <Input className={wizardInputClassName} placeholder="https://example.com/profile" {...step2Form.register(`digitalPresenceLinks.${index}.url`)} />
+                          <Input data-testid={wizardFieldTestId(`digitalPresenceLinks.${index}.url`)} className={wizardInputClassName} placeholder="https://example.com/profile" {...step2Form.register(`digitalPresenceLinks.${index}.url`)} />
                           <div className="grid gap-3 lg:col-span-2 lg:grid-cols-[minmax(0,1fr)_auto]">
-                            <Input className={wizardInputClassName} placeholder="Optional label" {...step2Form.register(`digitalPresenceLinks.${index}.label`)} />
+                            <Input data-testid={wizardFieldTestId(`digitalPresenceLinks.${index}.label`)} className={wizardInputClassName} placeholder="Optional label" {...step2Form.register(`digitalPresenceLinks.${index}.label`)} />
                             <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl border-border/80 bg-card/95" onClick={() => removeDigitalPresence(index)}>
                               <X className="h-4 w-4" />
                             </Button>
@@ -5034,6 +5093,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="trustSignals"
                     label="Trust signals"
                     helper="Add credibility signals customers can verify."
                     placeholder="e.g. 4.9-star Google rating, ISO certified, featured in Economic Times"
@@ -5065,7 +5125,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)} value={field.value || OPTIONAL_SELECT_VALUE}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('monthlyWebsiteTraffic')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select traffic" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5089,7 +5149,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)} value={field.value || OPTIONAL_SELECT_VALUE}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('emailListSize')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select size" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5120,7 +5180,7 @@ export function CampaignWizardModal({
                           onValueChange={(value) => field.onChange(fromGoogleAnalyticsSelectValue(value))}
                           value={toGoogleAnalyticsSelectValue(field.value)}
                         >
-                          <SelectTrigger className="h-11 min-w-[190px] rounded-xl border-border/80 bg-card/95 text-sm text-foreground">
+                          <SelectTrigger data-testid={wizardFieldTestId('googleAnalyticsConnected')} className="h-11 min-w-[190px] rounded-xl border-border/80 bg-card/95 text-sm text-foreground">
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent>
@@ -5140,6 +5200,7 @@ export function CampaignWizardModal({
                 {step === 5 ? (
               <form
                 id="campaign-wizard-step-5"
+                data-testid="campaign-wizard-step-5"
                 onSubmit={step3Form.handleSubmit(
                   async (data) => {
                     if (isDismissClosingRef.current) {
@@ -5171,7 +5232,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('monthlyMarketingSpend')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select spend" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5194,7 +5255,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('primaryGoal')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select goal" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5218,7 +5279,7 @@ export function CampaignWizardModal({
                       control={step3Form.control}
                       render={({ field }) => (
                         <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger className={wizardInputClassName}>
+                          <SelectTrigger data-testid={wizardFieldTestId('marketingHandler')} className={wizardInputClassName}>
                             <SelectValue placeholder="Select owner" />
                           </SelectTrigger>
                           <SelectContent>
@@ -5238,6 +5299,7 @@ export function CampaignWizardModal({
                     <div className="space-y-2">
                       <FieldLabel label="Paid media budget range" required />
                       <Input
+                        data-testid={wizardFieldTestId('paidMediaBudgetRange')}
                         className={wizardInputClassName}
                         placeholder="e.g. INR 5,000 to INR 15,000 or not_sure"
                         {...step3Form.register('paidMediaBudgetRange')}
@@ -5252,7 +5314,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('contentCapacity')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select capacity" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5271,6 +5333,7 @@ export function CampaignWizardModal({
                     <div className="space-y-2">
                       <FieldLabel label="Sales capacity" />
                       <Input
+                        data-testid={wizardFieldTestId('salesCapacity')}
                         className={wizardInputClassName}
                         placeholder="e.g. 2 SDRs + founder call support"
                         {...step3Form.register('salesCapacity')}
@@ -5285,7 +5348,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('knownCompetitorStatus')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5305,6 +5368,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="constraints"
                     label="Constraints"
                     helper="Add limits or realities the strategy should respect."
                     footnote="Press Enter or click Add after each constraint"
@@ -5336,6 +5400,7 @@ export function CampaignWizardModal({
                         <p className="text-xs leading-5 text-foreground/75">Add channels that are currently active, paused, or discontinued.</p>
                       </div>
                       <Button
+                        data-testid="campaign-wizard-add-currentMarketingActivity"
                         type="button"
                         variant="outline"
                         size="sm"
@@ -5362,6 +5427,7 @@ export function CampaignWizardModal({
                         <div key={field.id} className="space-y-3 rounded-xl border border-border/80 bg-muted/60 p-3">
                           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
                             <Input
+                              data-testid={wizardFieldTestId(`currentMarketingActivity.${index}.channel`)}
                               className={wizardInputClassName}
                               placeholder="Channel (e.g. Google Ads, SEO, Instagram)"
                               {...step3Form.register(`currentMarketingActivity.${index}.channel`)}
@@ -5371,7 +5437,7 @@ export function CampaignWizardModal({
                               control={step3Form.control}
                               render={({ field: controllerField }) => (
                                 <Select onValueChange={controllerField.onChange} value={controllerField.value}>
-                                  <SelectTrigger className={wizardInputClassName}>
+                                  <SelectTrigger data-testid={wizardFieldTestId(`currentMarketingActivity.${index}.status`)} className={wizardInputClassName}>
                                     <SelectValue placeholder="Status" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -5394,7 +5460,7 @@ export function CampaignWizardModal({
                                   }
                                   value={controllerField.value || OPTIONAL_SELECT_VALUE}
                                 >
-                                  <SelectTrigger className={wizardInputClassName}>
+                                  <SelectTrigger data-testid={wizardFieldTestId(`currentMarketingActivity.${index}.workingAssessment`)} className={wizardInputClassName}>
                                     <SelectValue placeholder="Assessment" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -5420,6 +5486,7 @@ export function CampaignWizardModal({
                           </div>
 
                           <Textarea
+                            data-testid={wizardFieldTestId(`currentMarketingActivity.${index}.evidence`)}
                             placeholder="Evidence (optional): what performance signal supports this status?"
                             {...step3Form.register(`currentMarketingActivity.${index}.evidence`)}
                             className={wizardTextareaClassName}
@@ -5427,16 +5494,19 @@ export function CampaignWizardModal({
 
                           <div className="grid gap-3 lg:grid-cols-3">
                             <Input
+                              data-testid={wizardFieldTestId(`currentMarketingActivity.${index}.monthlySpend`)}
                               className={wizardInputClassName}
                               placeholder="Monthly spend (optional)"
                               {...step3Form.register(`currentMarketingActivity.${index}.monthlySpend`)}
                             />
                             <Input
+                              data-testid={wizardFieldTestId(`currentMarketingActivity.${index}.timeRunning`)}
                               className={wizardInputClassName}
                               placeholder="Time running (optional)"
                               {...step3Form.register(`currentMarketingActivity.${index}.timeRunning`)}
                             />
                             <Input
+                              data-testid={wizardFieldTestId(`currentMarketingActivity.${index}.reasonStopped`)}
                               className={wizardInputClassName}
                               placeholder="Reason stopped (optional)"
                               {...step3Form.register(`currentMarketingActivity.${index}.reasonStopped`)}
@@ -5466,6 +5536,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="What&apos;s working?" />
                     <Textarea
+                      data-testid={wizardFieldTestId('whatsWorking')}
                       placeholder="Optional context about what already brings interest, leads, or sales"
                       {...step3Form.register('whatsWorking')}
                       className={wizardTextareaClassName}
@@ -5478,6 +5549,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Biggest frustration" />
                     <Textarea
+                      data-testid={wizardFieldTestId('biggestFrustration')}
                       placeholder="Optional note about the biggest blocker in marketing or growth"
                       {...step3Form.register('biggestFrustration')}
                       className={wizardTextareaClassName}
@@ -5490,6 +5562,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Past marketing" />
                     <Textarea
+                      data-testid={wizardFieldTestId('pastMarketing')}
                       placeholder="Optional summary of past experiments, channels, and outcomes"
                       {...step3Form.register('pastMarketing')}
                       className={wizardTextareaClassName}
@@ -5500,6 +5573,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="knownCompetitors"
                     label="Known competitors"
                     helper="Add one competitor at a time."
                     footnote="Press Enter or click Add after each competitor"
@@ -5526,6 +5600,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="channelsToAvoid"
                     label="Channels to avoid"
                     helper="Add channels that should be avoided."
                     footnote="Press Enter or click Add after each channel"
@@ -5551,6 +5626,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="channelsStronglyPreferred"
                     label="Channels strongly preferred"
                     helper="Add channels you strongly prefer."
                     footnote="Press Enter or click Add after each channel"
@@ -5576,6 +5652,7 @@ export function CampaignWizardModal({
                   <InlineDivider />
 
                   <TagInputField
+                    fieldKey="executionConstraints"
                     label="Execution constraints"
                     helper="Add execution constraints like team, timeline, or inventory limits."
                     footnote="Press Enter or click Add after each constraint"
@@ -5603,6 +5680,7 @@ export function CampaignWizardModal({
                   <div className="space-y-2">
                     <FieldLabel label="Additional context" />
                     <Textarea
+                      data-testid={wizardFieldTestId('additionalContext')}
                       placeholder="Share seasonality, offline context, team constraints, or anything else that matters."
                       {...step3Form.register('additionalContext')}
                       className={wizardTextareaClassName}
@@ -5791,6 +5869,7 @@ export function CampaignWizardModal({
                 {step === 6 ? (
               <form
                 id="campaign-wizard-step-6"
+                data-testid="campaign-wizard-step-6"
                 onSubmit={step3Form.handleSubmit(async (data) => {
                   if (isDismissClosingRef.current) {
                     return;
@@ -5830,27 +5909,28 @@ export function CampaignWizardModal({
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="space-y-2">
                       <FieldLabel label="Average order value (AOV)" />
-                      <Input className={wizardInputClassName} placeholder="e.g. INR 2,500" {...step3Form.register('averageOrderValue')} />
+                      <Input data-testid={wizardFieldTestId('averageOrderValue')} className={wizardInputClassName} placeholder="e.g. INR 2,500" {...step3Form.register('averageOrderValue')} />
                       <FieldMeta error={step3Form.formState.errors.averageOrderValue?.message} />
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Average contract value (ACV)" />
-                      <Input className={wizardInputClassName} placeholder="e.g. INR 25,000" {...step3Form.register('averageContractValue')} />
+                      <Input data-testid={wizardFieldTestId('averageContractValue')} className={wizardInputClassName} placeholder="e.g. INR 25,000" {...step3Form.register('averageContractValue')} />
                       <FieldMeta error={step3Form.formState.errors.averageContractValue?.message} />
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Gross margin percentage" />
-                      <Input className={wizardInputClassName} placeholder="e.g. 42%" {...step3Form.register('grossMarginPercentage')} />
+                      <Input data-testid={wizardFieldTestId('grossMarginPercentage')} className={wizardInputClassName} placeholder="e.g. 42%" {...step3Form.register('grossMarginPercentage')} />
                       <FieldMeta error={step3Form.formState.errors.grossMarginPercentage?.message} />
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Monthly revenue" helper={`Preset values accepted: ${MONTHLY_REVENUE_OPTIONS.map((option) => option.value).join(', ')}`} />
-                      <Input className={wizardInputClassName} placeholder="e.g. 25k_1l or approx INR 3 lakh/month" {...step3Form.register('monthlyRevenue')} />
+                      <Input data-testid={wizardFieldTestId('monthlyRevenue')} className={wizardInputClassName} placeholder="e.g. 25k_1l or approx INR 3 lakh/month" {...step3Form.register('monthlyRevenue')} />
                       <FieldMeta error={step3Form.formState.errors.monthlyRevenue?.message} />
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Monthly order volume" />
                       <Input
+                        data-testid={wizardFieldTestId('monthlyOrderVolume')}
                         className={wizardInputClassName}
                         placeholder="e.g. 80-140 orders per month"
                         {...step3Form.register('monthlyOrderVolume')}
@@ -5860,6 +5940,7 @@ export function CampaignWizardModal({
                     <div className="space-y-2">
                       <FieldLabel label="Product cost" />
                       <Input
+                        data-testid={wizardFieldTestId('productCost')}
                         className={wizardInputClassName}
                         placeholder="e.g. INR 250-450 per unit"
                         {...step3Form.register('productCost')}
@@ -5868,12 +5949,12 @@ export function CampaignWizardModal({
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Monthly orders per subscriber" />
-                      <Input className={wizardInputClassName} placeholder="e.g. 2.3" {...step3Form.register('monthlyOrdersPerSubscriber')} />
+                      <Input data-testid={wizardFieldTestId('monthlyOrdersPerSubscriber')} className={wizardInputClassName} placeholder="e.g. 2.3" {...step3Form.register('monthlyOrdersPerSubscriber')} />
                       <FieldMeta error={step3Form.formState.errors.monthlyOrdersPerSubscriber?.message} />
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Monthly churn rate" />
-                      <Input className={wizardInputClassName} placeholder="e.g. 4.5%" {...step3Form.register('monthlyChurnRate')} />
+                      <Input data-testid={wizardFieldTestId('monthlyChurnRate')} className={wizardInputClassName} placeholder="e.g. 4.5%" {...step3Form.register('monthlyChurnRate')} />
                       <FieldMeta error={step3Form.formState.errors.monthlyChurnRate?.message} />
                     </div>
                     <div className="space-y-2">
@@ -5883,7 +5964,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)} value={field.value || OPTIONAL_SELECT_VALUE}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('avgCustomerRetention')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select pattern" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5906,7 +5987,7 @@ export function CampaignWizardModal({
                         control={step3Form.control}
                         render={({ field }) => (
                           <Select onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)} value={field.value || OPTIONAL_SELECT_VALUE}>
-                            <SelectTrigger className={wizardInputClassName}>
+                            <SelectTrigger data-testid={wizardFieldTestId('repeatPurchaseFrequency')} className={wizardInputClassName}>
                               <SelectValue placeholder="Select frequency" />
                             </SelectTrigger>
                             <SelectContent>
@@ -5924,7 +6005,7 @@ export function CampaignWizardModal({
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Sales cycle length" />
-                      <Input className={wizardInputClassName} placeholder="e.g. 14 days" {...step3Form.register('salesCycleLength')} />
+                      <Input data-testid={wizardFieldTestId('salesCycleLength')} className={wizardInputClassName} placeholder="e.g. 14 days" {...step3Form.register('salesCycleLength')} />
                       <FieldMeta error={step3Form.formState.errors.salesCycleLength?.message} />
                     </div>
                   </div>
@@ -5933,7 +6014,7 @@ export function CampaignWizardModal({
             ) : null}
 
                 {step === 7 ? (
-              <div className="space-y-5">
+              <div data-testid="campaign-wizard-step-7" className="space-y-5">
                 {previewLoading ? (
                   <div className="space-y-4">
                     <ReviewLoadingCard />

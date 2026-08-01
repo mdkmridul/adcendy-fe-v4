@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { AlertCircle, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -28,8 +28,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
+const PENDING_SECTION_REVIEW_INBOX_PATH =
+  '/app/reviewer/section-reviews?status=PENDING_REVIEW';
+
 export default function SectionReviewDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const sectionReviewTaskId = params?.sectionReviewTaskId as string;
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
@@ -84,7 +88,7 @@ export default function SectionReviewDetailPage() {
       });
 
       setApproveNotes('');
-      void detailQuery.refetch();
+      router.replace(PENDING_SECTION_REVIEW_INBOX_PATH);
     } catch (error) {
       toast({
         title: 'Approve failed',

@@ -131,6 +131,8 @@ function coerceCampaignStatus(value: unknown) {
     normalized === 'DRAFT' ||
     normalized === 'SUBMITTED_FOR_REVIEW' ||
     normalized === 'IN_REVIEW' ||
+    normalized === 'GENERATING_DELIVERABLES' ||
+    normalized === 'DELIVERABLE_GENERATION_FAILED' ||
     normalized === 'ACTIVE' ||
     normalized === 'FAILED' ||
     normalized === 'ARCHIVED'
@@ -677,17 +679,25 @@ export const campaignsRealAdapter = {
   },
 
   async createCampaign(payload: CreateCampaignPayload): Promise<Campaign> {
+    const { websiteUrl, ...campaignPayload } = payload;
     const response = await http<ApiResponse<CampaignDto>>('/v1/campaigns', { 
       method: 'POST', 
-      body: payload as unknown as Record<string, unknown>,
+      body: {
+        ...campaignPayload,
+        ...(websiteUrl ? { primaryUrl: websiteUrl } : {}),
+      } as unknown as Record<string, unknown>,
     });
     return mapCampaignDtoToCampaign(response.data);
   },
 
   async updateCampaign(id: string, payload: UpdateCampaignPayload): Promise<Campaign> {
+    const { websiteUrl, ...campaignPayload } = payload;
     const response = await http<ApiResponse<CampaignDto>>(`/v1/campaigns/${id}`, { 
       method: 'PATCH', 
-      body: payload as unknown as Record<string, unknown>,
+      body: {
+        ...campaignPayload,
+        ...(websiteUrl ? { primaryUrl: websiteUrl } : {}),
+      } as unknown as Record<string, unknown>,
     });
     return mapCampaignDtoToCampaign(response.data);
   },

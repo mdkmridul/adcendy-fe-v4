@@ -1,0 +1,98 @@
+{
+  "fixtureVersion": "1.0",
+  "fixtureStatus": "ready",
+  "slug": "temple",
+  "displayName": "Temple",
+  "wizard": {
+    "step1": {
+      "marketingTargetType": "whole_business",
+      "focusName": "Temple",
+      "sourceType": "manual_only",
+      "targetMarkets": [
+        "IN"
+      ],
+      "primaryMarket": "IN",
+      "marketScope": "national"
+    },
+    "step2": {
+      "businessName": "Temple",
+      "industryCategory": "healthcare_wellness",
+      "businessModel": "B2B",
+      "audienceModel": "single_sided",
+      "lifecycleStage": "growth",
+      "businessDescription": "Temple is an Indian health-technology startup developing a precision wearable instrument worn on the temple region of the head. The device is designed to capture physiological signals from the temple and measure a proprietary metric called Entropy, which Temple describes as the metabolic and sympathetic demand placed on the body and the physiological cost of maintaining life. The product is intended to help users understand how their bodies respond to and recover from sleep, exercise, food, stress and other daily activities.",
+      "productCategory": "Premium physiological monitoring and healthy-ageing wearable",
+      "productsServices": [
+        "Temple-mounted precision wearable for continuous physiological monitoring",
+        "Real-time measurement of Temple's proprietary Entropy metric",
+        "Monitoring of physiological demand, resting state and recovery patterns",
+        "Insights into how sleep, exercise, meals, stress, caffeine and other activities affect the body",
+        "Companion software platform for viewing current readings, trends and personal health data",
+        "Early-access programme for prospective users ahead of commercial release"
+      ],
+      "priceRange": "not_sure",
+      "sensitiveCategoryFlags": [
+        "none"
+      ]
+    },
+    "step3": {
+      "primaryTargetSegment": "Affluent consumers in major Indian cities interested in fitness, recovery, longevity and premium physiological-measurement wearables.",
+      "targetPersona": "A high-income professional, entrepreneur, athlete, fitness enthusiast or longevity-focused consumer who already tracks sleep, exercise, recovery or metabolic health, follows emerging health technology closely, values detailed personal data and is willing to experiment with a premium early-stage wearable.",
+      "language": "english",
+      "painPoints": [
+        "Existing smartwatches and fitness rings primarily collect signals from the wrist or finger and may not provide the depth of physiological insight sought by highly engaged health and performance users.",
+        "Health-conscious consumers struggle to understand the real-time physiological cost of stress, poor sleep, meals, exercise and other everyday activities.",
+        "Users receive numerous isolated health metrics but often lack a simple framework for understanding physiological demand, resilience and recovery over time."
+      ],
+      "desiredOutcome": "Enable health-conscious users to understand their real-time physiological demand and recovery patterns, identify how daily behaviours affect their bodies and make more informed decisions about sleep, exercise, nutrition, stress management and long-term health.",
+      "decisionProcess": "Prospects discover Temple through founder content, health and technology media, fitness communities or recommendations. They review measurements, scientific rationale, form factor, pricing and early access, compare premium wearables, and register interest. At launch, they assess insight quality, credibility, comfort and lifetime software value before purchase.",
+      "buyerRoles": [
+        "Primary wearable user",
+        "Self-purchasing premium consumer",
+        "Athlete or performance-focused user",
+        "Health or fitness professional influencing the purchase",
+        "Family member purchasing the device as a premium health product"
+      ]
+    },
+    "step4": {
+      "salesChannels": [
+        {
+          "channel": "direct_sales",
+          "rank": 1
+        }
+      ],
+      "primaryConversionPath": "book_call",
+      "trustSignals": [
+        "Temple was founded by Deepinder Goyal, the founder of Zomato and Eternal, providing the product with substantial founder visibility and technology-market credibility.",
+        "Temple raised USD 54 million in seed funding at a reported USD 190 million post-money valuation from Peak XV, Steadview, Dharana and Info Edge Ventures.",
+        "The company has publicly launched an early-access registration programme for its wearable.",
+        "Temple's official website describes the product as a precision instrument worn at the temple and explains its Entropy measurement concept.",
+        "The company has established a scientific advisory board, although detailed validation evidence should be evaluated separately.",
+        "The proposed commercial package has been reported to include lifetime access to Temple's software platform and a lifetime supply of the adhesive tapes used to attach the wearable."
+      ]
+    },
+    "step5": {
+      "primaryGoal": "lead_generation",
+      "monthlyMarketingSpend": "nothing",
+      "paidMediaBudgetRange": "not_sure",
+      "marketingHandler": "not_sure",
+      "contentCapacity": "not_sure",
+      "salesCapacity": "not_sure",
+      "knownCompetitorStatus": "not_sure"
+    },
+    "step6": {
+      "averageContractValue": "not_sure"
+    },
+    "step7": {
+      "confirmFocus": true,
+      "confirmBusiness": true,
+      "confirmAudience": true,
+      "confirmGoals": true,
+      "confirmEconomics": true,
+      "readyToGenerate": true,
+      "dataConsentOptIn": false,
+      "privacyProcessingConsent": true,
+      "aiProcessingConsent": true
+    }
+  }
+}

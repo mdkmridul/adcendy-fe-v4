@@ -15,6 +15,7 @@ import {
   type LegalDocumentType,
   type LegalDocumentVersion,
 } from '../../types/legal';
+import { resolveConsentPolicyVersion } from '../../legal/legal-flow-utils';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -158,6 +159,11 @@ function extractDocumentList(payload: unknown): LegalDocumentVersion[] {
     .filter((item): item is LegalDocumentVersion => Boolean(item));
 }
 
+async function fetchActiveDocuments(): Promise<LegalDocumentVersion[]> {
+  const response = await http<ApiResponse<unknown> | unknown>('/api/v2/legal/documents/active');
+  return extractDocumentList(unwrapData(response));
+}
+
 function toConsentRecord(record: Record<string, unknown>, fallbackStatus?: LegalConsentStatus): LegalConsentRecord | null {
   const consentType = normalizeConsentType(record.consentType ?? record.type);
   if (!consentType) {
@@ -248,9 +254,7 @@ function mapMutationResult(
 
 export const legalRealAdapter = {
   async getActiveDocuments(): Promise<LegalDocumentVersion[]> {
-    const response = await http<ApiResponse<unknown> | unknown>('/api/v2/legal/documents/active');
-    const payload = unwrapData(response);
-    return extractDocumentList(payload);
+    return fetchActiveDocuments();
   },
 
   async acceptDocuments(payload: LegalAcceptDocumentsPayload): Promise<LegalAcceptDocumentsResult> {
@@ -262,9 +266,16 @@ export const legalRealAdapter = {
   },
 
   async giveConsent(payload: LegalConsentMutationPayload): Promise<LegalConsentRecord> {
+    const version = resolveConsentPolicyVersion(await fetchActiveDocuments());
+    if (!version) {
+      throw new Error('ACTIVE_PRIVACY_POLICY_VERSION_MISSING');
+    }
     const response = await http<ApiResponse<unknown> | unknown>('/api/v2/legal/consents/give', {
       method: 'POST',
-      body: payload,
+      body: {
+        ...payload,
+        version,
+      },
     });
     return mapMutationResult(unwrapData(response), payload, 'GIVEN');
   },

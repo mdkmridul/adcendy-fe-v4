@@ -89,9 +89,13 @@ export default function OverviewPage() {
     const waitingStatusDescription =
       campaign.status === 'SUBMITTED_FOR_REVIEW'
         ? 'Your setup has been submitted and strategy generation is currently running.'
-        : campaign.status === 'FAILED'
-          ? 'This campaign needs attention before it can move forward. Review the submitted inputs and supporting files.'
-          : 'Your business context, offer, and audience inputs are currently under review. When strategy is available, this workspace will shift from review state to strategy workspace automatically.';
+        : campaign.status === 'GENERATING_DELIVERABLES'
+          ? 'Your strategy is approved. We are preparing the complete set of downloadable files.'
+          : campaign.status === 'DELIVERABLE_GENERATION_FAILED'
+            ? 'Your strategy is approved, but file preparation needs attention. No approval work has been lost.'
+            : campaign.status === 'FAILED'
+              ? 'This campaign needs attention before it can move forward. Review the submitted inputs and supporting files.'
+              : 'Your business context, offer, and audience inputs are currently under review. When strategy is available, this workspace will shift from review state to strategy workspace automatically.';
 
     const reviewSteps = [
       {
@@ -102,15 +106,42 @@ export default function OverviewPage() {
       },
       {
         title: 'Strategy in review',
-        description: 'Current step',
-        icon: <Clock3 className="h-4 w-4 text-amber-600" />,
-        state: 'current' as const,
+        description:
+          campaign.status === 'GENERATING_DELIVERABLES' ||
+          campaign.status === 'DELIVERABLE_GENERATION_FAILED'
+            ? 'Approved'
+            : 'Current step',
+        icon:
+          campaign.status === 'GENERATING_DELIVERABLES' ||
+          campaign.status === 'DELIVERABLE_GENERATION_FAILED' ? (
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          ) : (
+            <Clock3 className="h-4 w-4 text-amber-600" />
+          ),
+        state:
+          campaign.status === 'GENERATING_DELIVERABLES' ||
+          campaign.status === 'DELIVERABLE_GENERATION_FAILED'
+            ? ('complete' as const)
+            : ('current' as const),
       },
       {
         title: 'Strategy available',
-        description: 'Next',
-        icon: <div className="h-4 w-4 rounded-full border border-border bg-muted" />,
-        state: 'upcoming' as const,
+        description:
+          campaign.status === 'GENERATING_DELIVERABLES'
+            ? 'Preparing files'
+            : campaign.status === 'DELIVERABLE_GENERATION_FAILED'
+              ? 'Retry required'
+              : 'Next',
+        icon:
+          campaign.status === 'GENERATING_DELIVERABLES' ? (
+            <Clock3 className="h-4 w-4 text-amber-600" />
+          ) : (
+            <div className="h-4 w-4 rounded-full border border-border bg-muted" />
+          ),
+        state:
+          campaign.status === 'GENERATING_DELIVERABLES'
+            ? ('current' as const)
+            : ('upcoming' as const),
       },
     ];
 

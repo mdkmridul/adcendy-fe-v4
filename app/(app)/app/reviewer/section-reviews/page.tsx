@@ -34,10 +34,33 @@ import {
 } from '@/components/ui/select';
 
 const LIMIT_OPTIONS = [10, 20, 50, 100] as const;
+const SECTION_REVIEW_STATUS_OPTIONS = [
+  'ALL',
+  'PENDING_REVIEW',
+  'CHANGES_REQUESTED',
+  'APPROVED',
+] as const;
+type SectionReviewStatusFilter =
+  (typeof SECTION_REVIEW_STATUS_OPTIONS)[number];
 const OPEN_DETAIL_BUTTON_CLASS =
   'bg-sky-600 text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-md';
 const RUN_CONTEXT_BUTTON_CLASS =
   'bg-emerald-600 text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md';
+
+function mapSectionReviewStatusToBackend(
+  status: SectionReviewStatusFilter,
+): string | undefined {
+  switch (status) {
+    case 'PENDING_REVIEW':
+      return 'pending_review';
+    case 'CHANGES_REQUESTED':
+      return 'changes_requested';
+    case 'APPROVED':
+      return 'approved';
+    default:
+      return undefined;
+  }
+}
 
 function SectionReviewRow({ review, role }: { review: SectionReviewItem; role: Extract<Role, 'REVIEWER' | 'ADMIN'> }) {
   const router = useRouter();
@@ -181,7 +204,14 @@ export default function SectionReviewInboxPage() {
   const isAdmin = user?.role === 'ADMIN';
   const isOpsRole = user?.role === 'REVIEWER' || user?.role === 'ADMIN';
 
-  const [status, setStatus] = useState(searchParams.get('status')?.toUpperCase() ?? 'ALL');
+  const [status, setStatus] = useState<SectionReviewStatusFilter>(() => {
+    const requestedStatus = searchParams.get('status')?.toUpperCase() ?? 'ALL';
+    return SECTION_REVIEW_STATUS_OPTIONS.includes(
+      requestedStatus as SectionReviewStatusFilter,
+    )
+      ? (requestedStatus as SectionReviewStatusFilter)
+      : 'ALL';
+  });
   const [pipelineRunId, setPipelineRunId] = useState(searchParams.get('pipelineRunId') ?? '');
   const [marketId, setMarketId] = useState(searchParams.get('marketId') ?? '');
   const [limit, setLimit] = useState<number>(() => {
@@ -191,7 +221,7 @@ export default function SectionReviewInboxPage() {
 
   const filters = useMemo<OpsListFilters>(
     () => ({
-      status: status === 'ALL' ? undefined : status,
+      status: mapSectionReviewStatusToBackend(status),
       pipelineRunId: pipelineRunId.trim() || undefined,
       marketId: marketId.trim() || undefined,
       sortBy: 'updatedAt',
@@ -246,15 +276,20 @@ export default function SectionReviewInboxPage() {
         <CardContent className="grid gap-4 p-5 md:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-2">
             <Label htmlFor="section-status">Status</Label>
-            <Select value={status} onValueChange={(value) => setStatus(value)}>
+            <Select
+              value={status}
+              onValueChange={(value) =>
+                setStatus(value as SectionReviewStatusFilter)
+              }
+            >
               <SelectTrigger id="section-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All statuses</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="PENDING_REVIEW">Pending Review</SelectItem>
+                <SelectItem value="CHANGES_REQUESTED">Changes Requested</SelectItem>
                 <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="REVISION_REQUESTED">Revision Requested</SelectItem>
               </SelectContent>
             </Select>
           </div>

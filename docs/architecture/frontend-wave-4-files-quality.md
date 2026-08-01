@@ -102,3 +102,18 @@ guards, but analytics emission remains disabled until the provider-specific
 integration and two distinct destination IDs are approved. This does not
 block the files implementation or FE-05 code closure; it does block analytics
 environment sign-off.
+
+## Superseding files contract 2.0.0 (2026-08-01)
+
+The files slice now exposes only campaign documents. The unused
+`StrategyArtifact` single-PDF routes, client adapters, File Hub query, and
+manual artifact generator were retired. Complete-kit PDFs are published as
+ordinary campaign documents and therefore use the same list and download
+operations as uploaded files.
+
+- Current immutable contract:
+  `contracts/backend/files-v1/2.0.0/adcendy-files.openapi.json`
+- Current operations: list documents, upload a document, and authorize a
+  document download.
+- Historical contract 1.0.0 remains vendored for auditability but is no
+  longer generated or consumed.

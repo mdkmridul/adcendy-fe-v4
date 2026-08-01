@@ -252,7 +252,7 @@
   },
   "shared/api/mock/campaignDocuments.mock.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 4
+      "count": 2
     }
   },
   "shared/api/mock/intelligence.mock.ts": {

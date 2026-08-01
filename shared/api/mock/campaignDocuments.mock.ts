@@ -1,7 +1,4 @@
 import type {
-  CampaignArtifactDownload,
-  CampaignArtifactList,
-  CampaignArtifactTrigger,
   CampaignDocument,
   CampaignDocumentDownload,
   CampaignDocumentList,
@@ -16,9 +13,7 @@ async function delay(ms = 150) {
 }
 
 export const campaignDocumentsMockAdapter = {
-  async listDocuments(
-    campaignId: string,
-  ): Promise<CampaignDocumentList> {
+  async listDocuments(campaignId: string): Promise<CampaignDocumentList> {
     await delay();
     const items = documents.filter((item) => item.campaignId === campaignId);
     return {
@@ -60,36 +55,8 @@ export const campaignDocumentsMockAdapter = {
     return document;
   },
 
-  async getDownload(
-    _campaignId: string,
-    _documentId: string,
-  ): Promise<CampaignDocumentDownload> {
+  async getDownload(_campaignId: string, _documentId: string): Promise<CampaignDocumentDownload> {
     await delay();
     throw new Error('Document downloads are unavailable in mock mode.');
-  },
-
-  async listArtifacts(): Promise<CampaignArtifactList> {
-    await delay();
-    return {
-      items: [],
-      meta: { page: 1, pageSize: 100, total: 0, hasNext: false },
-    };
-  },
-
-  async getArtifactDownload(
-    _campaignId: string,
-    _artifactId: string,
-  ): Promise<CampaignArtifactDownload> {
-    await delay();
-    throw new Error('Artifact downloads are unavailable in mock mode.');
-  },
-
-  async requestPdfArtifact(): Promise<CampaignArtifactTrigger> {
-    await delay();
-    return {
-      artifactId: crypto.randomUUID(),
-      runId: crypto.randomUUID(),
-      status: 'QUEUED',
-    };
   },
 };

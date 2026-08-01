@@ -8,28 +8,20 @@ function read(relativePath: string): string {
 }
 
 const manifest = JSON.parse(read('config/deployment/files-contract.json'));
-const rawContract = read(
-  'contracts/backend/files-v1/1.0.0/adcendy-files.openapi.json',
-);
+const rawContract = read('contracts/backend/files-v1/2.0.0/adcendy-files.openapi.json');
 const openapi = JSON.parse(rawContract);
 
 test('pins the immutable Backend files contract and checksum', () => {
-  assert.equal(
-    manifest.backendRevision,
-    'working-tree@79324473cab50871875fc8c7472c440125b277a9',
-  );
-  assert.equal(manifest.openApiVersion, '1.0.0');
+  assert.equal(manifest.backendRevision, 'working-tree@e8e31b036fcf36ebea9cf1a28b90754cde93e964');
+  assert.equal(manifest.openApiVersion, '2.0.0');
   assert.equal(
     createHash('sha256').update(rawContract).digest('hex'),
-    '9801f8ada9814bf91ee56c267b13105b92cdea6733df10323e56346b1b2c88ba',
+    '5609111fab1a4212749153af32efc0c2677ffdfbb2eba6c9c590f08de64506b9',
   );
 });
 
-test('publishes all six canonical document and artifact operations', () => {
+test('publishes only the three canonical document operations', () => {
   assert.deepEqual(Object.keys(openapi.paths).sort(), [
-    '/v1/campaigns/{campaignId}/artifacts',
-    '/v1/campaigns/{campaignId}/artifacts/pdf',
-    '/v1/campaigns/{campaignId}/artifacts/{artifactId}/download',
     '/v1/campaigns/{campaignId}/documents',
     '/v1/campaigns/{campaignId}/documents/{documentId}/download',
   ]);
@@ -40,8 +32,9 @@ test('publishes all six canonical document and artifact operations', () => {
 test('generated clients retain canonical IDs and never restore legacy aliases', () => {
   const generated = read('src/generated/files-v1.ts');
   assert.match(generated, /documentId: string/);
-  assert.match(generated, /artifactId: string/);
   assert.match(generated, /downloadUrl: string/);
+  assert.doesNotMatch(generated, /artifactId:/);
+  assert.doesNotMatch(generated, /\/artifacts/);
   assert.doesNotMatch(generated, /signedUrl:/);
   assert.doesNotMatch(generated, /storageKey:/);
 });
@@ -52,24 +45,18 @@ test('download authorization always binds child IDs to campaign IDs', () => {
     adapter,
     /campaigns\/\$\{encodePathSegment\(campaignId\)\}\/documents\/\$\{encodePathSegment\(documentId\)\}\/download/,
   );
-  assert.match(
-    adapter,
-    /campaigns\/\$\{encodePathSegment\(campaignId\)\}\/artifacts\/\$\{encodePathSegment\(artifactId\)\}\/download/,
-  );
+  assert.doesNotMatch(adapter, /\/artifacts/);
   assert.doesNotMatch(adapter, /storageKey/);
 });
 
 test('upload is exposed to Reviewer and Admin workspaces, never the Client File Hub', () => {
   const clientHub = read('shared/components/campaigns/CampaignFileHub.tsx');
-  const adminCampaign = read(
-    'app/(app)/app/admin/campaigns/[campaignId]/page.tsx',
-  );
-  const reviewerTask = read(
-    'app/(app)/app/reviewer/tasks/[taskId]/page.tsx',
-  );
+  const adminCampaign = read('app/(app)/app/admin/campaigns/[campaignId]/page.tsx');
+  const reviewerTask = read('app/(app)/app/reviewer/tasks/[taskId]/page.tsx');
 
   assert.doesNotMatch(clientHub, /CampaignDocumentUploader/);
+  assert.doesNotMatch(clientHub, /CampaignArtifact/);
   assert.match(adminCampaign, /CampaignDocumentUploader/);
-  assert.match(adminCampaign, /CampaignArtifactGenerator/);
+  assert.doesNotMatch(adminCampaign, /CampaignArtifactGenerator/);
   assert.match(reviewerTask, /CampaignDocumentUploader/);
 });
