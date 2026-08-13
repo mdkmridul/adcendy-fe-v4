@@ -60,3 +60,13 @@ test('upload is exposed to Reviewer and Admin workspaces, never the Client File 
   assert.doesNotMatch(adminCampaign, /CampaignArtifactGenerator/);
   assert.match(reviewerTask, /CampaignDocumentUploader/);
 });
+
+test('the Client File Hub downloads files without navigating the active tab', () => {
+  const clientHub = read('shared/components/campaigns/CampaignFileHub.tsx');
+  const downloadHelper = read('lib/download.ts');
+
+  assert.match(clientHub, /downloadFileFromUrl/);
+  assert.doesNotMatch(clientHub, /window\.location\.assign/);
+  assert.match(downloadHelper, /anchor\.download = filename/);
+  assert.match(downloadHelper, /anchor\.click\(\)/);
+});

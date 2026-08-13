@@ -7,6 +7,8 @@ import type {
   CreateReviewerPayload,
 } from './reviews';
 
+export const ADMIN_CAMPAIGN_DELETE_CONFIRMATION = 'DELETE' as const;
+
 export interface AdminUserDto {
   id: string;
   email: string;
@@ -85,6 +87,31 @@ export interface AdminCampaignRefreshResponse {
   results: Record<string, unknown>;
 }
 
+export interface AdminCampaignDeleteResponse {
+  campaignId: string;
+  deleted: true;
+  storage: {
+    deletedObjects: number;
+    sharedObjectsRetained: number;
+  };
+  queues: {
+    inspected: number;
+    removed: number;
+    missing: number;
+    active: number;
+    removalFailed: number;
+  };
+  explicitlyDeletedRecords: {
+    signedDocuments: number;
+    legalAcceptances: number;
+    consentRecords: number;
+    aiCalls: number;
+    jobRuns: number;
+    previousAuditEvents: number;
+  };
+  auditTombstoneRetained: boolean;
+}
+
 export interface JobRunsByEntityResponse {
   runs: unknown[];
 }
@@ -131,6 +158,10 @@ export interface AdminReviewAdapter {
     campaignId: string,
     includeRaw?: string,
   ) => Promise<AdminCampaignDetail>;
+  deleteAdminCampaignPermanently: (
+    campaignId: string,
+    confirmation: string,
+  ) => Promise<AdminCampaignDeleteResponse>;
   refreshAdminCampaignIntelligence: (
     campaignId: string,
     force?: boolean,

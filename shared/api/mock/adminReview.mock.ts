@@ -5,13 +5,15 @@ import type {
   CreateReviewerPayload,
 } from '@/shared/types/reviews';
 import type { CampaignStatus } from '@/shared/types/campaign';
-import type {
-  AdminCampaignDetail,
-  AdminCampaignRefreshResponse,
-  AdminCampaignSummary,
-  AdminReviewAdapter,
-  AdminUserUpdate,
-  AiCallDetail,
+import {
+  ADMIN_CAMPAIGN_DELETE_CONFIRMATION,
+  type AdminCampaignDeleteResponse,
+  type AdminCampaignDetail,
+  type AdminCampaignRefreshResponse,
+  type AdminCampaignSummary,
+  type AdminReviewAdapter,
+  type AdminUserUpdate,
+  type AiCallDetail,
 } from '@/shared/types/admin';
 
 const reviewerState: AdminReviewerUser[] = [
@@ -171,6 +173,47 @@ export const adminReviewMockAdapter: AdminReviewAdapter = {
         },
       },
       latestRun: null,
+    };
+  },
+
+  async deleteAdminCampaignPermanently(
+    campaignId: string,
+    confirmation: string,
+  ): Promise<AdminCampaignDeleteResponse> {
+    await delay(200);
+    if (confirmation !== ADMIN_CAMPAIGN_DELETE_CONFIRMATION) {
+      throw new Error('CAMPAIGN_DELETE_CONFIRMATION_MISMATCH');
+    }
+
+    const campaignIndex = adminCampaigns.findIndex((campaign) => campaign.id === campaignId);
+    if (campaignIndex === -1) {
+      throw new Error('Campaign not found');
+    }
+
+    adminCampaigns.splice(campaignIndex, 1);
+    return {
+      campaignId,
+      deleted: true,
+      storage: {
+        deletedObjects: 0,
+        sharedObjectsRetained: 0,
+      },
+      queues: {
+        inspected: 0,
+        removed: 0,
+        missing: 0,
+        active: 0,
+        removalFailed: 0,
+      },
+      explicitlyDeletedRecords: {
+        signedDocuments: 0,
+        legalAcceptances: 0,
+        consentRecords: 0,
+        aiCalls: 0,
+        jobRuns: 0,
+        previousAuditEvents: 0,
+      },
+      auditTombstoneRetained: true,
     };
   },
 

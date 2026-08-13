@@ -1,6 +1,7 @@
 import ENV, { createRuntimeRepositoryAdapter } from '@/lib/env';
 import type { CampaignStatus } from '@/shared/types/campaign';
 import type {
+  AdminCampaignDeleteResponse,
   AdminCampaignDetail,
   AdminCampaignRefreshResponse,
   AdminCampaignSummary,
@@ -56,6 +57,13 @@ export const adminReviewRepository = {
     includeRaw?: string,
   ): Promise<AdminCampaignDetail> {
     return adapter.getAdminCampaignDetail(campaignId, includeRaw);
+  },
+
+  async deleteAdminCampaignPermanently(
+    campaignId: string,
+    confirmation: string,
+  ): Promise<AdminCampaignDeleteResponse> {
+    return adapter.deleteAdminCampaignPermanently(campaignId, confirmation);
   },
 
   async refreshAdminCampaignIntelligence(

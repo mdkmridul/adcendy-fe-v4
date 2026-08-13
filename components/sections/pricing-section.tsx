@@ -1,48 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
+import { billingRepository } from '@/shared/api/repositories/billing.repo';
+import { queryKeys } from '@/shared/api/queryKeys';
+import { formatMinorAmount } from '@/shared/payments/razorpay';
 
 type Currency = 'INR' | 'USD';
-
-const PLANS = [
-  {
-    name: 'Pilot Sprint',
-    badge: 'First 7 clients only',
-    desc: 'One-time, includes everything below',
-    priceINR: '₹4,999',
-    priceUSD: '$299',
-    billing: 'one-time',
-    highlighted: false,
-    cta: 'Get started',
-    slug: 'pilot',
-  },
-  {
-    name: 'Standard Sprint',
-    badge: '30 days',
-    desc: 'Full sprint at standard pricing',
-    priceINR: '₹19,999',
-    priceUSD: '$799',
-    billing: 'one-time',
-    highlighted: true,
-    cta: 'Get started',
-    slug: 'standard',
-  },
-  {
-    name: 'Advisory Retainer',
-    badge: 'Optional add-on',
-    desc: 'Ongoing support after your Sprint',
-    priceINR: '₹9,999',
-    priceUSD: '$349',
-    billing: '/month',
-    highlighted: false,
-    cta: 'Add after Sprint',
-    slug: 'retainer',
-  },
-];
 
 const INCLUDED = [
   'A marketing strategy document built specifically for your business',
@@ -53,10 +21,18 @@ const INCLUDED = [
 ];
 
 export function Pricing() {
-  const [currency, setCurrency] = useState<Currency>('INR');
+  const [currency, setCurrency] = useState<Currency>('USD');
   const { status } = useMarketingAuth();
   const isAuthed = status === 'authed';
-  const ctaHref = isAuthed ? '/app' : '/auth/signup';
+  const ctaHref = isAuthed ? '/app/checkout' : '/auth/signup';
+  const countryCode = currency === 'INR' ? 'IN' : 'US';
+  const catalogueQuery = useQuery({
+    queryKey: queryKeys.billing.publicBundles(countryCode),
+    queryFn: () => billingRepository.listPublicBundles(countryCode),
+    staleTime: 60_000,
+  });
+  const bundles = catalogueQuery.data?.items ?? [];
+  const highlightedIndex = Math.floor(bundles.length / 2);
 
   return (
     <section id="pricing" className="bg-background py-20 sm:py-32 px-4 sm:px-6 lg:px-8">
@@ -68,11 +44,10 @@ export function Pricing() {
           className="text-center mb-6 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            Pilot pricing — limited to our first 7 clients
+            Simple, transparent strategy credits
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            We&apos;re starting with a pilot cohort to build this with real client feedback.
-            Pricing reflects that.
+            Buy one-time credits now. The same live catalogue powers this page and secure checkout.
           </p>
         </motion.div>
 
@@ -88,11 +63,7 @@ export function Pricing() {
               <button
                 key={c}
                 onClick={() => setCurrency(c)}
-                className={`px-5 py-2 rounded-md text-sm font-semibold transition-all ${
-                  currency === c
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`px-5 py-2 rounded-md text-sm font-semibold transition-all ${currency === c ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {c === 'INR' ? '₹ India' : '$ International'}
               </button>
@@ -100,68 +71,101 @@ export function Pricing() {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {PLANS.map((plan, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              viewport={{ once: true }}
-              className={`relative rounded-2xl border transition-all ${
-                plan.highlighted
-                  ? 'md:scale-105 bg-card border-primary shadow-lg shadow-primary/20'
-                  : 'bg-card/50 border-border hover:border-primary/30'
-              }`}
+        {catalogueQuery.isPending && (
+          <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-3" aria-label="Loading prices">
+            {[0, 1, 2].map((item) => (
+              <div
+                key={item}
+                className="h-64 animate-pulse rounded-2xl border border-border bg-card/50"
+              />
+            ))}
+          </div>
+        )}
+
+        {catalogueQuery.isError && (
+          <div className="mb-12 rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Live pricing is temporarily unavailable.
+            </p>
+            <button
+              type="button"
+              onClick={() => void catalogueQuery.refetch()}
+              className="mt-3 text-sm font-semibold text-primary hover:underline"
             >
-              {plan.highlighted && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="inline-block px-4 py-1 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full">
-                    Most Popular
-                  </span>
-                </div>
-              )}
+              Retry loading prices
+            </button>
+          </div>
+        )}
 
-              <div className="p-8 space-y-6">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-space-grotesk text-xl font-bold text-foreground">
-                      {plan.name}
-                    </h3>
-                    <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                      {plan.badge}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{plan.desc}</p>
-                </div>
-
-                <div className="space-y-0.5">
-                  <motion.p
-                    key={currency}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-4xl font-bold text-primary"
-                  >
-                    {currency === 'INR' ? plan.priceINR : plan.priceUSD}
-                  </motion.p>
-                  <p className="text-xs text-muted-foreground">{plan.billing}</p>
-                </div>
-
-                <Link
-                  href={ctaHref}
-                  className={`inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm ${
-                    plan.highlighted
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'border border-primary text-primary hover:bg-primary/10'
-                  }`}
+        {catalogueQuery.isSuccess && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {bundles.map((bundle, idx) => {
+              const highlighted = idx === highlightedIndex;
+              const creditLabel = bundle.credits === 1 ? 'credit' : 'credits';
+              return (
+                <motion.div
+                  key={bundle.sku}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  viewport={{ once: true }}
+                  className={`relative rounded-2xl border transition-all ${highlighted ? 'md:scale-105 bg-card border-primary shadow-lg shadow-primary/20' : 'bg-card/50 border-border hover:border-primary/30'}`}
                 >
-                  {plan.cta}
-                </Link>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                  {highlighted && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <span className="inline-block px-4 py-1 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-8 space-y-6">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-space-grotesk text-xl font-bold text-foreground">
+                          {bundle.credits} strategy {creditLabel}
+                        </h3>
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                          One-time
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Generate {bundle.credits} complete campaign{' '}
+                        {bundle.credits === 1 ? 'strategy' : 'strategies'}.
+                      </p>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <motion.p
+                        key={currency}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="text-4xl font-bold text-primary"
+                      >
+                        {formatMinorAmount(bundle)}
+                      </motion.p>
+                      <p className="text-xs text-muted-foreground">one-time purchase</p>
+                    </div>
+
+                    <Link
+                      href={ctaHref}
+                      className={`inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm ${highlighted ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-primary text-primary hover:bg-primary/10'}`}
+                    >
+                      Choose bundle
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {catalogueQuery.data && (
+          <p className="-mt-6 mb-12 text-center text-xs text-muted-foreground">
+            Prices from catalogue {catalogueQuery.data.catalogueVersion}
+          </p>
+        )}
 
         {/* Included in every Sprint */}
         <motion.div
@@ -171,7 +175,9 @@ export function Pricing() {
           transition={{ delay: 0.2 }}
           className="max-w-3xl mx-auto p-8 rounded-xl border border-border bg-card/50 space-y-5"
         >
-          <h4 className="font-space-grotesk font-bold text-foreground">Every Sprint includes:</h4>
+          <h4 className="font-space-grotesk font-bold text-foreground">
+            Every strategy credit includes:
+          </h4>
           <div className="space-y-3">
             {INCLUDED.map((item, idx) => (
               <div key={idx} className="flex items-start gap-3">

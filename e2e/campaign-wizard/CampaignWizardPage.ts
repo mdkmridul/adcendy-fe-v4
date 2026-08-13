@@ -206,7 +206,9 @@ export class CampaignWizardPage {
       this.page.getByRole('heading', { name: 'Campaigns', exact: true }),
     ).toBeVisible();
     await this.page
-      .getByRole('button', { name: 'New Campaign', exact: true })
+      .getByRole('button', {
+        name: /^(New Campaign|Create First Campaign)$/,
+      })
       .click();
     await this.assertStep(1);
   }

@@ -11,6 +11,8 @@ import { useLastCampaign } from '@/hooks/useLastCampaign';
 import { CampaignListItem } from '@/shared/components/campaigns/CampaignListItem';
 import { CampaignWizardModal, resolveWizardResumeStep, resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
 import { wizardRepository } from '@/shared/api/repositories';
+import { useCampaignEntitlement } from '@/hooks/useCampaignEntitlement';
+import { CAMPAIGN_PLAN_ROUTE } from '@/shared/payments/campaign-entitlement';
 import {
   formatBusinessModel,
   formatBusinessType,
@@ -27,6 +29,10 @@ export default function CampaignsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { campaigns, isLoading, error } = useCampaigns();
+  const {
+    canStartCampaign,
+    isLoading: isEntitlementLoading,
+  } = useCampaignEntitlement();
   const { setLastCampaignId } = useLastCampaign();
   const [wizardModalState, setWizardModalState] = useState<WizardModalState | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +72,13 @@ export default function CampaignsPage() {
   }, [campaigns, searchQuery]);
 
   const openCreateWizard = () => {
+    if (isEntitlementLoading) {
+      return;
+    }
+    if (!canStartCampaign) {
+      router.push(CAMPAIGN_PLAN_ROUTE);
+      return;
+    }
     setWizardModalState({
       campaignId: null,
       initialStep: 1,
@@ -73,6 +86,13 @@ export default function CampaignsPage() {
   };
 
   const openDraftWizard = async (campaign: Campaign) => {
+    if (isEntitlementLoading) {
+      return;
+    }
+    if (!canStartCampaign) {
+      router.push(CAMPAIGN_PLAN_ROUTE);
+      return;
+    }
     setLastCampaignId(campaign.id);
     let step = resolveWizardStep(campaign.currentStep);
 
@@ -95,6 +115,15 @@ export default function CampaignsPage() {
     const wizardStepParam = Number(searchParams.get('wizardStep'));
 
     if (!draftCampaignId) {
+      return;
+    }
+
+    if (isEntitlementLoading) {
+      return;
+    }
+    if (!canStartCampaign) {
+      setWizardModalState(null);
+      router.replace(CAMPAIGN_PLAN_ROUTE);
       return;
     }
 
@@ -165,7 +194,15 @@ export default function CampaignsPage() {
     return () => {
       isCancelled = true;
     };
-  }, [campaigns, isLoading, isWizardModalOpen, router, searchParams]);
+  }, [
+    campaigns,
+    canStartCampaign,
+    isEntitlementLoading,
+    isLoading,
+    isWizardModalOpen,
+    router,
+    searchParams,
+  ]);
 
   if (error) {
     return (
@@ -200,10 +237,16 @@ export default function CampaignsPage() {
             />
           </div>
 
-          <Button className="gap-2" onClick={openCreateWizard}>
-            <Plus className="h-4 w-4" />
-            New Campaign
-          </Button>
+          {!isLoading && campaigns.length > 0 ? (
+            <Button
+              className="gap-2"
+              onClick={openCreateWizard}
+              disabled={isEntitlementLoading}
+            >
+              <Plus className="h-4 w-4" />
+              New Campaign
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -224,7 +267,11 @@ export default function CampaignsPage() {
                 Create your first campaign to set up business context, review readiness, and generate
                 a strategy workspace.
               </p>
-              <Button className="mt-3 gap-2" onClick={openCreateWizard}>
+              <Button
+                className="mt-3 gap-2"
+                onClick={openCreateWizard}
+                disabled={isEntitlementLoading}
+              >
                 <Plus className="h-4 w-4" />
                 Create First Campaign
               </Button>
@@ -252,6 +299,10 @@ export default function CampaignsPage() {
 
       <CampaignWizardModal
         open={Boolean(wizardModalState)}
+        onCommitSuccess={(href) => {
+          setWizardModalState(null);
+          router.replace(href);
+        }}
         onOpenChange={(open) => {
           if (!open) {
             setWizardModalState(null);

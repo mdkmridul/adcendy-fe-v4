@@ -37,7 +37,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { resolveDownloadFilename, triggerBlobDownload } from '@/lib/download';
 import { cn } from '@/lib/utils';
 import { CampaignDocumentUploader } from '@/shared/components/campaigns/CampaignDocumentUploader';
 
@@ -1091,16 +1090,6 @@ export default function ReviewerTaskDetailPage() {
       payload?: Record<string, unknown>;
     }) => opsV2Repository.triggerAdminCampaign(campaignId, trigger, payload),
   });
-  const downloadCampaignOutputMutation = useMutation({
-    mutationFn: ({
-      campaignId,
-      payload,
-    }: {
-      campaignId: string;
-      payload?: Record<string, unknown>;
-    }) => opsV2Repository.downloadAdminCampaignOutput(campaignId, payload),
-  });
-
   const recreateLatestRunMutation = useMutation({
     mutationFn: (campaignId: string) => opsV2Repository.recreateLatestCommittedRun(campaignId),
   });
@@ -1535,68 +1524,6 @@ export default function ReviewerTaskDetailPage() {
     }
   };
 
-  const handleDownloadAssembledOutput = async () => {
-    if (!task) {
-      return;
-    }
-
-    try {
-      const inputPayload = parseJsonObject(triggerPayloadJson, 'Campaign trigger payload');
-      const campaignId = await resolveCampaignIdForAdminTrigger(inputPayload);
-
-      if (!campaignId) {
-        toast({
-          title: 'Campaign ID is missing',
-          description:
-            'No valid campaign ID found. Add "campaignId" in Campaign Trigger Payload JSON to send this request.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (campaignId === task.id) {
-        toast({
-          title: 'Campaign ID looks invalid',
-          description:
-            'Campaign ID matches task ID. Use the real campaign ID in payload field "campaignId".',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const result = await downloadCampaignOutputMutation.mutateAsync({
-        campaignId,
-        payload: inputPayload,
-      });
-      const filename = resolveDownloadFilename(
-        result.filename,
-        `${campaignId}-output`,
-        result.contentType ?? result.blob.type,
-      );
-
-      triggerBlobDownload(result.blob, filename);
-      setStoredCampaignIdForTask(task.id, campaignId);
-      setStoredCampaignId(campaignId);
-      setLastActionResult({
-        downloaded: true,
-        campaignId,
-        filename,
-        contentType: result.contentType ?? result.blob.type ?? null,
-        size: result.blob.size,
-      });
-      toast({
-        title: 'Output downloaded',
-        description: `${filename} downloaded from output assembly response.`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Unable to download output',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleRecreateLatestRun = async () => {
     if (!task) {
       return;
@@ -1880,15 +1807,15 @@ export default function ReviewerTaskDetailPage() {
                         icon={<Layers className="h-4 w-4" />}
                       />
                       <ActionButton
-                        label="Assemble Output"
-                        tooltip="Generate final output artifacts from approved sections."
-                        tooltipTitle="Output Assembly"
-                        badge="Deliverables"
-                        description="Produce deliverables from approved section outputs."
-                        onClick={() => void handleDownloadAssembledOutput()}
-                        disabled={downloadCampaignOutputMutation.isPending}
-                        pending={downloadCampaignOutputMutation.isPending}
-                        pendingLabel="Downloading..."
+                        label="Assemble Output Preview"
+                        tooltip="Queue the internal output preview from approved sections. This does not publish the official four-document deliverable kit."
+                        tooltipTitle="Internal Output Preview"
+                        badge="Preview"
+                        description="Queue a draft strategy preview for internal validation."
+                        onClick={() => void handleTriggerCampaign('output', 'Assemble Output Preview')}
+                        disabled={triggerCampaignMutation.isPending}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
                         icon={<CheckCircle2 className="h-4 w-4" />}
                       />
                       <ActionButton

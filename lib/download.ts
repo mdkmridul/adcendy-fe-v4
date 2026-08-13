@@ -50,3 +50,15 @@ export function triggerBlobDownload(blob: Blob, filename: string) {
     window.URL.revokeObjectURL(objectUrl);
   }, 0);
 }
+
+export function downloadFileFromUrl(url: URL, filename: string) {
+  const anchor = document.createElement('a');
+
+  anchor.href = url.toString();
+  anchor.download = filename;
+  anchor.style.display = 'none';
+
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+}

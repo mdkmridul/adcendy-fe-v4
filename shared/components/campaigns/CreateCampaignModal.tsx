@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,6 +38,8 @@ import {
   BUSINESS_TYPE_OPTIONS,
   MARKET_SCOPE_OPTIONS,
 } from '@/shared/types/campaign';
+import { useCampaignEntitlement } from '@/hooks/useCampaignEntitlement';
+import { CAMPAIGN_PLAN_ROUTE } from '@/shared/payments/campaign-entitlement';
 
 interface CreateCampaignModalProps {
   open: boolean;
@@ -49,6 +51,23 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
   const queryClient = useQueryClient();
   const router = useRouter();
   const { setLastCampaignId } = useLastCampaign();
+  const {
+    canStartCampaign,
+    isLoading: isEntitlementLoading,
+  } = useCampaignEntitlement();
+
+  useEffect(() => {
+    if (open && !isEntitlementLoading && !canStartCampaign) {
+      onOpenChange(false);
+      router.replace(CAMPAIGN_PLAN_ROUTE);
+    }
+  }, [
+    canStartCampaign,
+    isEntitlementLoading,
+    onOpenChange,
+    open,
+    router,
+  ]);
 
   const form = useForm<CreateCampaignInput>({
     resolver: zodResolver(createCampaignSchema),
@@ -63,6 +82,11 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
   });
 
   const onSubmit = async (data: CreateCampaignInput) => {
+    if (!canStartCampaign) {
+      onOpenChange(false);
+      router.push(CAMPAIGN_PLAN_ROUTE);
+      return;
+    }
     try {
       setIsLoading(true);
       
@@ -267,7 +291,10 @@ export function CreateCampaignModal({ open, onOpenChange }: CreateCampaignModalP
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button
+                type="submit"
+                disabled={isLoading || isEntitlementLoading}
+              >
                 {isLoading ? 'Creating...' : 'Create Campaign'}
               </Button>
             </div>

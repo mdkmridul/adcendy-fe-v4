@@ -3,6 +3,7 @@ import { http } from '../index';
 import type { ApiResponse } from '../types';
 import type { CampaignStatus } from '@/shared/types/campaign';
 import type {
+  AdminCampaignDeleteResponse,
   AdminCampaignDetail,
   AdminCampaignListResponse,
   AdminCampaignRefreshResponse,
@@ -246,6 +247,21 @@ export const adminReviewRealAdapter: AdminReviewAdapter = {
     );
 
     return normalizeAdminCampaignDetail(unwrapResponseData(response), campaignId);
+  },
+
+  async deleteAdminCampaignPermanently(
+    campaignId: string,
+    confirmation: string,
+  ): Promise<AdminCampaignDeleteResponse> {
+    const response = await http<ApiResponse<AdminCampaignDeleteResponse>>(
+      `/v1/admin/campaigns/${campaignId}`,
+      {
+        method: 'DELETE',
+        query: { confirmation },
+      },
+    );
+
+    return response.data;
   },
 
   async refreshAdminCampaignIntelligence(

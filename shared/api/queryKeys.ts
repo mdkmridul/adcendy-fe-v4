@@ -1,4 +1,15 @@
 export const queryKeys = {
+  profile: {
+    all: ['profile'] as const,
+    me: () => [...queryKeys.profile.all, 'me'] as const,
+  },
+  billing: {
+    all: ['billing'] as const,
+    publicBundles: (countryCode: string) =>
+      [...queryKeys.billing.all, 'public-bundles', countryCode] as const,
+    bundles: (countryCode: string) => [...queryKeys.billing.all, 'bundles', countryCode] as const,
+    order: (orderId: string) => [...queryKeys.billing.all, 'order', orderId] as const,
+  },
   campaigns: {
     all: ['campaigns'] as const,
     list: () => [...queryKeys.campaigns.all, 'list'] as const,
@@ -26,12 +37,14 @@ export const queryKeys = {
   },
   weekly: {
     all: ['weekly'] as const,
-    submissions: (campaignId: string) => [...queryKeys.weekly.all, 'submissions', campaignId] as const,
+    submissions: (campaignId: string) =>
+      [...queryKeys.weekly.all, 'submissions', campaignId] as const,
     byWeek: (campaignId: string, weekStart: string) =>
       [...queryKeys.weekly.all, 'byWeek', campaignId, weekStart] as const,
     derived: (campaignId: string, weekStart: string) =>
       [...queryKeys.weekly.all, 'derived', campaignId, weekStart] as const,
-    processing: (processingRunId: string) => [...queryKeys.weekly.all, 'processing', processingRunId] as const,
+    processing: (processingRunId: string) =>
+      [...queryKeys.weekly.all, 'processing', processingRunId] as const,
     anomalies: (campaignId: string, weekStart?: string) =>
       weekStart
         ? ([...queryKeys.weekly.all, 'anomalies', campaignId, weekStart] as const)
@@ -49,12 +62,15 @@ export const queryKeys = {
     latest: (campaignId: string) => [...queryKeys.intelligence.all, 'latest', campaignId] as const,
     list: (campaignId: string) => [...queryKeys.intelligence.all, 'list', campaignId] as const,
     byId: (snapshotId: string) => [...queryKeys.intelligence.all, 'byId', snapshotId] as const,
-    snapshot: (campaignId: string) => [...queryKeys.intelligence.all, 'snapshot', campaignId] as const,
+    snapshot: (campaignId: string) =>
+      [...queryKeys.intelligence.all, 'snapshot', campaignId] as const,
   },
   jobs: {
     all: ['jobs'] as const,
     list: (filters?: Record<string, any>) =>
-      filters ? ([...queryKeys.jobs.all, 'list', filters] as const) : ([...queryKeys.jobs.all, 'list'] as const),
+      filters
+        ? ([...queryKeys.jobs.all, 'list', filters] as const)
+        : ([...queryKeys.jobs.all, 'list'] as const),
     detail: (jobRunId: string) => [...queryKeys.jobs.all, 'detail', jobRunId] as const,
     failures: (days: number) => [...queryKeys.jobs.all, 'failures', days] as const,
     stats: (days: number) => [...queryKeys.jobs.all, 'stats', days] as const,
@@ -67,13 +83,20 @@ export const queryKeys = {
         : ([...queryKeys.aiUsage.all, 'summary'] as const),
     daily: (days?: number, limit?: number, userId?: string) =>
       days || limit || userId
-        ? ([...queryKeys.aiUsage.all, 'daily', days ?? null, limit ?? null, userId ?? null] as const)
+        ? ([
+            ...queryKeys.aiUsage.all,
+            'daily',
+            days ?? null,
+            limit ?? null,
+            userId ?? null,
+          ] as const)
         : ([...queryKeys.aiUsage.all, 'daily'] as const),
   },
   strategyReviews: {
     all: ['strategyReviews'] as const,
     inbox: () => [...queryKeys.strategyReviews.all, 'inbox'] as const,
-    detail: (campaignId: string) => [...queryKeys.strategyReviews.all, 'detail', campaignId] as const,
+    detail: (campaignId: string) =>
+      [...queryKeys.strategyReviews.all, 'detail', campaignId] as const,
   },
   adminReview: {
     all: ['adminReview'] as const,
@@ -85,7 +108,8 @@ export const queryKeys = {
       filters
         ? ([...queryKeys.adminReview.all, 'campaignList', filters] as const)
         : ([...queryKeys.adminReview.all, 'campaignList'] as const),
-    campaignDetail: (campaignId: string) => [...queryKeys.adminReview.all, 'campaignDetail', campaignId] as const,
+    campaignDetail: (campaignId: string) =>
+      [...queryKeys.adminReview.all, 'campaignDetail', campaignId] as const,
     jobsByEntity: (entityType: string, entityId: string, limit?: number) =>
       limit
         ? ([...queryKeys.adminReview.all, 'jobsByEntity', entityType, entityId, limit] as const)
@@ -118,7 +142,8 @@ export const queryKeys = {
         : ([...queryKeys.opsV2.all, 'sectionReviewsByRun', runId] as const),
     sectionReviewTask: (sectionReviewTaskId: string) =>
       [...queryKeys.opsV2.all, 'sectionReviewTask', sectionReviewTaskId] as const,
-    sectionReviewWorkspace: (runId: string) => [...queryKeys.opsV2.all, 'sectionReviewWorkspace', runId] as const,
+    sectionReviewWorkspace: (runId: string) =>
+      [...queryKeys.opsV2.all, 'sectionReviewWorkspace', runId] as const,
     campaignHealth: (params?: { limit?: number; onlyUnhealthy?: boolean }) =>
       params
         ? ([...queryKeys.opsV2.all, 'campaignHealth', params] as const)
@@ -142,7 +167,8 @@ export const queryKeys = {
         : ([...queryKeys.wizard.all, 'options'] as const),
     state: (campaignId: string) => [...queryKeys.wizard.all, 'state', campaignId] as const,
     steps: (campaignId: string) => [...queryKeys.wizard.all, 'steps', campaignId] as const,
-    step: (campaignId: string, stepKey: string) => [...queryKeys.wizard.all, 'step', campaignId, stepKey] as const,
+    step: (campaignId: string, stepKey: string) =>
+      [...queryKeys.wizard.all, 'step', campaignId, stepKey] as const,
     preview: (campaignId: string) => [...queryKeys.wizard.all, 'preview', campaignId] as const,
   },
 };

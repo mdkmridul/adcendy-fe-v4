@@ -1,12 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { ReactNode, useRef, useState } from 'react';
-import { AlertCircle, BrainCircuit, CheckCircle2, FileText, Layers, RefreshCcw, Workflow, Wrench } from 'lucide-react';
+import {
+  AlertCircle,
+  BrainCircuit,
+  CheckCircle2,
+  FileText,
+  Layers,
+  RefreshCcw,
+  Trash2,
+  Workflow,
+  Wrench,
+} from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
-import { useAdminAiCalls, useAdminCampaignDetail, useRefreshAdminCampaignIntelligence } from '@/hooks/useAdminReview';
+import {
+  useAdminAiCalls,
+  useAdminCampaignDetail,
+  useDeleteAdminCampaignPermanently,
+  useRefreshAdminCampaignIntelligence,
+} from '@/hooks/useAdminReview';
 import { useOpsCampaignOverviews } from '@/hooks/useOpsV2';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/shared/api/errors';
@@ -26,10 +41,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { resolveDownloadFilename, triggerBlobDownload } from '@/lib/download';
 import { cn } from '@/lib/utils';
 import {
   formatCampaignStatus,
@@ -37,6 +52,7 @@ import {
   formatBusinessType,
   formatMarketScope,
 } from '@/shared/types/campaign';
+import { ADMIN_CAMPAIGN_DELETE_CONFIRMATION } from '@/shared/types/admin';
 import type { AdminCampaignTriggerType, AdminPipelineTriggerBodyV2 } from '@/shared/types/opsV2';
 
 function formatDate(value?: string | null) {
@@ -73,7 +89,7 @@ function getRecordString(record: unknown, key: string) {
 const PIPELINE_MARKET_SELECTION_CUSTOM = '__pipeline_market_selection_custom__';
 const PIPELINE_MARKET_SELECTION_ALL = '__pipeline_market_selection_all__';
 const PIPELINE_MARKET_SELECTION_VALUE_PREFIX = '__pipeline_market_selection_value__::';
-const ACTIVE_PIPELINE_RUN_STATUSES = new Set(['QUEUED', 'RUNNING', 'ACTIVE']);
+const ACTIVE_PIPELINE_RUN_STATUSES = new Set(['QUEUED', 'RUNNING', 'BLOCKED_AWAITING_REVIEW']);
 
 function parseJsonObject(value: string, label: string): Record<string, unknown> {
   const parsed: unknown = JSON.parse(value);
@@ -301,6 +317,7 @@ function ActionButton({
 
 export default function AdminCampaignDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const campaignId = params?.campaignId as string;
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
@@ -335,7 +352,10 @@ export default function AdminCampaignDetailPage() {
   const [triggerPayloadJson, setTriggerPayloadJson] = useState<string>('{}');
   const [pipelineMarketSelection, setPipelineMarketSelection] = useState<string>(PIPELINE_MARKET_SELECTION_CUSTOM);
   const [lastTriggerResult, setLastTriggerResult] = useState<unknown>(null);
+  const [isPipelineRetriggerDialogOpen, setIsPipelineRetriggerDialogOpen] = useState(false);
   const [isDeliverableKitDialogOpen, setIsDeliverableKitDialogOpen] = useState(false);
+  const [isPermanentDeleteDialogOpen, setIsPermanentDeleteDialogOpen] = useState(false);
+  const [permanentDeleteConfirmation, setPermanentDeleteConfirmation] = useState('');
   const startRunIdempotencyKeyRef = useRef<string | null>(null);
   const retryRunIdempotencyKeyRef = useRef<string | null>(null);
   const triggerCampaignMutation = useMutation({
@@ -383,9 +403,6 @@ export default function AdminCampaignDetailPage() {
       }
     },
   });
-  const downloadCampaignOutputMutation = useMutation({
-    mutationFn: (payload?: Record<string, unknown>) => opsV2Repository.downloadAdminCampaignOutput(campaignId, payload),
-  });
   const recreateLatestRunMutation = useMutation({
     mutationFn: () => opsV2Repository.recreateLatestCommittedRun(campaignId),
   });
@@ -396,8 +413,13 @@ export default function AdminCampaignDetailPage() {
     mutationFn: ({ runId, notifyOwner }: { runId: string; notifyOwner: boolean }) =>
       opsV2Repository.generateAdminDeliverableKit(runId, { notifyOwner }),
   });
+  const deleteCampaignMutation = useDeleteAdminCampaignPermanently(campaignId);
   const campaignDetail = campaignDetailQuery.data;
   const latestRunId = campaignDetail?.latestRun?.id ?? null;
+  const latestRunStatus = campaignDetail?.latestRun?.status ?? campaignOverview?.latestRunStatus ?? null;
+  const hasActivePipelineRun = isActivePipelineRunStatus(latestRunStatus);
+  const isActiveCampaign = toNonEmptyString(campaignDetail?.campaign.status)?.toUpperCase() === 'ACTIVE';
+  const canRebuildActiveCampaign = isActiveCampaign || hasActivePipelineRun;
   const reviewWorkspaceHref = latestRunId ? `/app/admin/runs/${latestRunId}` : null;
 
   const handleTriggerCampaign = async (
@@ -481,6 +503,11 @@ export default function AdminCampaignDetailPage() {
     }
   };
 
+  const handleRebuildActiveCampaign = async () => {
+    setIsPipelineRetriggerDialogOpen(false);
+    await handleTriggerCampaign('pipeline', 'Rebuild Active Campaign');
+  };
+
   const handleRetryPipelineRun = async () => {
     try {
       const result = await retryRunMutation.mutateAsync();
@@ -509,36 +536,6 @@ export default function AdminCampaignDetailPage() {
     } catch (error) {
       toast({
         title: 'Unable to recreate run',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDownloadAssembledOutput = async () => {
-    try {
-      const payload = parseJsonObject(triggerPayloadJson, 'Campaign trigger payload');
-      const result = await downloadCampaignOutputMutation.mutateAsync(payload);
-      const filename = resolveDownloadFilename(
-        result.filename,
-        `${campaignId}-output`,
-        result.contentType ?? result.blob.type,
-      );
-
-      triggerBlobDownload(result.blob, filename);
-      setLastTriggerResult({
-        downloaded: true,
-        filename,
-        contentType: result.contentType ?? result.blob.type ?? null,
-        size: result.blob.size,
-      });
-      toast({
-        title: 'Output downloaded',
-        description: `${filename} downloaded from output assembly response.`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Unable to download output',
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
@@ -598,6 +595,34 @@ export default function AdminCampaignDetailPage() {
       toast({
         title: 'Unable to generate complete deliverable kit',
         description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteCampaignPermanently = async () => {
+    if (permanentDeleteConfirmation.trim() !== ADMIN_CAMPAIGN_DELETE_CONFIRMATION) {
+      toast({
+        title: 'Confirmation does not match',
+        description: `Enter ${ADMIN_CAMPAIGN_DELETE_CONFIRMATION} before permanently deleting this campaign.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const result = await deleteCampaignMutation.mutateAsync(permanentDeleteConfirmation.trim());
+      setIsPermanentDeleteDialogOpen(false);
+      setPermanentDeleteConfirmation('');
+      toast({
+        title: 'Campaign permanently deleted',
+        description: `${result.storage.deletedObjects} storage object(s) and ${result.queues.removed} queued job(s) were removed.`,
+      });
+      router.replace('/admin/campaigns');
+    } catch (error) {
+      toast({
+        title: 'Unable to delete campaign',
+        description: error instanceof Error ? error.message : 'The campaign could not be permanently deleted.',
         variant: 'destructive',
       });
     }
@@ -894,17 +919,29 @@ export default function AdminCampaignDetailPage() {
 
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <ActionButton
-                        label="Run Full Pipeline"
-                        tooltip="Run all v2 stages from intelligence through output."
-                        tooltipTitle="Full Pipeline"
-                        badge="End-to-end"
-                        description="End-to-end run from intelligence to final assembly."
+                        label="Start New Pipeline Run"
+                        tooltip="Use when this campaign has no queued, running, or review-blocked pipeline run. The backend rejects this action while a run is active. Existing campaign files are preserved."
+                        tooltipTitle="New Run Only"
+                        badge="No active run"
+                        description="Standard first start; preserves existing campaign files."
                         onClick={() => void handleStartPipelineRun()}
-                        disabled={startRunMutation.isPending}
+                        disabled={startRunMutation.isPending || hasActivePipelineRun}
                         pending={startRunMutation.isPending}
                         pendingLabel="Queuing..."
                         tone="accent"
                         icon={<Workflow className="h-4 w-4" />}
+                      />
+                      <ActionButton
+                        label="Rebuild Active Campaign"
+                        tooltip="Use the admin pipeline retrigger for an active campaign. It starts a replacement run from the latest committed intake and clears previously published V2 deliverables before execution."
+                        tooltipTitle="Active Campaign Replacement"
+                        badge="Deletes old V2 files"
+                        description="Replace an active campaign run and its generated deliverables."
+                        onClick={() => setIsPipelineRetriggerDialogOpen(true)}
+                        disabled={triggerCampaignMutation.isPending || !canRebuildActiveCampaign}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
+                        icon={<RefreshCcw className="h-4 w-4" />}
                       />
                       <ActionButton
                         label="Run From Last Failure"
@@ -955,15 +992,15 @@ export default function AdminCampaignDetailPage() {
                         icon={<Layers className="h-4 w-4" />}
                       />
                       <ActionButton
-                        label="Assemble Output"
-                        tooltip="Generate final output artifacts from approved sections."
-                        tooltipTitle="Output Assembly"
-                        badge="Deliverables"
-                        description="Produce deliverables from approved section outputs."
-                        onClick={() => void handleDownloadAssembledOutput()}
-                        disabled={downloadCampaignOutputMutation.isPending}
-                        pending={downloadCampaignOutputMutation.isPending}
-                        pendingLabel="Downloading..."
+                        label="Assemble Output Preview"
+                        tooltip="Queue the internal output preview from approved sections. This does not publish the official four-document deliverable kit."
+                        tooltipTitle="Internal Output Preview"
+                        badge="Preview"
+                        description="Queue a draft strategy preview for internal validation."
+                        onClick={() => void handleTriggerCampaign('output', 'Assemble Output Preview')}
+                        disabled={triggerCampaignMutation.isPending}
+                        pending={triggerCampaignMutation.isPending}
+                        pendingLabel="Queuing..."
                         icon={<CheckCircle2 className="h-4 w-4" />}
                       />
                       <ActionButton
@@ -1010,8 +1047,8 @@ export default function AdminCampaignDetailPage() {
                     <div className="space-y-1">
                       <Label htmlFor="admin-campaign-trigger-payload-json">Campaign Trigger Payload</Label>
                       <p className="text-xs text-muted-foreground">
-                        Shared payload for scoped legacy trigger operations. Wave 2 full start and retry use their
-                        operation-specific contracts and ignore this payload.
+                        Shared payload for the active-campaign rebuild and scoped trigger operations. New pipeline start
+                        and retry use their operation-specific contracts and ignore this payload.
                       </p>
                     </div>
                     <Textarea
@@ -1094,8 +1131,146 @@ export default function AdminCampaignDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="h-5 w-5" />
+                Danger Zone
+              </CardTitle>
+              <CardDescription>
+                Permanently delete this campaign and its campaign-owned pipeline, review, document, and artifact data.
+                This action cannot be undone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 text-sm">
+                <p className="font-medium text-foreground">Delete campaign permanently</p>
+                <p className="text-muted-foreground">
+                  Active jobs block deletion. Shared files and the financial ledger are retained for safety.
+                </p>
+              </div>
+              <Button type="button" variant="destructive" onClick={() => setIsPermanentDeleteDialogOpen(true)}>
+                <Trash2 className="h-4 w-4" />
+                Delete Permanently
+              </Button>
+            </CardContent>
+          </Card>
         </>
       )}
+
+      <Dialog
+        open={isPermanentDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (deleteCampaignMutation.isPending) {
+            return;
+          }
+
+          setIsPermanentDeleteDialogOpen(open);
+          if (!open) {
+            setPermanentDeleteConfirmation('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Permanently delete this campaign?</DialogTitle>
+            <DialogDescription>
+              This deletes the campaign and its campaign-owned data, generated files, pipeline runs, reviewer tasks,
+              section reviews, and AI-call records. The operation cannot be reversed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground">
+              If the campaign has a queued or running job, deletion will be rejected until that work has stopped. Shared
+              storage objects and financial ledger entries are not deleted.
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="admin-campaign-permanent-delete-confirmation">
+                Enter{' '}
+                <span className="font-mono font-semibold text-foreground">{ADMIN_CAMPAIGN_DELETE_CONFIRMATION}</span> to
+                confirm
+              </Label>
+              <Input
+                id="admin-campaign-permanent-delete-confirmation"
+                data-testid="admin-campaign-permanent-delete-confirmation"
+                value={permanentDeleteConfirmation}
+                onChange={(event) => setPermanentDeleteConfirmation(event.target.value)}
+                placeholder={ADMIN_CAMPAIGN_DELETE_CONFIRMATION}
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={
+                  permanentDeleteConfirmation.length > 0 &&
+                  permanentDeleteConfirmation.trim() !== ADMIN_CAMPAIGN_DELETE_CONFIRMATION
+                }
+                disabled={deleteCampaignMutation.isPending}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsPermanentDeleteDialogOpen(false)}
+              disabled={deleteCampaignMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleDeleteCampaignPermanently()}
+              disabled={
+                deleteCampaignMutation.isPending ||
+                permanentDeleteConfirmation.trim() !== ADMIN_CAMPAIGN_DELETE_CONFIRMATION
+              }
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleteCampaignMutation.isPending ? 'Deleting...' : 'Permanently Delete Campaign'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isPipelineRetriggerDialogOpen}
+        onOpenChange={(open) => {
+          if (!triggerCampaignMutation.isPending) {
+            setIsPipelineRetriggerDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rebuild this active campaign?</DialogTitle>
+            <DialogDescription>
+              This queues the admin pipeline retrigger and removes previously published V2 deliverables for this
+              campaign before replacement stages execute. Manually uploaded campaign files are kept.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-foreground">
+            Use “Start New Pipeline Run” for a campaign without an active run. Use this rebuild only when the active
+            campaign must be regenerated from its latest committed intake.
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsPipelineRetriggerDialogOpen(false)}
+              disabled={triggerCampaignMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleRebuildActiveCampaign()}
+              disabled={triggerCampaignMutation.isPending}
+            >
+              {triggerCampaignMutation.isPending ? 'Queuing...' : 'Delete old V2 files and rebuild'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={isDeliverableKitDialogOpen}

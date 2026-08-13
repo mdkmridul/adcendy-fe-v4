@@ -9,6 +9,8 @@ import {
   getCampaignWorkspaceHref,
 } from '@/shared/components/campaigns/campaign-ui';
 import { resolveWizardResumeStep, resolveWizardStep } from '@/shared/components/campaigns/CampaignWizardModal';
+import { useCampaignEntitlement } from '@/hooks/useCampaignEntitlement';
+import { CAMPAIGN_PLAN_ROUTE } from '@/shared/payments/campaign-entitlement';
 
 interface DraftWizardModalRedirectProps {
   step?: 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -19,9 +21,18 @@ export function DraftWizardModalRedirect({ step }: DraftWizardModalRedirectProps
   const router = useRouter();
   const campaignId = params?.campaignId as string;
   const { campaign, isLoading } = useCampaign(campaignId);
+  const {
+    canStartCampaign,
+    isLoading: isEntitlementLoading,
+  } = useCampaignEntitlement();
 
   useEffect(() => {
-    if (isLoading || !campaign) {
+    if (isLoading || isEntitlementLoading || !campaign) {
+      return;
+    }
+
+    if (!canStartCampaign) {
+      router.replace(CAMPAIGN_PLAN_ROUTE);
       return;
     }
 
@@ -60,7 +71,14 @@ export function DraftWizardModalRedirect({ step }: DraftWizardModalRedirectProps
     return () => {
       isCancelled = true;
     };
-  }, [campaign, isLoading, router, step]);
+  }, [
+    campaign,
+    canStartCampaign,
+    isEntitlementLoading,
+    isLoading,
+    router,
+    step,
+  ]);
 
   return (
     <div className="flex min-h-[280px] items-center justify-center p-6">

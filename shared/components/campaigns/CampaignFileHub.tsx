@@ -6,7 +6,6 @@ import { useParams } from 'next/navigation';
 import { formatDistanceToNowStrict } from 'date-fns';
 import {
   AlertCircle,
-  ArrowUpRight,
   Clock3,
   Download,
   FileClock,
@@ -26,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCampaignDocumentDownload, useCampaignDocuments } from '@/hooks/useCampaignDocuments';
 import { canAccessCampaignFiles } from '@/shared/components/campaigns/campaign-ui';
 import { getFreshDownloadAuthorization } from '@/shared/files/file-policy';
+import { downloadFileFromUrl } from '@/lib/download';
 import ENV from '@/lib/env';
 import type { CampaignDocument } from '@/shared/types/campaignDocument';
 
@@ -120,7 +120,7 @@ function getAvailabilityCopy(document: CampaignDocument) {
     badgeVariant: 'default' as const,
     description: document.availableAt ? `Available ${formatDate(document.availableAt)}` : 'Available now',
     disabled: false,
-    actionLabel: 'Open file',
+    actionLabel: 'Download file',
   };
 }
 
@@ -153,13 +153,13 @@ function FileHubSection({
   description,
   documents,
   activeDocumentId,
-  onOpen,
+  onDownload,
 }: {
   title: string;
   description: string;
   documents: CampaignDocument[];
   activeDocumentId: string | null;
-  onOpen: (document: CampaignDocument) => Promise<void>;
+  onDownload: (document: CampaignDocument) => Promise<void>;
 }) {
   if (documents.length === 0) {
     return null;
@@ -234,10 +234,10 @@ function FileHubSection({
                   <Button
                     className="w-full gap-2"
                     disabled={availability.disabled || isPending}
-                    onClick={() => onOpen(document)}
+                    onClick={() => onDownload(document)}
                   >
                     {isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    {isPending ? 'Opening...' : availability.actionLabel}
+                    {isPending ? 'Downloading...' : availability.actionLabel}
                   </Button>
                 </div>
               </div>
@@ -305,20 +305,23 @@ export function CampaignFileHub() {
     .slice(0, 4);
   const totalSizeBytes = documents.reduce((sum, document) => sum + (document.fileSizeBytes ?? 0), 0);
 
-  const handleOpenDocument = async (document: CampaignDocument) => {
+  const handleDownloadDocument = async (document: CampaignDocument) => {
     setActiveDocumentId(document.documentId);
 
     try {
-      const { url } = await getFreshDownloadAuthorization(() => downloadDocument.mutateAsync(document.documentId), {
-        appEnvironment: ENV.APP_ENV,
-      });
-      window.location.assign(url.toString());
+      const { authorization, url } = await getFreshDownloadAuthorization(
+        () => downloadDocument.mutateAsync(document.documentId),
+        {
+          appEnvironment: ENV.APP_ENV,
+        },
+      );
+      downloadFileFromUrl(url, authorization.fileName || document.fileName);
     } catch (downloadError) {
-      const message = downloadError instanceof Error ? downloadError.message : 'Unable to open the requested file.';
+      const message = downloadError instanceof Error ? downloadError.message : 'Unable to download the requested file.';
 
       toast({
         variant: 'destructive',
-        title: 'Failed to open file',
+        title: 'Failed to download file',
         description: message,
       });
     } finally {
@@ -434,7 +437,7 @@ export function CampaignFileHub() {
           ) : null}
         </div>
         <p className="max-w-3xl text-muted-foreground">
-          Review onboarding materials, campaign assets, and recently uploaded files. Each file opens through a fresh
+          Review onboarding materials, campaign assets, and recently uploaded files. Each file downloads through a fresh
           signed link when it is ready.
         </p>
       </div>
@@ -443,7 +446,7 @@ export function CampaignFileHub() {
         <FileMetricCard
           label="Files available now"
           value={availableCount.toString()}
-          description="Documents ready to open immediately."
+          description="Documents ready to download immediately."
         />
         <FileMetricCard
           label="Scheduled releases"
@@ -467,7 +470,7 @@ export function CampaignFileHub() {
                 : 'Every file attached to this campaign, ordered by upload recency.'
             }
             documents={primarySectionDocuments}
-            onOpen={handleOpenDocument}
+            onDownload={handleDownloadDocument}
             title={priorityDocuments.length > 0 ? 'Priority documents' : 'Campaign files'}
           />
 
@@ -476,7 +479,7 @@ export function CampaignFileHub() {
               activeDocumentId={activeDocumentId}
               description="Every other file attached to this campaign, ordered by upload recency."
               documents={standardDocuments}
-              onOpen={handleOpenDocument}
+              onDownload={handleDownloadDocument}
               title="All campaign files"
             />
           ) : null}
@@ -500,7 +503,7 @@ export function CampaignFileHub() {
                       key={document.documentId}
                       className="flex w-full items-start justify-between gap-3 rounded-lg border border-border/80 bg-background/40 p-3 text-left transition-colors hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={availability.disabled || isPending}
-                      onClick={() => handleOpenDocument(document)}
+                      onClick={() => handleDownloadDocument(document)}
                       type="button"
                     >
                       <div className="min-w-0">
@@ -512,7 +515,7 @@ export function CampaignFileHub() {
                       ) : availability.disabled ? (
                         <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                       ) : (
-                        <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <Download className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                     </button>
                   );
@@ -528,7 +531,7 @@ export function CampaignFileHub() {
                 <h2 className="font-space-grotesk text-lg font-semibold text-foreground">Secure access</h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                Opening a file first requests a fresh signed URL from the campaign documents API. Scheduled files remain
+                Downloading a file first requests a fresh signed URL from the campaign documents API. Scheduled files remain
                 unavailable until their release time.
               </p>
             </div>

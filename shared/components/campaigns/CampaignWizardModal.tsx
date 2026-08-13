@@ -66,6 +66,7 @@ import { ApiError } from '@/shared/api/errors';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { campaignsRepository, legalRepository, wizardRepository } from '@/shared/api/repositories';
 import { createIdempotencyKey } from '@/shared/run/idempotency';
+import { CAMPAIGN_PLAN_ROUTE } from '@/shared/payments/campaign-entitlement';
 import { resolveLegalErrorMessage } from '@/shared/legal/legal-error';
 import {
   areWizardRequiredConsentsSatisfied,
@@ -134,6 +135,7 @@ type WizardModalStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 interface CampaignWizardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCommitSuccess: (href: string) => void;
   campaignId?: string | null;
   initialStep: WizardModalStep;
 }
@@ -1980,6 +1982,7 @@ export function resolveWizardResumeStep(lastCompletedStep: number | null | undef
 export function CampaignWizardModal({
   open,
   onOpenChange,
+  onCommitSuccess,
   campaignId,
   initialStep,
 }: CampaignWizardModalProps) {
@@ -2877,6 +2880,16 @@ export function CampaignWizardModal({
     }
   };
 
+  const redirectToPlanForEntitlementError = (error: unknown) => {
+    if (!(error instanceof ApiError) || error.status !== 402) {
+      return false;
+    }
+    setSuccessMessage(null);
+    onOpenChange(false);
+    router.push(CAMPAIGN_PLAN_ROUTE);
+    return true;
+  };
+
   const createOrSaveStep1Mutation = useMutation({
     mutationFn: async (data: Step1FormData) => {
       const normalizedTargetMarkets = normalizeListItems(data.targetMarkets);
@@ -2967,6 +2980,7 @@ export function CampaignWizardModal({
       setSuccessMessage('Step 1 saved successfully.');
     },
     onError: (error: unknown) => {
+      if (redirectToPlanForEntitlementError(error)) return;
       if (error instanceof ApiError && error.status === 409) {
         setShowConflictDialog(true);
       }
@@ -3016,6 +3030,7 @@ export function CampaignWizardModal({
       setSuccessMessage('Step 2 saved successfully.');
     },
     onError: (error: unknown) => {
+      if (redirectToPlanForEntitlementError(error)) return;
       if (error instanceof ApiError && error.status === 409) {
         setShowConflictDialog(true);
       }
@@ -3172,6 +3187,7 @@ export function CampaignWizardModal({
       setSuccessMessage('Step 3 saved successfully.');
     },
     onError: (error: unknown) => {
+      if (redirectToPlanForEntitlementError(error)) return;
       if (error instanceof ApiError && error.status === 409) {
         setShowConflictDialog(true);
       }
@@ -3209,6 +3225,7 @@ export function CampaignWizardModal({
       setSuccessMessage('Step 4 saved successfully.');
     },
     onError: (error: unknown) => {
+      if (redirectToPlanForEntitlementError(error)) return;
       if (error instanceof ApiError && error.status === 409) {
         setShowConflictDialog(true);
       }
@@ -3250,6 +3267,7 @@ export function CampaignWizardModal({
       setSuccessMessage('Step 5 saved successfully.');
     },
     onError: (error: unknown) => {
+      if (redirectToPlanForEntitlementError(error)) return;
       if (error instanceof ApiError && error.status === 409) {
         setShowConflictDialog(true);
       }
@@ -3292,6 +3310,7 @@ export function CampaignWizardModal({
       setSuccessMessage('Step 6 saved successfully.');
     },
     onError: (error: unknown) => {
+      if (redirectToPlanForEntitlementError(error)) return;
       if (error instanceof ApiError && error.status === 409) {
         setShowConflictDialog(true);
       }
@@ -3340,15 +3359,15 @@ export function CampaignWizardModal({
         queryClient.invalidateQueries({ queryKey: queryKeys.legal.consentsMe() }),
       ]);
       commitIdempotencyKeyRef.current = null;
-      onOpenChange(false);
       const returnedRunId = result.run?.runId ?? result.pipelineRunId;
-      router.push(
+      onCommitSuccess(
         returnedRunId
           ? `/app/campaigns/${activeCampaignId}/runs/${returnedRunId}`
           : `/app/campaigns/${activeCampaignId}/overview`,
       );
     },
     onError: (error: unknown) => {
+      if (redirectToPlanForEntitlementError(error)) return;
       if (error instanceof ApiError && error.status === 409) {
         commitIdempotencyKeyRef.current = null;
         setConfirmFocus(false);

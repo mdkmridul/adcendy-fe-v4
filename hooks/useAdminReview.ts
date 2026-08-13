@@ -158,6 +158,36 @@ export function useAdminCampaignDetail(
   return campaignQuery;
 }
 
+export function useDeleteAdminCampaignPermanently(campaignId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (confirmation: string) =>
+      adminReviewRepository.deleteAdminCampaignPermanently(campaignId as string, confirmation),
+    onSuccess: async () => {
+      if (campaignId) {
+        queryClient.removeQueries({ queryKey: queryKeys.adminReview.campaignDetail(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.campaigns.byId(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.documents.list(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.intelligence.list(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.intelligence.latest(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.strategy.versions(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.strategy.latest(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.wizard.options(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.wizard.state(campaignId) });
+        queryClient.removeQueries({ queryKey: queryKeys.wizard.steps(campaignId) });
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.adminReview.campaignList() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.opsV2.campaigns() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.list() }),
+      ]);
+    },
+  });
+}
+
 export function useRefreshAdminCampaignIntelligence(campaignId: string | null) {
   const queryClient = useQueryClient();
 
