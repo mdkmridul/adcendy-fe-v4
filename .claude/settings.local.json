@@ -5,7 +5,21 @@
       "Bash(tree:*)",
       "Bash(npx tsc:*)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\eemri\\\\AdCendy\\\\adcendy-fe-v4\" -Force)",
-      "Bash(Select-Object -Property Name, FullName)"
+      "Bash(Select-Object -Property Name, FullName)",
+      "Bash(npm run *)",
+      "Read(//c/Users/eemri/AdCendy/**)",
+      "Read(//c/Users/eemri/AdCendy/adcendy-deployment/**)",
+      "Bash(docker version *)",
+      "Bash(./scripts/health-check.sh)",
+      "Bash(./scripts/smoke-test.sh)",
+      "Bash(node -e ' *)",
+      "Bash(grep -n \"weekly/processing-runs\\\\|weekly/tweak-runs\\\\|weekly/tweaks\\\\|weekly/\\\\${.*}/summary\" shared/api/real/weekly.real.ts)",
+      "Bash(rm -rf C:/Users/eemri/AppData/Local/Temp/claude/C--Users-eemri-AdCendy-adcendy-fe-v4/a3902cb2-005b-4b39-b07b-59c0305ab74c/scratchpad/trace)",
+      "Bash(mkdir -p C:/Users/eemri/AppData/Local/Temp/claude/C--Users-eemri-AdCendy-adcendy-fe-v4/a3902cb2-005b-4b39-b07b-59c0305ab74c/scratchpad/trace)",
+      "Bash(cd C:/Users/eemri/AppData/Local/Temp/claude/C--Users-eemri-AdCendy-adcendy-fe-v4/a3902cb2-005b-4b39-b07b-59c0305ab74c/scratchpad/trace)",
+      "Bash(unzip -o -q \"C:/Users/eemri/AdCendy/adcendy-fe-v4/e2e/results/campaigns/artifacts/campaign-wizard-populate-campaign-wizard-Fuzzy-AI-campaign-chromium/trace.zip\")",
+      "Bash(ls -la)",
+      "Bash(node *)"
     ]
   }
 }
