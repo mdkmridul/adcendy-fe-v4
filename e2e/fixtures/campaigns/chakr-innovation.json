@@ -7,10 +7,13 @@
     "step1": {
       "marketingTargetType": "whole_business",
       "focusName": "Chakr Innovation",
-      "sourceType": "manual_only",
-      "targetMarkets": ["IN"],
+      "sourceType": "website",
+      "targetMarkets": [
+        "IN"
+      ],
       "primaryMarket": "IN",
-      "marketScope": "national"
+      "marketScope": "national",
+      "primaryUrl": "https://chakr.in"
     },
     "step2": {
       "businessName": "Chakr Innovation",
@@ -30,7 +33,9 @@
         "Site assessment, installation, commissioning, compliance support and ongoing maintenance for emission-control systems"
       ],
       "priceRange": "not_sure",
-      "sensitiveCategoryFlags": ["none"]
+      "sensitiveCategoryFlags": [
+        "none"
+      ]
     },
     "step3": {
       "primaryTargetSegment": "Indian organisations operating diesel or gas generators or emission-intensive facilities, especially manufacturing, data centres, hospitals and infrastructure.",
@@ -78,7 +83,13 @@
       "marketingHandler": "not_sure",
       "contentCapacity": "not_sure",
       "salesCapacity": "not_sure",
-      "knownCompetitorStatus": "not_sure"
+      "knownCompetitorStatus": "provided",
+      "knownCompetitors": [
+        "Platino Automotive",
+        "PI Green Innovations",
+        "Cummins Technologies India",
+        "Automoto Genset Solutions"
+      ]
     },
     "step6": {
       "averageContractValue": "not_sure"
