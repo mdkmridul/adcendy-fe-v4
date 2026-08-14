@@ -7,12 +7,13 @@
     "step1": {
       "marketingTargetType": "whole_business",
       "focusName": "SF Compute",
-      "sourceType": "manual_only",
+      "sourceType": "website",
       "targetMarkets": [
         "US"
       ],
       "primaryMarket": "US",
-      "marketScope": "national"
+      "marketScope": "national",
+      "primaryUrl": "https://sfcompute.com"
     },
     "step2": {
       "businessName": "SF Compute",
@@ -83,7 +84,12 @@
       "marketingHandler": "not_sure",
       "contentCapacity": "not_sure",
       "salesCapacity": "not_sure",
-      "knownCompetitorStatus": "not_sure"
+      "knownCompetitorStatus": "provided",
+      "knownCompetitors": [
+        "CoreWeave",
+        "Lambda Labs",
+        "Spheron"
+      ]
     },
     "step6": {
       "averageContractValue": "not_sure"

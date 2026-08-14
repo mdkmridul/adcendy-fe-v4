@@ -7,17 +7,18 @@
     "step1": {
       "marketingTargetType": "whole_business",
       "focusName": "NXTFACE",
-      "sourceType": "manual_only",
+      "sourceType": "website",
       "targetMarkets": [
         "IN"
       ],
       "primaryMarket": "IN",
-      "marketScope": "national"
+      "marketScope": "national",
+      "primaryUrl": "https://nxtface.com"
     },
     "step2": {
       "businessName": "NXTFACE",
       "industryCategory": "healthcare_wellness",
-      "businessModel": "B2B",
+      "businessModel": "B2C",
       "audienceModel": "single_sided",
       "lifecycleStage": "growth",
       "businessDescription": "NXTFACE is an Indian skincare brand focused on younger consumers transitioning from adolescence into adulthood. It combines science-backed skincare formulations with an AI-powered skin analysis and product-recommendation experience. The brand sells affordable, cruelty-free skincare products through its own website, ecommerce marketplaces, retail outlets, pharmacies and the Naturals Salon network.",

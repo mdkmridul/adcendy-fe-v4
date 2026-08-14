@@ -7,10 +7,13 @@
     "step1": {
       "marketingTargetType": "whole_business",
       "focusName": "Fuzzy AI",
-      "sourceType": "manual_only",
-      "targetMarkets": ["IN"],
+      "sourceType": "website",
+      "targetMarkets": [
+        "IN"
+      ],
       "primaryMarket": "IN",
-      "marketScope": "national"
+      "marketScope": "national",
+      "primaryUrl": "https://getfuzzy.ai"
     },
     "step2": {
       "businessName": "Fuzzy AI",
@@ -28,7 +31,9 @@
         "Automated follow-ups and meeting-generation workflows"
       ],
       "priceRange": "not_sure",
-      "sensitiveCategoryFlags": ["none"]
+      "sensitiveCategoryFlags": [
+        "none"
+      ]
     },
     "step3": {
       "primaryTargetSegment": "Founder-led Indian B2B SaaS and professional-services companies with small sales teams using LinkedIn and outbound prospecting for qualified leads.",
@@ -69,7 +74,14 @@
       "marketingHandler": "not_sure",
       "contentCapacity": "not_sure",
       "salesCapacity": "not_sure",
-      "knownCompetitorStatus": "not_sure"
+      "knownCompetitorStatus": "provided",
+      "knownCompetitors": [
+        "Salesloft",
+        "HeyReach",
+        "Expandi",
+        "Dripify",
+        "Lemlist"
+      ]
     },
     "step6": {
       "averageContractValue": "not_sure"

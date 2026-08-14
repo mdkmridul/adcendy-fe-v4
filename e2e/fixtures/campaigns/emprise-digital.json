@@ -7,10 +7,13 @@
     "step1": {
       "marketingTargetType": "whole_business",
       "focusName": "Emprise Digital",
-      "sourceType": "manual_only",
-      "targetMarkets": ["IN"],
-      "primaryMarket": "IN",
-      "marketScope": "national"
+      "sourceType": "website",
+      "targetMarkets": [
+        "US"
+      ],
+      "primaryMarket": "US",
+      "marketScope": "national",
+      "primaryUrl": "https://emprisedigital.co"
     },
     "step2": {
       "businessName": "Emprise Digital",
@@ -33,10 +36,12 @@
         "Free marketing assessment and customised growth-plan consultation"
       ],
       "priceRange": "not_sure",
-      "sensitiveCategoryFlags": ["none"]
+      "sensitiveCategoryFlags": [
+        "none"
+      ]
     },
     "step3": {
-      "primaryTargetSegment": "Indian SMBs seeking measurable lead generation or online sales and able to fund an external performance-marketing agency.",
+      "primaryTargetSegment": "United States SMBs, local service providers, ecommerce brands and nonprofits seeking measurable leads and able to fund an external agency.",
       "targetPersona": "A founder, owner, managing director, head of marketing or growth leader at an established small or medium-sized business who is responsible for generating qualified leads or online sales, managing advertising expenditure and proving marketing return on investment.",
       "language": "english",
       "painPoints": [

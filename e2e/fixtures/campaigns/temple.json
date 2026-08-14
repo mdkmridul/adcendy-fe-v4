@@ -17,7 +17,7 @@
     "step2": {
       "businessName": "Temple",
       "industryCategory": "healthcare_wellness",
-      "businessModel": "B2B",
+      "businessModel": "B2C",
       "audienceModel": "single_sided",
       "lifecycleStage": "growth",
       "businessDescription": "Temple is an Indian health-technology startup developing a precision wearable instrument worn on the temple region of the head. The device is designed to capture physiological signals from the temple and measure a proprietary metric called Entropy, which Temple describes as the metabolic and sympathetic demand placed on the body and the physiological cost of maintaining life. The product is intended to help users understand how their bodies respond to and recover from sleep, exercise, food, stress and other daily activities.",
