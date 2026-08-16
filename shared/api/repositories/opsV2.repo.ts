@@ -5,6 +5,7 @@ import type {
   AdminReviewerAssignmentResult,
   AdminCampaignTriggerType,
   AdminCostsSummary,
+  CampaignCostRollup,
   CampaignHealthItem,
   CampaignOverviewV2,
   GenerateDeliverableKitV2Payload,
@@ -178,5 +179,9 @@ export const opsV2Repository = {
 
   async getCostsSummary(): Promise<AdminCostsSummary> {
     return adapter.getCostsSummary();
+  },
+
+  async getCampaignCostRollup(campaignId: string): Promise<CampaignCostRollup> {
+    return adapter.getCampaignCostRollup(campaignId);
   },
 };

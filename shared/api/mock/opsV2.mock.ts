@@ -4,6 +4,7 @@ import type {
   AdminReviewerAssignmentResult,
   AdminCampaignTriggerType,
   AdminCostsSummary,
+  CampaignCostRollup,
   CampaignHealthItem,
   CampaignOverviewV2,
   GenerateDeliverableKitV2Payload,
@@ -881,6 +882,40 @@ trailer
       totalCost: 129.42,
       totalTokens: 2483912,
       totalCalls: 421,
+    };
+  },
+
+  async getCampaignCostRollup(campaignId: string): Promise<CampaignCostRollup> {
+    await delay(140);
+    // Shaped after a real run: DataForSEO dominates and is the only provider
+    // still partly estimated, FireCrawl bills per credit rather than per call,
+    // and the free providers report a measured zero rather than nothing.
+    return {
+      campaignId,
+      campaignTitle: 'Chakr Innovation',
+      runCount: 1,
+      totals: { calls: 395, actualCostUsd: 5.53, estimatedCostUsd: 3.2, totalCostUsd: 8.73 },
+      byProvider: [
+        { provider: 'dataforseo', calls: 137, actualCostUsd: 1.8768, estimatedCostUsd: 3.2, totalCostUsd: 5.0768 },
+        { provider: 'firecrawl', calls: 118, actualCostUsd: 1.888, estimatedCostUsd: 0, totalCostUsd: 1.888 },
+        { provider: 'serpapi', calls: 53, actualCostUsd: 1.325, estimatedCostUsd: 0, totalCostUsd: 1.325 },
+        { provider: 'llm', calls: 35, actualCostUsd: 0.4379, estimatedCostUsd: 0, totalCostUsd: 0.4379 },
+        { provider: 'meta', calls: 34, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
+        { provider: 'pagespeed', calls: 18, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
+      ],
+      byOperation: [
+        { provider: 'serpapi', operation: 'search', calls: 31, actualCostUsd: 0.775, estimatedCostUsd: 0, totalCostUsd: 0.775, unitsConsumed: { unit: 'search', quantity: 31 } },
+        { provider: 'firecrawl', operation: 'competitive_homepage_scrape', calls: 28, actualCostUsd: 0.448, estimatedCostUsd: 0, totalCostUsd: 0.448, unitsConsumed: { unit: 'credit', quantity: 140 } },
+        { provider: 'pagespeed', operation: 'pagespeed_mobile_funnel_quality', calls: 18, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0, unitsConsumed: { unit: 'call', quantity: 18 } },
+      ],
+      byRun: [
+        { pipelineRunId: 'run_v2_mock_1', status: 'BLOCKED_AWAITING_REVIEW', createdAt: '2026-08-16T10:49:22.166Z', calls: 395, actualCostUsd: 5.53, estimatedCostUsd: 3.2, totalCostUsd: 8.73 },
+      ],
+      collectedDataReuse: {
+        observationsCollected: 270,
+        timesServedToLaterRuns: 99,
+        note: 'Counts reuse of data this campaign collected.',
+      },
     };
   },
 };

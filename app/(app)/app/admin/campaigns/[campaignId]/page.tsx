@@ -28,6 +28,7 @@ import { ApiError } from '@/shared/api/errors';
 import { opsV2Repository, runsV2Repository } from '@/shared/api/repositories';
 import { createIdempotencyKey } from '@/shared/run/idempotency';
 import { toJsonPreview } from '@/shared/components/ops/opsUtils';
+import { CampaignCostPanel } from '@/shared/components/ops/CampaignCostPanel';
 import { ReviewStatusBadge } from '@/shared/components/reviews/ReviewStatusBadge';
 import { CampaignDocumentUploader } from '@/shared/components/campaigns/CampaignDocumentUploader';
 import { Button } from '@/components/ui/button';
@@ -1109,6 +1110,8 @@ export default function AdminCampaignDetailPage() {
                 </CardContent>
               </Card>
             </div>
+
+            <CampaignCostPanel campaignId={campaignId} />
 
             <Card className="border-border bg-card">
               <CardHeader>
