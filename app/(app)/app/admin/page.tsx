@@ -9,6 +9,7 @@ import {
   ArrowRight,
   FileStack,
   FolderKanban,
+  Receipt,
   Sparkles,
   Stethoscope,
   TriangleAlert,
@@ -208,6 +209,26 @@ export default function AdminPage() {
             <Link href="/admin/ai">
               <Button variant="outline" className="w-full justify-between">
                 Open AI Monitoring
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Receipt className="h-5 w-5" />
+              Provider Cost
+            </CardTitle>
+            <CardDescription>
+              Per-campaign spend by provider, operation, and run, measured rather than estimated.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/admin/costs">
+              <Button variant="outline" className="w-full justify-between">
+                Open Provider Cost
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>

@@ -36,6 +36,7 @@ export const routePolicies: Record<string, Role> = {
   '/admin/jobs': 'ADMIN',
   '/admin/ai': 'ADMIN',
   '/admin/health': 'ADMIN',
+  '/admin/costs': 'ADMIN',
   '/admin/runs': 'ADMIN',
   '/app/campaigns': 'CLIENT',
   '/app/checkout': 'CLIENT',
