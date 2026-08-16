@@ -313,6 +313,15 @@ export interface CampaignCostRunRow extends CampaignCostBucket {
   createdAt?: string | null;
 }
 
+export interface CampaignCostSummary {
+  campaignId: string;
+  campaignTitle?: string | null;
+  runCount?: number | null;
+  calls?: number | null;
+  totalCostUsd?: number | null;
+  lastRunAt?: string | null;
+}
+
 export interface CampaignCostRollup {
   campaignId?: string | null;
   campaignTitle?: string | null;
@@ -1264,6 +1273,24 @@ function normalizeCampaignCostBucket(record: UnknownRecord): CampaignCostBucket 
       fallbackNumber(record.estimated_cost_usd, record.estimatedCostUsd) ?? null,
     totalCostUsd: fallbackNumber(record.total_cost_usd, record.totalCostUsd) ?? null,
   };
+}
+
+export function normalizeCampaignCostSummaries(
+  payload: unknown,
+): CampaignCostSummary[] {
+  const record = asRecord(payload) ?? {};
+  return asArray(record.items ?? payload)
+    .map((entry) => asRecord(entry))
+    .filter((entry): entry is UnknownRecord => Boolean(entry))
+    .map((entry) => ({
+      campaignId: fallbackString(entry.campaign_id, entry.campaignId) ?? 'unknown',
+      campaignTitle:
+        fallbackNullableString(entry.campaign_title, entry.campaignTitle) ?? null,
+      runCount: fallbackNumber(entry.run_count, entry.runCount) ?? null,
+      calls: fallbackNumber(entry.calls) ?? null,
+      totalCostUsd: fallbackNumber(entry.total_cost_usd, entry.totalCostUsd) ?? null,
+      lastRunAt: fallbackNullableString(entry.last_run_at, entry.lastRunAt) ?? null,
+    }));
 }
 
 export function normalizeCampaignCostRollup(payload: unknown): CampaignCostRollup {
