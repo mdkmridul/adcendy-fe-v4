@@ -281,6 +281,53 @@ export interface AdminCostsSummary {
   totalCalls?: number | null;
 }
 
+/**
+ * Per-campaign provider spend.
+ *
+ * Measured and estimated cost are separate fields rather than one total on
+ * purpose: only DataForSEO and the token-priced LLM calls settle at a figure
+ * the provider actually reported, and showing an estimate as a billed amount
+ * is how a cost view becomes misleading.
+ */
+export interface CampaignCostBucket {
+  calls?: number | null;
+  actualCostUsd?: number | null;
+  estimatedCostUsd?: number | null;
+  totalCostUsd?: number | null;
+}
+
+export interface CampaignCostProviderRow extends CampaignCostBucket {
+  provider: string;
+}
+
+export interface CampaignCostOperationRow extends CampaignCostBucket {
+  provider: string;
+  operation: string;
+  /** Billable units the provider reported, e.g. FireCrawl credits. */
+  unitsConsumed?: { unit: string; quantity: number } | null;
+}
+
+export interface CampaignCostRunRow extends CampaignCostBucket {
+  pipelineRunId: string;
+  status?: string | null;
+  createdAt?: string | null;
+}
+
+export interface CampaignCostRollup {
+  campaignId?: string | null;
+  campaignTitle?: string | null;
+  runCount?: number | null;
+  totals: CampaignCostBucket;
+  byProvider: CampaignCostProviderRow[];
+  byOperation: CampaignCostOperationRow[];
+  byRun: CampaignCostRunRow[];
+  collectedDataReuse: {
+    observationsCollected?: number | null;
+    timesServedToLaterRuns?: number | null;
+    note?: string | null;
+  };
+}
+
 function asRecord(value: unknown): UnknownRecord | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
@@ -1206,6 +1253,71 @@ export function normalizeReviewerOutcomesSummary(payload: unknown): ReviewerOutc
     pendingCount: fallbackNumber(record.pendingCount, record.pending_count) ?? null,
     medianTurnaroundMinutes:
       fallbackNumber(record.medianTurnaroundMinutes, record.median_turnaround_minutes) ?? null,
+  };
+}
+
+function normalizeCampaignCostBucket(record: UnknownRecord): CampaignCostBucket {
+  return {
+    calls: fallbackNumber(record.calls) ?? null,
+    actualCostUsd: fallbackNumber(record.actual_cost_usd, record.actualCostUsd) ?? null,
+    estimatedCostUsd:
+      fallbackNumber(record.estimated_cost_usd, record.estimatedCostUsd) ?? null,
+    totalCostUsd: fallbackNumber(record.total_cost_usd, record.totalCostUsd) ?? null,
+  };
+}
+
+export function normalizeCampaignCostRollup(payload: unknown): CampaignCostRollup {
+  const record = asRecord(payload) ?? {};
+  const campaign = asRecord(record.campaign) ?? {};
+  const reuse = asRecord(record.collected_data_reuse ?? record.collectedDataReuse) ?? {};
+
+  return {
+    campaignId: fallbackNullableString(campaign.id) ?? null,
+    campaignTitle: fallbackNullableString(campaign.title) ?? null,
+    runCount: fallbackNumber(record.run_count, record.runCount) ?? null,
+    totals: normalizeCampaignCostBucket(asRecord(record.totals) ?? {}),
+    byProvider: asArray(record.by_provider ?? record.byProvider)
+      .map((entry) => asRecord(entry))
+      .filter((entry): entry is UnknownRecord => Boolean(entry))
+      .map((entry) => ({
+        provider: fallbackString(entry.provider) ?? 'unknown',
+        ...normalizeCampaignCostBucket(entry),
+      })),
+    byOperation: asArray(record.by_operation ?? record.byOperation)
+      .map((entry) => asRecord(entry))
+      .filter((entry): entry is UnknownRecord => Boolean(entry))
+      .map((entry) => {
+        const units = asRecord(entry.units_consumed ?? entry.unitsConsumed);
+        const unit = units ? fallbackString(units.unit) : undefined;
+        const quantity = units ? fallbackNumber(units.quantity) : undefined;
+        return {
+          provider: fallbackString(entry.provider) ?? 'unknown',
+          operation: fallbackString(entry.operation) ?? 'unknown',
+          ...normalizeCampaignCostBucket(entry),
+          // Units are only meaningful as a pair; a unit with no quantity, or a
+          // quantity with no unit, is not a measurement.
+          unitsConsumed:
+            unit && quantity !== undefined ? { unit, quantity } : null,
+        };
+      }),
+    byRun: asArray(record.by_run ?? record.byRun)
+      .map((entry) => asRecord(entry))
+      .filter((entry): entry is UnknownRecord => Boolean(entry))
+      .map((entry) => ({
+        pipelineRunId:
+          fallbackString(entry.pipeline_run_id, entry.pipelineRunId) ?? 'unknown',
+        status: fallbackNullableString(entry.status) ?? null,
+        createdAt: fallbackNullableString(entry.created_at, entry.createdAt) ?? null,
+        ...normalizeCampaignCostBucket(entry),
+      })),
+    collectedDataReuse: {
+      observationsCollected:
+        fallbackNumber(reuse.observations_collected, reuse.observationsCollected) ?? null,
+      timesServedToLaterRuns:
+        fallbackNumber(reuse.times_served_to_later_runs, reuse.timesServedToLaterRuns) ??
+        null,
+      note: fallbackNullableString(reuse.note) ?? null,
+    },
   };
 }
 

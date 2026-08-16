@@ -6,6 +6,7 @@ import type {
   AdminReviewerAssignmentResult,
   AdminCampaignTriggerType,
   AdminCostsSummary,
+  CampaignCostRollup,
   CampaignHealthItem,
   CampaignOverviewV2,
   GenerateDeliverableKitV2Payload,
@@ -29,6 +30,7 @@ import type {
 } from '@/shared/types/opsV2';
 import {
   normalizeAdminCostsSummary,
+  normalizeCampaignCostRollup,
   normalizeCampaignHealthList,
   normalizeCampaignOverviewList,
   normalizeReviewerOutcomesSummary,
@@ -396,5 +398,12 @@ export const opsV2RealAdapter = {
   async getCostsSummary(): Promise<AdminCostsSummary> {
     const response = await http<ApiResponse<unknown> | unknown>('/api/v2/telemetry/admin/costs');
     return normalizeAdminCostsSummary(unwrapResponseData(response));
+  },
+
+  async getCampaignCostRollup(campaignId: string): Promise<CampaignCostRollup> {
+    const response = await http<ApiResponse<unknown> | unknown>(
+      `/api/v2/telemetry/admin/campaigns/${encodeURIComponent(campaignId)}/cost`,
+    );
+    return normalizeCampaignCostRollup(unwrapResponseData(response));
   },
 };

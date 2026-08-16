@@ -127,6 +127,8 @@ export const queryKeys = {
   opsV2: {
     all: ['opsV2'] as const,
     campaigns: () => [...queryKeys.opsV2.all, 'campaigns'] as const,
+    campaignCost: (campaignId: string) =>
+      [...queryKeys.opsV2.all, 'campaignCost', campaignId] as const,
     reviewerTasks: (filters?: Record<string, any>) =>
       filters
         ? ([...queryKeys.opsV2.all, 'reviewerTasks', filters] as const)
