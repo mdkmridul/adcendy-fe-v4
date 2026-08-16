@@ -18,30 +18,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-function formatUsd(value?: number | null) {
-  if (typeof value !== 'number') {
-    return 'Not available';
-  }
-
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
-}
-
 export default function AdminCostsPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  // The selected campaign lives in the URL so a cost view can be linked to
-  // and survives a reload, rather than resetting to nothing.
+  // The selection lives in the URL so a cost view can be sent to someone and
+  // survives a reload, rather than resetting to nothing.
   const campaignIdFromUrl = searchParams?.get('campaignId') ?? '';
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaignIdFromUrl);
 
   const campaignsQuery = useOpsCampaignOverviews(isAdmin);
-  const totalsQuery = useOpsCostsSummary(isAdmin);
+  const orgTotalsQuery = useOpsCostsSummary(isAdmin);
 
   const campaigns = useMemo(
     () =>
@@ -66,7 +55,7 @@ export default function AdminCostsPage() {
   if (isAuthLoading) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
-        Loading cost dashboard...
+        Loading provider cost…
       </div>
     );
   }
@@ -89,8 +78,10 @@ export default function AdminCostsPage() {
     );
   }
 
+  const orgTotal = orgTotalsQuery.data?.totalCost;
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="space-y-3">
         <Link href="/app/admin">
           <Button variant="ghost" className="-ml-3 w-fit">
@@ -103,57 +94,29 @@ export default function AdminCostsPage() {
             Provider Cost
           </h1>
           <p className="text-muted-foreground">
-            What each campaign has spent with FireCrawl, SerpAPI, DataForSEO,
-            and the model providers, measured per call rather than estimated
-            per provider.
+            What a campaign spent with FireCrawl, SerpAPI, DataForSEO, and the
+            model providers — priced per call and per billable unit rather than
+            estimated per provider.
           </p>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              All campaigns, total
-            </p>
-            <p className="mt-2 text-3xl font-semibold">
-              {formatUsd(totalsQuery.data?.totalCost)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              All campaigns, calls
-            </p>
-            <p className="mt-2 text-3xl font-semibold">
-              {totalsQuery.data?.totalCalls?.toLocaleString() ?? 'Not available'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              Campaigns
-            </p>
-            <p className="mt-2 text-3xl font-semibold">{campaigns.length}</p>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* The selector is the page's primary control, so it leads rather than
+          sitting under a row of statistics that compete with the campaign's own
+          headline figure. */}
       <Card className="border-border bg-card">
         <CardContent className="space-y-2 p-4">
           <Label htmlFor="cost-campaign-select">Campaign</Label>
           {campaignsQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading campaigns...</p>
+            <p className="text-sm text-muted-foreground">Loading campaigns…</p>
           ) : campaigns.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No campaigns are available to inspect.
             </p>
           ) : (
             <Select value={activeCampaignId} onValueChange={handleSelect}>
-              <SelectTrigger id="cost-campaign-select" className="max-w-xl">
-                <SelectValue placeholder="Select a campaign to see its provider cost" />
+              <SelectTrigger id="cost-campaign-select">
+                <SelectValue placeholder="Select a campaign" />
               </SelectTrigger>
               <SelectContent>
                 {campaigns.map((campaign) => (
@@ -164,18 +127,6 @@ export default function AdminCostsPage() {
               </SelectContent>
             </Select>
           )}
-          {activeCampaign ? (
-            <p className="text-xs text-muted-foreground">
-              Showing{' '}
-              <Link
-                href={`/admin/campaigns/${activeCampaign.id}`}
-                className="underline underline-offset-2"
-              >
-                {activeCampaign.title}
-              </Link>
-              . Cost is attributed to the campaign that made the provider calls.
-            </p>
-          ) : null}
         </CardContent>
       </Card>
 
@@ -183,12 +134,41 @@ export default function AdminCostsPage() {
         <CampaignCostPanel campaignId={activeCampaignId} />
       ) : (
         <Card className="border-border bg-card">
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Select a campaign above to see its provider cost, broken down by
-            provider, operation, and run.
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              Select a campaign to see its provider cost, broken down by
+              provider, operation, and run.
+            </p>
           </CardContent>
         </Card>
       )}
+
+      {/* Org-wide spend is context, not the subject of this page, so it sits
+          below the campaign it would otherwise compete with. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
+        <span>
+          Across all campaigns:{' '}
+          <span className="font-medium text-foreground tabular-nums">
+            {typeof orgTotal === 'number'
+              ? new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                }).format(orgTotal)
+              : 'not available'}
+          </span>
+        </span>
+        <span>
+          {campaigns.length} campaign{campaigns.length === 1 ? '' : 's'}
+        </span>
+        {activeCampaign ? (
+          <Link
+            href={`/admin/campaigns/${activeCampaign.id}`}
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            Open {activeCampaign.title} in campaign ops
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }
