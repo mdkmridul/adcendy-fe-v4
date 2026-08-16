@@ -5,6 +5,7 @@ import type {
   AdminCampaignTriggerType,
   AdminCostsSummary,
   CampaignCostRollup,
+  CampaignCostSummary,
   CampaignHealthItem,
   CampaignOverviewV2,
   GenerateDeliverableKitV2Payload,
@@ -883,6 +884,14 @@ trailer
       totalTokens: 2483912,
       totalCalls: 421,
     };
+  },
+
+  async listCampaignCostSummaries(): Promise<CampaignCostSummary[]> {
+    await delay(120);
+    return [
+      { campaignId: 'camp_chakr', campaignTitle: 'Chakr Innovation', runCount: 4, calls: 950, totalCostUsd: 33.93, lastRunAt: '2026-08-16T10:49:22.166Z' },
+      { campaignId: 'camp_fuzzy', campaignTitle: 'Fuzzy AI', runCount: 2, calls: 450, totalCostUsd: 33.22, lastRunAt: '2026-08-14T09:17:35.163Z' },
+    ];
   },
 
   async getCampaignCostRollup(campaignId: string): Promise<CampaignCostRollup> {

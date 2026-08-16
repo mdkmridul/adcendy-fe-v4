@@ -208,6 +208,14 @@ export function useRecreateOpsAdminCampaignRun(campaignId: string | null) {
   });
 }
 
+export function useOpsCampaignCostSummaries(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.opsV2.campaignCosts(),
+    queryFn: () => opsV2Repository.listCampaignCostSummaries(),
+    enabled,
+  });
+}
+
 export function useOpsCampaignCost(campaignId: string | null, enabled = true) {
   return useQuery({
     queryKey: campaignId ? queryKeys.opsV2.campaignCost(campaignId) : queryKeys.opsV2.all,
