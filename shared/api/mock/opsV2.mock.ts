@@ -902,23 +902,69 @@ trailer
     return {
       campaignId,
       campaignTitle: 'Chakr Innovation',
-      runCount: 1,
-      totals: { calls: 395, actualCostUsd: 5.53, estimatedCostUsd: 3.2, totalCostUsd: 8.73 },
+      // Two attempts, because that is the case the run breakdown exists for:
+      // a campaign re-run after a reviewer block, where the second attempt
+      // reused stored domain data but had to re-buy SERP. Figures are the
+      // recorded ones from runs y7zwpnga and hxikfrk7.
+      runCount: 2,
+      totals: { calls: 796, actualCostUsd: 8.9877, estimatedCostUsd: 8.2002, totalCostUsd: 17.1879 },
       byProvider: [
-        { provider: 'dataforseo', calls: 137, actualCostUsd: 1.8768, estimatedCostUsd: 3.2, totalCostUsd: 5.0768 },
-        { provider: 'firecrawl', calls: 118, actualCostUsd: 1.888, estimatedCostUsd: 0, totalCostUsd: 1.888 },
-        { provider: 'serpapi', calls: 53, actualCostUsd: 1.325, estimatedCostUsd: 0, totalCostUsd: 1.325 },
-        { provider: 'llm', calls: 35, actualCostUsd: 0.4379, estimatedCostUsd: 0, totalCostUsd: 0.4379 },
-        { provider: 'meta', calls: 34, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
-        { provider: 'pagespeed', calls: 18, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
+        { provider: 'dataforseo', calls: 290, actualCostUsd: 3.9130, estimatedCostUsd: 6.2002, totalCostUsd: 10.1132 },
+        { provider: 'firecrawl', calls: 205, actualCostUsd: 1.2800, estimatedCostUsd: 2.0000, totalCostUsd: 3.2800 },
+        { provider: 'serpapi', calls: 103, actualCostUsd: 2.5750, estimatedCostUsd: 0, totalCostUsd: 2.5750 },
+        { provider: 'llm', calls: 87, actualCostUsd: 1.2097, estimatedCostUsd: 0, totalCostUsd: 1.2097 },
+        { provider: 'pagespeed', calls: 37, actualCostUsd: 0.0100, estimatedCostUsd: 0, totalCostUsd: 0.0100 },
+        { provider: 'meta', calls: 74, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
       ],
       byOperation: [
-        { provider: 'serpapi', operation: 'search', calls: 31, actualCostUsd: 0.775, estimatedCostUsd: 0, totalCostUsd: 0.775, unitsConsumed: { unit: 'search', quantity: 31 } },
-        { provider: 'firecrawl', operation: 'competitive_homepage_scrape', calls: 28, actualCostUsd: 0.448, estimatedCostUsd: 0, totalCostUsd: 0.448, unitsConsumed: { unit: 'credit', quantity: 140 } },
-        { provider: 'pagespeed', operation: 'pagespeed_mobile_funnel_quality', calls: 18, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0, unitsConsumed: { unit: 'call', quantity: 18 } },
+        { provider: 'dataforseo', operation: 'ranked_keywords', calls: 34, actualCostUsd: 0.6976, estimatedCostUsd: 0, totalCostUsd: 0.6976, unitsConsumed: { unit: 'task', quantity: 34 } },
+        { provider: 'serpapi', operation: 'search', calls: 61, actualCostUsd: 1.5250, estimatedCostUsd: 0, totalCostUsd: 1.5250, unitsConsumed: { unit: 'search', quantity: 61 } },
+        { provider: 'firecrawl', operation: 'competitive_homepage_scrape', calls: 52, actualCostUsd: 0.8320, estimatedCostUsd: 0, totalCostUsd: 0.8320, unitsConsumed: { unit: 'credit', quantity: 260 } },
+        { provider: 'pagespeed', operation: 'pagespeed_mobile_funnel_quality', calls: 37, actualCostUsd: 0.0100, estimatedCostUsd: 0, totalCostUsd: 0.0100, unitsConsumed: { unit: 'call', quantity: 37 } },
       ],
       byRun: [
-        { pipelineRunId: 'run_v2_mock_1', status: 'BLOCKED_AWAITING_REVIEW', createdAt: '2026-08-16T10:49:22.166Z', calls: 395, actualCostUsd: 5.53, estimatedCostUsd: 3.2, totalCostUsd: 8.73 },
+        {
+          pipelineRunId: 'run_v2_1786963832974_hxikfrk7',
+          status: 'BLOCKED_AWAITING_REVIEW',
+          createdAt: '2026-08-17T10:50:32.974Z',
+          calls: 401, actualCostUsd: 4.4527, estimatedCostUsd: 3.9183, totalCostUsd: 8.3710,
+          byProvider: [
+            { provider: 'dataforseo', calls: 153, actualCostUsd: 1.1181, estimatedCostUsd: 3.9183, totalCostUsd: 5.0364 },
+            { provider: 'firecrawl', calls: 87, actualCostUsd: 1.3920, estimatedCostUsd: 0, totalCostUsd: 1.3920 },
+            { provider: 'serpapi', calls: 50, actualCostUsd: 1.2500, estimatedCostUsd: 0, totalCostUsd: 1.2500 },
+            { provider: 'llm', calls: 52, actualCostUsd: 0.6826, estimatedCostUsd: 0, totalCostUsd: 0.6826 },
+            { provider: 'pagespeed', calls: 19, actualCostUsd: 0.0100, estimatedCostUsd: 0, totalCostUsd: 0.0100 },
+            { provider: 'meta', calls: 40, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
+          ],
+          byPhase: [
+            { phase: 'competitive_evidence_collection_v2', calls: 245, actualCostUsd: 2.4610, estimatedCostUsd: 3.3100, totalCostUsd: 5.7710 },
+            { phase: 'competitive_candidate_verification_v2', calls: 60, actualCostUsd: 1.0450, estimatedCostUsd: 0.2083, totalCostUsd: 1.2533 },
+            { phase: 'serp_competitor_identification_v2', calls: 50, actualCostUsd: 0.6200, estimatedCostUsd: 0.4000, totalCostUsd: 1.0200 },
+            { phase: 'gap_analysis_v2', calls: 32, actualCostUsd: 0.2867, estimatedCostUsd: 0, totalCostUsd: 0.2867 },
+            { phase: 'section_generation_v2', calls: 14, actualCostUsd: 0.0400, estimatedCostUsd: 0, totalCostUsd: 0.0400 },
+          ],
+        },
+        {
+          pipelineRunId: 'run_v2_1786877362162_y7zwpnga',
+          status: 'BLOCKED_AWAITING_REVIEW',
+          createdAt: '2026-08-16T10:49:22.166Z',
+          calls: 395, actualCostUsd: 4.5350, estimatedCostUsd: 4.2819, totalCostUsd: 8.8169,
+          byProvider: [
+            { provider: 'dataforseo', calls: 137, actualCostUsd: 0.7949, estimatedCostUsd: 4.2819, totalCostUsd: 5.0768 },
+            { provider: 'firecrawl', calls: 118, actualCostUsd: 1.8880, estimatedCostUsd: 0, totalCostUsd: 1.8880 },
+            { provider: 'serpapi', calls: 53, actualCostUsd: 1.3250, estimatedCostUsd: 0, totalCostUsd: 1.3250 },
+            { provider: 'llm', calls: 35, actualCostUsd: 0.5271, estimatedCostUsd: 0, totalCostUsd: 0.5271 },
+            { provider: 'meta', calls: 34, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
+            { provider: 'pagespeed', calls: 18, actualCostUsd: 0, estimatedCostUsd: 0, totalCostUsd: 0 },
+          ],
+          byPhase: [
+            { phase: 'competitive_evidence_collection_v2', calls: 238, actualCostUsd: 2.6800, estimatedCostUsd: 3.6019, totalCostUsd: 6.2819 },
+            { phase: 'competitive_candidate_verification_v2', calls: 48, actualCostUsd: 0.8250, estimatedCostUsd: 0.4800, totalCostUsd: 1.3050 },
+            { phase: 'serp_competitor_identification_v2', calls: 53, actualCostUsd: 0.7800, estimatedCostUsd: 0.2000, totalCostUsd: 0.9800 },
+            { phase: 'gap_analysis_v2', calls: 41, actualCostUsd: 0.2200, estimatedCostUsd: 0, totalCostUsd: 0.2200 },
+            { phase: 'outside_a_phase', calls: 15, actualCostUsd: 0.0300, estimatedCostUsd: 0, totalCostUsd: 0.0300 },
+          ],
+        },
       ],
       collectedDataReuse: {
         observationsCollected: 270,
