@@ -91,3 +91,48 @@ test('reads reuse counts from the collected-data block', () => {
   assert.equal(rollup.collectedDataReuse.observationsCollected, 270);
   assert.equal(rollup.collectedDataReuse.timesServedToLaterRuns, 99);
 });
+
+test('reads the per-run provider and phase breakdown', () => {
+  // A campaign is re-run after reviewer changes and after failures, so its
+  // total is a sum over attempts. Provider answers who was paid and phase
+  // answers what for; a rerun that re-bought SERP but reused domain metrics
+  // is indistinguishable from a cheap first run on provider alone.
+  const rollup = normalizeCampaignCostRollup({
+    by_run: [
+      {
+        pipeline_run_id: 'run_b',
+        status: 'BLOCKED_AWAITING_REVIEW',
+        created_at: '2026-08-17T10:50:32.974Z',
+        calls: 50,
+        total_cost_usd: 1.25,
+        by_provider: [{ provider: 'serpapi', calls: 50, total_cost_usd: 1.25 }],
+        by_phase: [
+          {
+            phase: 'serp_competitor_identification_v2',
+            calls: 50,
+            total_cost_usd: 1.25,
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(rollup.byRun.length, 1);
+  assert.equal(rollup.byRun[0].byProvider[0].provider, 'serpapi');
+  assert.equal(rollup.byRun[0].byProvider[0].totalCostUsd, 1.25);
+  assert.equal(
+    rollup.byRun[0].byPhase[0].phase,
+    'serp_competitor_identification_v2',
+  );
+});
+
+test('defaults a run with no nested breakdown to empty lists', () => {
+  // A payload predating the breakdown must not make the panel throw on a
+  // missing array, so these default to empty rather than undefined.
+  const rollup = normalizeCampaignCostRollup({
+    by_run: [{ pipeline_run_id: 'run_a', calls: 3, total_cost_usd: 0.5 }],
+  });
+
+  assert.deepEqual(rollup.byRun[0].byProvider, []);
+  assert.deepEqual(rollup.byRun[0].byPhase, []);
+});

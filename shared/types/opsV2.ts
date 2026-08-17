@@ -307,10 +307,22 @@ export interface CampaignCostOperationRow extends CampaignCostBucket {
   unitsConsumed?: { unit: string; quantity: number } | null;
 }
 
+export interface CampaignCostPhaseRow extends CampaignCostBucket {
+  phase: string;
+}
+
+/**
+ * One attempt at a campaign. A campaign is re-run after reviewer changes and
+ * after failures, so its total is a sum over attempts that each cost a
+ * different amount for a different reason; the nested breakdowns are what
+ * turn "this run cost more" into a reason.
+ */
 export interface CampaignCostRunRow extends CampaignCostBucket {
   pipelineRunId: string;
   status?: string | null;
   createdAt?: string | null;
+  byProvider: CampaignCostProviderRow[];
+  byPhase: CampaignCostPhaseRow[];
 }
 
 export interface CampaignCostSummary {
@@ -1336,6 +1348,22 @@ export function normalizeCampaignCostRollup(payload: unknown): CampaignCostRollu
         status: fallbackNullableString(entry.status) ?? null,
         createdAt: fallbackNullableString(entry.created_at, entry.createdAt) ?? null,
         ...normalizeCampaignCostBucket(entry),
+        // Older payloads carry no nested breakdown, so these default to empty
+        // rather than undefined and the panel needs no presence check.
+        byProvider: asArray(entry.by_provider ?? entry.byProvider)
+          .map((row) => asRecord(row))
+          .filter((row): row is UnknownRecord => Boolean(row))
+          .map((row) => ({
+            provider: fallbackString(row.provider) ?? 'unknown',
+            ...normalizeCampaignCostBucket(row),
+          })),
+        byPhase: asArray(entry.by_phase ?? entry.byPhase)
+          .map((row) => asRecord(row))
+          .filter((row): row is UnknownRecord => Boolean(row))
+          .map((row) => ({
+            phase: fallbackString(row.phase) ?? 'unknown',
+            ...normalizeCampaignCostBucket(row),
+          })),
       })),
     collectedDataReuse: {
       observationsCollected:

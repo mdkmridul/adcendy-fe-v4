@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useOpsCampaignCost } from '@/hooks/useOpsV2';
+import { ChevronRight } from 'lucide-react';
 import type {
   CampaignCostOperationRow,
   CampaignCostProviderRow,
+  CampaignCostRunRow,
 } from '@/shared/types/opsV2';
 import { formatOpsDateTime, formatOpsStatus } from './opsUtils';
 import {
@@ -76,6 +78,12 @@ export function CampaignCostPanel({ campaignId }: CampaignCostPanelProps) {
   const total = data.totals.totalCostUsd ?? 0;
   const calls = data.totals.calls ?? 0;
   const widest = providers[0]?.totalCostUsd ?? 0;
+  // Run bars are scaled to the most expensive attempt, so a rerun that reused
+  // most of its data reads as visibly cheaper rather than merely smaller.
+  const widestRun = data.byRun.reduce(
+    (max, run) => Math.max(max, run.totalCostUsd ?? 0),
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -193,53 +201,34 @@ export function CampaignCostPanel({ campaignId }: CampaignCostPanelProps) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>By run</CardTitle>
-          </CardHeader>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-6">Run</TableHead>
-                  <TableHead className="text-right">Calls</TableHead>
-                  <TableHead className="pr-6 text-right">Cost</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.byRun.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="pl-6 text-sm text-muted-foreground">
-                      No runs recorded.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  data.byRun.map((row) => (
-                    <TableRow key={row.pipelineRunId}>
-                      <TableCell className="pl-6">
-                        <span className="block font-mono text-xs">
-                          {row.pipelineRunId}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {row.status ? formatOpsStatus(row.status) : 'Unknown'} ·{' '}
-                          {formatOpsDateTime(row.createdAt)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {(row.calls ?? 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="pr-6 text-right font-medium tabular-nums">
-                        {formatUsd(row.totalCostUsd)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle>By run</CardTitle>
+          <CardDescription>
+            A campaign is re-run after reviewer changes and after failures, so
+            this total is a sum over attempts. Open a run to see which
+            providers and which phases its cost came from.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.byRun.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No runs recorded.</p>
+          ) : (
+            data.byRun.map((run, index) => (
+              <RunBreakdown
+                key={run.pipelineRunId}
+                run={run}
+                widest={widestRun}
+                // The newest run is the one a reader just triggered, so it
+                // opens without a click and older attempts stay collapsed.
+                defaultOpen={index === 0}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
 
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle>Data this campaign collected</CardTitle>
@@ -355,6 +344,148 @@ function CertaintySplit({
           }
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * One attempt at the campaign, with the reason its cost differs from the
+ * others.
+ *
+ * Providers answer "who was paid" and phases answer "what for" — a rerun that
+ * re-bought SERP but reused domain metrics looks identical to a cheap first
+ * run on provider alone, and completely different once the phase is named.
+ * Both are shown because neither is sufficient.
+ */
+function RunBreakdown({
+  run,
+  widest,
+  defaultOpen,
+}: {
+  run: CampaignCostRunRow;
+  widest: number;
+  defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const runTotal = run.totalCostUsd ?? 0;
+  // Scaled across runs, so a run's bar is comparable to its siblings.
+  const widthPct = widest > 0 ? Math.max((runTotal / widest) * 100, 1.5) : 0;
+  const hasDetail = run.byProvider.length > 0 || run.byPhase.length > 0;
+
+  return (
+    <div className="rounded-md border border-border">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        disabled={!hasDetail}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left disabled:cursor-default"
+      >
+        <ChevronRight
+          aria-hidden
+          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+            open ? 'rotate-90' : ''
+          } ${hasDetail ? '' : 'opacity-0'}`}
+        />
+        <div className="min-w-0 flex-1">
+          <span className="block truncate font-mono text-xs">
+            {run.pipelineRunId}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {run.status ? formatOpsStatus(run.status) : 'Unknown'} ·{' '}
+            {formatOpsDateTime(run.createdAt)} ·{' '}
+            {(run.calls ?? 0).toLocaleString()} call
+            {run.calls === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className="hidden h-2 w-32 shrink-0 rounded-sm bg-muted/60 sm:block">
+          <div
+            className="h-full rounded-sm bg-[var(--chart-2)]"
+            style={{ width: `${widthPct}%` }}
+          />
+        </div>
+        <span className="shrink-0 text-sm font-medium tabular-nums">
+          {formatUsd(runTotal)}
+        </span>
+      </button>
+
+      {open && hasDetail ? (
+        <div className="grid gap-6 border-t border-border px-4 py-4 sm:grid-cols-2">
+          <MiniBreakdown
+            label="Providers"
+            rows={run.byProvider.map((row) => ({
+              key: row.provider,
+              label: row.provider,
+              calls: row.calls ?? 0,
+              total: row.totalCostUsd ?? 0,
+            }))}
+            runTotal={runTotal}
+          />
+          <MiniBreakdown
+            label="Phases"
+            rows={run.byPhase.map((row) => ({
+              key: row.phase,
+              label: row.phase.replace(/_v2$/, '').replace(/_/g, ' '),
+              calls: row.calls ?? 0,
+              total: row.totalCostUsd ?? 0,
+            }))}
+            runTotal={runTotal}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MiniBreakdown({
+  label,
+  rows,
+  runTotal,
+}: {
+  label: string;
+  rows: Array<{ key: string; label: string; calls: number; total: number }>;
+  runTotal: number;
+}) {
+  // Scaled within the run, not across the campaign: this answers "what drove
+  // *this* run", and rescaling to the campaign would flatten a cheap run into
+  // an unreadable row of slivers.
+  const widest = rows[0]?.total ?? 0;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Not recorded.</p>
+      ) : (
+        rows.map((row) => (
+          <div key={row.key} className="space-y-1">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="truncate">{row.label}</span>
+              <span className="shrink-0 tabular-nums">
+                {formatUsd(row.total)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 flex-1 rounded-sm bg-muted/60">
+                <div
+                  className="h-full rounded-sm bg-[var(--chart-2)]"
+                  style={{
+                    width: `${widest > 0 ? Math.max((row.total / widest) * 100, 1.5) : 0}%`,
+                  }}
+                />
+              </div>
+              <span className="w-24 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                {runTotal > 0
+                  ? `${Math.round((row.total / runTotal) * 100)}%`
+                  : '—'}{' '}
+                · {row.calls.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
