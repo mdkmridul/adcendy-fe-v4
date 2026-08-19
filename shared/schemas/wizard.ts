@@ -4,8 +4,11 @@ import {
 } from '@/shared/types/campaign';
 import {
   AVG_CUSTOMER_RETENTION_VALUES,
+  CLOSE_RATE_BAND_VALUES,
+  DEAL_VALUE_BAND_VALUES,
   DIGITAL_PRESENCE_LINK_TYPE_VALUES,
   EMAIL_LIST_SIZE_VALUES,
+  GROSS_MARGIN_BAND_VALUES,
   MONTHLY_MARKETING_SPEND_VALUES,
   MONTHLY_REVENUE_VALUES,
   MONTHLY_WEBSITE_TRAFFIC_VALUES,
@@ -246,6 +249,18 @@ export const step3Schema = z.object({
   averageOrderValue: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   averageContractValue: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   grossMarginPercentage: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
+  // Bands, asked at the end of intake. Deal value and margin carry no opt-out:
+  // the free-text fields above shipped `not_sure` on the last run, and the
+  // unit economics model is built on exactly these two numbers.
+  // Optional on the field so the form can start unselected - defaulting to a
+  // real band would be a guess wearing an answer, which is the failure the
+  // free-text field produced as `not_sure`. Required at the object level
+  // below, where the check cannot narrow the inferred type.
+  dealValueBand: z.enum(DEAL_VALUE_BAND_VALUES).optional(),
+  grossMarginBand: z.enum(GROSS_MARGIN_BAND_VALUES).optional(),
+  // Optional by design: a pre-CRM client has no honest answer, and the model
+  // sweeps this as a sensitivity axis rather than assuming a figure.
+  closeRateBand: z.enum(CLOSE_RATE_BAND_VALUES).default('not_tracked'),
   monthlyOrderVolume: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   productCost: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   monthlyOrdersPerSubscriber: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
@@ -266,7 +281,26 @@ export const step3Schema = z.object({
       message: 'Add at least one known competitor when status is provided.',
     });
   }
-});
+})
+  .superRefine((value, ctx) => {
+    // Deal value and gross margin carry no opt-out. The unit economics section
+    // is built on exactly these two numbers, and the free-text fields they
+    // replace shipped `not_sure` on the last run.
+    if (!value.dealValueBand) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dealValueBand'],
+        message: 'Select the band your average deal or order value falls in',
+      });
+    }
+    if (!value.grossMarginBand) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['grossMarginBand'],
+        message: 'Select the band your gross margin falls in',
+      });
+    }
+  });
 
 export const step4Schema = z.object({
   confirmFocus: z.boolean().optional(),

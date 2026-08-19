@@ -85,6 +85,9 @@ export interface CampaignFixture {
       averageOrderValue?: string;
       averageContractValue?: string;
       grossMarginPercentage?: string;
+      dealValueBand?: string;
+      grossMarginBand?: string;
+      closeRateBand?: string;
       monthlyRevenue?: string;
       monthlyOrderVolume?: string;
       productCost?: string;
