@@ -128,6 +128,9 @@ import {
   type WizardFieldOptionV2,
   type WizardOptionsResponseV2,
   type WizardDerivedMetrics,
+  CLOSE_RATE_BAND_OPTIONS,
+  DEAL_VALUE_BAND_OPTIONS,
+  GROSS_MARGIN_BAND_OPTIONS,
 } from '@/shared/types/wizard';
 
 type WizardModalStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -179,6 +182,10 @@ const EMPTY_STEP_2_VALUES: Step2FormData = {
   digitalPresenceLinks: [],
 };
 
+// Deal value and gross margin start unset rather than pre-filled: a default
+// band is a guess wearing an answer, which is the failure the free-text
+// `not_sure` field produced on the last run. The select shows its placeholder
+// and validation asks for a real choice.
 const EMPTY_STEP_3_VALUES: Step3FormData = {
   primaryTargetSegment: '',
   targetPersona: '',
@@ -210,6 +217,9 @@ const EMPTY_STEP_3_VALUES: Step3FormData = {
   averageOrderValue: '',
   averageContractValue: '',
   grossMarginPercentage: '',
+  dealValueBand: undefined,
+  grossMarginBand: undefined,
+  closeRateBand: 'not_tracked',
   monthlyOrderVolume: '',
   productCost: '',
   monthlyOrdersPerSubscriber: '',
@@ -2681,6 +2691,10 @@ export function CampaignWizardModal({
       averageOrderValue: normalizeString(savedEconomicsData.averageOrderValue as string | undefined),
       averageContractValue: normalizeString(savedEconomicsData.averageContractValue as string | undefined),
       grossMarginPercentage: normalizeString(savedEconomicsData.grossMarginPercentage as string | undefined),
+      dealValueBand: savedEconomicsData.dealValueBand as Step3FormData['dealValueBand'],
+      grossMarginBand: savedEconomicsData.grossMarginBand as Step3FormData['grossMarginBand'],
+      closeRateBand:
+        (savedEconomicsData.closeRateBand as Step3FormData['closeRateBand']) ?? 'not_tracked',
       monthlyOrderVolume:
         typeof savedEconomicsData.monthlyOrderVolume === 'number'
           ? String(savedEconomicsData.monthlyOrderVolume)
@@ -3144,6 +3158,9 @@ export function CampaignWizardModal({
     averageOrderValue: normalizeNullableString(data.averageOrderValue) ?? normalizeNullableString(data.monthlyRevenue),
     averageContractValue: normalizeNullableString(data.averageContractValue),
     grossMarginPercentage: normalizeNullableString(data.grossMarginPercentage),
+    dealValueBand: data.dealValueBand,
+    grossMarginBand: data.grossMarginBand,
+    closeRateBand: data.closeRateBand ?? 'not_tracked',
     monthlyRevenue: normalizeNullableString(data.monthlyRevenue),
     monthlyOrderVolume: normalizeNullableString(data.monthlyOrderVolume),
     productCost: normalizeNullableString(data.productCost),
@@ -5940,6 +5957,83 @@ export function CampaignWizardModal({
                       <FieldLabel label="Gross margin percentage" />
                       <Input data-testid={wizardFieldTestId('grossMarginPercentage')} className={wizardInputClassName} placeholder="e.g. 42%" {...step3Form.register('grossMarginPercentage')} />
                       <FieldMeta error={step3Form.formState.errors.grossMarginPercentage?.message} />
+                    </div>
+                    <div className="space-y-2">
+                      <FieldLabel
+                        label="What is a typical deal or order worth?"
+                        helper="A band is fine. This is what the plan sizes budget and cost-per-customer against."
+                        required
+                      />
+                      <Controller
+                        name="dealValueBand"
+                        control={step3Form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                            <SelectTrigger data-testid={wizardFieldTestId('dealValueBand')} className={wizardInputClassName}>
+                              <SelectValue placeholder="Select a range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DEAL_VALUE_BAND_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldMeta error={step3Form.formState.errors.dealValueBand?.message} />
+                    </div>
+                    <div className="space-y-2">
+                      <FieldLabel
+                        label="Roughly what gross margin do you keep on that?"
+                        helper="Revenue minus what it costs you to deliver, before marketing."
+                        required
+                      />
+                      <Controller
+                        name="grossMarginBand"
+                        control={step3Form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                            <SelectTrigger data-testid={wizardFieldTestId('grossMarginBand')} className={wizardInputClassName}>
+                              <SelectValue placeholder="Select a range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GROSS_MARGIN_BAND_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldMeta error={step3Form.formState.errors.grossMarginBand?.message} />
+                    </div>
+                    <div className="space-y-2">
+                      <FieldLabel
+                        label="Of the enquiries you get, how many become customers?"
+                        helper="If you do not track this yet, say so - we will model a range instead of assuming a number."
+                      />
+                      <Controller
+                        name="closeRateBand"
+                        control={step3Form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value ?? 'not_tracked'}>
+                            <SelectTrigger data-testid={wizardFieldTestId('closeRateBand')} className={wizardInputClassName}>
+                              <SelectValue placeholder="Select a range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CLOSE_RATE_BAND_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldMeta error={step3Form.formState.errors.closeRateBand?.message} />
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Monthly revenue" helper={`Preset values accepted: ${MONTHLY_REVENUE_OPTIONS.map((option) => option.value).join(', ')}`} />

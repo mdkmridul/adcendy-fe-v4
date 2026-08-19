@@ -138,6 +138,49 @@ export const MONTHLY_REVENUE_VALUES = [
 
 export type MonthlyRevenue = (typeof MONTHLY_REVENUE_VALUES)[number];
 
+/**
+ * Deal value, gross margin and close rate, asked as bands.
+ *
+ * The free-text economics fields shipped `not_sure` on the last run and the
+ * backend validator invited it by name. An owner knows their band without
+ * going to look it up, and a band is all the unit economics model needs.
+ *
+ * Deal value and margin have no opt-out. Close rate keeps `not_tracked`,
+ * because a pre-CRM client has no honest answer and the model sweeps it as a
+ * sensitivity axis instead of assuming one.
+ */
+export const DEAL_VALUE_BAND_VALUES = [
+  'under_10k',
+  'from_10k_to_50k',
+  'from_50k_to_2l',
+  'from_2l_to_10l',
+  'from_10l_to_50l',
+  'above_50l',
+] as const;
+
+export type DealValueBand = (typeof DEAL_VALUE_BAND_VALUES)[number];
+
+export const GROSS_MARGIN_BAND_VALUES = [
+  'under_20_percent',
+  'from_20_to_40_percent',
+  'from_40_to_60_percent',
+  'from_60_to_80_percent',
+  'above_80_percent',
+] as const;
+
+export type GrossMarginBand = (typeof GROSS_MARGIN_BAND_VALUES)[number];
+
+export const CLOSE_RATE_BAND_VALUES = [
+  'under_5_percent',
+  'from_5_to_15_percent',
+  'from_15_to_30_percent',
+  'from_30_to_50_percent',
+  'above_50_percent',
+  'not_tracked',
+] as const;
+
+export type CloseRateBand = (typeof CLOSE_RATE_BAND_VALUES)[number];
+
 export const AVG_CUSTOMER_RETENTION_VALUES = [
   'one_time_buyers',
   'some_repeat',
@@ -305,6 +348,32 @@ export const MONTHLY_REVENUE_LABELS: Record<MonthlyRevenue, string> = {
   '25l_plus': 'Above INR 25 lakh',
 };
 
+export const DEAL_VALUE_BAND_LABELS: Record<DealValueBand, string> = {
+  under_10k: 'Under INR 10,000',
+  from_10k_to_50k: 'INR 10,000 to INR 50,000',
+  from_50k_to_2l: 'INR 50,000 to INR 2 lakh',
+  from_2l_to_10l: 'INR 2 lakh to INR 10 lakh',
+  from_10l_to_50l: 'INR 10 lakh to INR 50 lakh',
+  above_50l: 'Above INR 50 lakh',
+};
+
+export const GROSS_MARGIN_BAND_LABELS: Record<GrossMarginBand, string> = {
+  under_20_percent: 'Under 20%',
+  from_20_to_40_percent: '20% to 40%',
+  from_40_to_60_percent: '40% to 60%',
+  from_60_to_80_percent: '60% to 80%',
+  above_80_percent: 'Above 80%',
+};
+
+export const CLOSE_RATE_BAND_LABELS: Record<CloseRateBand, string> = {
+  under_5_percent: 'Under 5%',
+  from_5_to_15_percent: '5% to 15%',
+  from_15_to_30_percent: '15% to 30%',
+  from_30_to_50_percent: '30% to 50%',
+  above_50_percent: 'Above 50%',
+  not_tracked: 'We do not track this yet',
+};
+
 export const AVG_CUSTOMER_RETENTION_LABELS: Record<AvgCustomerRetention, string> = {
   one_time_buyers: 'Mostly one-time buyers',
   some_repeat: 'Some customers come back',
@@ -415,6 +484,21 @@ export const MARKETING_HANDLER_OPTIONS = MARKETING_HANDLER_VALUES.map((value) =>
 export const MONTHLY_REVENUE_OPTIONS = MONTHLY_REVENUE_VALUES.map((value) => ({
   value,
   label: MONTHLY_REVENUE_LABELS[value],
+}));
+
+export const DEAL_VALUE_BAND_OPTIONS = DEAL_VALUE_BAND_VALUES.map((value) => ({
+  value,
+  label: DEAL_VALUE_BAND_LABELS[value],
+}));
+
+export const GROSS_MARGIN_BAND_OPTIONS = GROSS_MARGIN_BAND_VALUES.map((value) => ({
+  value,
+  label: GROSS_MARGIN_BAND_LABELS[value],
+}));
+
+export const CLOSE_RATE_BAND_OPTIONS = CLOSE_RATE_BAND_VALUES.map((value) => ({
+  value,
+  label: CLOSE_RATE_BAND_LABELS[value],
 }));
 
 export const AVG_CUSTOMER_RETENTION_OPTIONS = AVG_CUSTOMER_RETENTION_VALUES.map((value) => ({

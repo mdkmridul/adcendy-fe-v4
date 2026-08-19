@@ -400,6 +400,16 @@ export class CampaignWizardPage {
     ] as const) {
       await this.fill(fieldPath, step[fieldPath]);
     }
+    // Deal value and gross margin have no opt-out, so the wizard cannot be
+    // saved without them - unlike every other field on this step.
+    await this.chooseSelect('dealValueBand', step.dealValueBand ?? 'from_50k_to_2l');
+    await this.chooseSelect(
+      'grossMarginBand',
+      step.grossMarginBand ?? 'from_40_to_60_percent',
+    );
+    if (step.closeRateBand) {
+      await this.chooseSelect('closeRateBand', step.closeRateBand);
+    }
     if (step.avgCustomerRetention) {
       await this.chooseSelect('avgCustomerRetention', step.avgCustomerRetention);
     }
