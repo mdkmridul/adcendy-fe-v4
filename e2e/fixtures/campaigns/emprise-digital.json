@@ -87,7 +87,10 @@
       "knownCompetitorStatus": "not_sure"
     },
     "step6": {
-      "averageContractValue": "not_sure"
+      "averageContractValue": "not_sure",
+      "dealValueBand": "from_2l_to_10l",
+      "grossMarginBand": "from_40_to_60_percent",
+      "closeRateBand": "from_15_to_30_percent"
     },
     "step7": {
       "confirmFocus": true,

@@ -4,6 +4,23 @@ import { expect, type Locator, type Page, type Response } from '@playwright/test
 import type { CampaignExecutionReport, CampaignFixture } from './campaign-types';
 
 const STATIC_OPTION_LABELS: Record<string, string> = {
+  under_10k: 'Under INR 10,000',
+  from_10k_to_50k: 'INR 10,000 to INR 50,000',
+  from_50k_to_2l: 'INR 50,000 to INR 2 lakh',
+  from_2l_to_10l: 'INR 2 lakh to INR 10 lakh',
+  from_10l_to_50l: 'INR 10 lakh to INR 50 lakh',
+  above_50l: 'Above INR 50 lakh',
+  under_20_percent: 'Under 20%',
+  from_20_to_40_percent: '20% to 40%',
+  from_40_to_60_percent: '40% to 60%',
+  from_60_to_80_percent: '60% to 80%',
+  above_80_percent: 'Above 80%',
+  under_5_percent: 'Under 5%',
+  from_5_to_15_percent: '5% to 15%',
+  from_15_to_30_percent: '15% to 30%',
+  from_30_to_50_percent: '30% to 50%',
+  above_50_percent: 'Above 50%',
+  not_tracked: 'We do not track this yet',
   nothing: "I don't spend anything",
   under_5k: 'Under INR 5,000',
   '5k_15k': 'INR 5,000 to INR 15,000',
@@ -401,12 +418,17 @@ export class CampaignWizardPage {
       await this.fill(fieldPath, step[fieldPath]);
     }
     // Deal value and gross margin have no opt-out, so the wizard cannot be
-    // saved without them - unlike every other field on this step.
-    await this.chooseSelect('dealValueBand', step.dealValueBand ?? 'from_50k_to_2l');
-    await this.chooseSelect(
-      'grossMarginBand',
-      step.grossMarginBand ?? 'from_40_to_60_percent',
-    );
+    // saved without them - unlike every other field on this step. They come
+    // from the fixture rather than a default here: a single default would mean
+    // every campaign exercised the same economics, and a capital-equipment
+    // deal and a skincare order size the plan very differently.
+    if (!step.dealValueBand || !step.grossMarginBand) {
+      throw new Error(
+        'Fixture is missing dealValueBand or grossMarginBand; step 6 cannot be saved without them.',
+      );
+    }
+    await this.chooseSelect('dealValueBand', step.dealValueBand);
+    await this.chooseSelect('grossMarginBand', step.grossMarginBand);
     if (step.closeRateBand) {
       await this.chooseSelect('closeRateBand', step.closeRateBand);
     }
