@@ -92,7 +92,6 @@
       ]
     },
     "step6": {
-      "averageContractValue": "not_sure",
       "dealValueBand": "from_10l_to_50l",
       "grossMarginBand": "from_20_to_40_percent",
       "closeRateBand": "from_5_to_15_percent"

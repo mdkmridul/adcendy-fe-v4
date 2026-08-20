@@ -251,17 +251,38 @@ const step6Schema = z
     avgCustomerRetention: z.enum(['', 'one_time_buyers', 'some_repeat', 'mostly_repeat', 'subscription']).default(''),
     repeatPurchaseFrequency: z.enum(['', 'never', 'every_few_months', 'monthly', 'weekly']).default(''),
     salesCycleLength: optionalTextMax(120),
+    // The economics the unit economics section is built on. Bands rather than
+    // free text, and no opt-out on the first two - the rule this replaces read
+    // "use not_sure when unknown", and every fixture duly answered not_sure.
+    dealValueBand: z.enum([
+      'under_10k',
+      'from_10k_to_50k',
+      'from_50k_to_2l',
+      'from_2l_to_10l',
+      'from_10l_to_50l',
+      'above_50l',
+    ]),
+    grossMarginBand: z.enum([
+      'under_20_percent',
+      'from_20_to_40_percent',
+      'from_40_to_60_percent',
+      'from_60_to_80_percent',
+      'above_80_percent',
+    ]),
+    // A pre-CRM client has no honest answer, so this one keeps an opt-out and
+    // the model sweeps it as a sensitivity axis instead of assuming a figure.
+    closeRateBand: z
+      .enum([
+        'under_5_percent',
+        'from_5_to_15_percent',
+        'from_15_to_30_percent',
+        'from_30_to_50_percent',
+        'above_50_percent',
+        'not_tracked',
+      ])
+      .default('not_tracked'),
   })
-  .strict()
-  .superRefine((value, context) => {
-    if (!value.averageOrderValue && !value.averageContractValue) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['averageOrderValue'],
-        message: 'Provide averageOrderValue or averageContractValue (use not_sure when unknown)',
-      });
-    }
-  });
+  .strict();
 
 const step7Schema = z
   .object({
