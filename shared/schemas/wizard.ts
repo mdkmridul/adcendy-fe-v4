@@ -252,10 +252,10 @@ export const step3Schema = z.object({
   // Bands, asked at the end of intake. Deal value and margin carry no opt-out:
   // the free-text fields above shipped `not_sure` on the last run, and the
   // unit economics model is built on exactly these two numbers.
-  // Optional on the field so the form can start unselected - defaulting to a
-  // real band would be a guess wearing an answer, which is the failure the
-  // free-text field produced as `not_sure`. Required at the object level
-  // below, where the check cannot narrow the inferred type.
+  // Optional in the schema, required when step 6 is submitted. This form backs
+  // both step 5 and step 6, so a schema-level requirement on a step 6 field
+  // blocks step 5 from saving at all - handleSubmit runs the whole resolver.
+  // The check lives in the step 6 handler, beside the rule it replaces.
   dealValueBand: z.enum(DEAL_VALUE_BAND_VALUES).optional(),
   grossMarginBand: z.enum(GROSS_MARGIN_BAND_VALUES).optional(),
   // Optional by design: a pre-CRM client has no honest answer, and the model
@@ -281,26 +281,7 @@ export const step3Schema = z.object({
       message: 'Add at least one known competitor when status is provided.',
     });
   }
-})
-  .superRefine((value, ctx) => {
-    // Deal value and gross margin carry no opt-out. The unit economics section
-    // is built on exactly these two numbers, and the free-text fields they
-    // replace shipped `not_sure` on the last run.
-    if (!value.dealValueBand) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['dealValueBand'],
-        message: 'Select the band your average deal or order value falls in',
-      });
-    }
-    if (!value.grossMarginBand) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['grossMarginBand'],
-        message: 'Select the band your gross margin falls in',
-      });
-    }
-  });
+});
 
 export const step4Schema = z.object({
   confirmFocus: z.boolean().optional(),

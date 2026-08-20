@@ -5910,20 +5910,29 @@ export function CampaignWizardModal({
                   if (isDismissClosingRef.current) {
                     return;
                   }
-                  const hasAovOrAcv = Boolean(
-                    normalizeString(data.averageOrderValue) ||
-                      normalizeString(data.averageContractValue),
-                  );
-                  if (!hasAovOrAcv) {
-                    step3Form.setError('averageOrderValue', {
+                  // The bands carry the economics now. The rule this replaces
+                  // asked for AOV or ACV as free text and was satisfied by
+                  // "not_sure", which is how the single number the plan is
+                  // built on arrived empty.
+                  let missingBand = false;
+                  if (!data.dealValueBand) {
+                    step3Form.setError('dealValueBand', {
                       type: 'manual',
-                      message: 'Add average order value or average contract value.',
+                      message: 'Select the band your average deal or order value falls in.',
                     });
-                    step3Form.setError('averageContractValue', {
+                    missingBand = true;
+                  }
+                  if (!data.grossMarginBand) {
+                    step3Form.setError('grossMarginBand', {
                       type: 'manual',
-                      message: 'Add average contract value or average order value.',
+                      message: 'Select the band your gross margin falls in.',
                     });
-                    setErrorMessage('Step 6 needs at least one of AOV or ACV.');
+                    missingBand = true;
+                  }
+                  if (missingBand) {
+                    setErrorMessage(
+                      'Step 6 needs the deal value and gross margin bands.',
+                    );
                     return;
                   }
                   setErrorMessage(null);
