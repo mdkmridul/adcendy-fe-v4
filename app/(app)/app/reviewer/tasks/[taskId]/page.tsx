@@ -39,6 +39,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { CampaignDocumentUploader } from '@/shared/components/campaigns/CampaignDocumentUploader';
+import { CompetitorSelectionPicker } from '@/shared/components/ops/CompetitorSelectionPicker';
+import {
+  isAnswerableTaskStatus,
+  isCompetitorSelectionTask,
+  readCompetitorSelectionModel,
+  type CompetitorSelectionAnswer,
+} from '@/shared/components/ops/competitorSelection';
 
 const OUTPUT_CONSTRAINT_MODE = 'output_constraint_violation';
 const FIELD_LABELS: Record<string, string> = {
@@ -1241,6 +1248,30 @@ export default function ReviewerTaskDetailPage() {
     }
   };
 
+  // A market whose competitive tiers placed nothing beyond the client's named
+  // competitors: the reviewer picks from the candidates the task lists.
+  const competitorSelectionModel =
+    task && isCompetitorSelectionTask(task.failureMode) ? readCompetitorSelectionModel(task) : null;
+
+  const handleCompetitorSelectionSubmit = async (answer: CompetitorSelectionAnswer) => {
+    try {
+      const result = await respondMutation.mutateAsync({ answer });
+      setLastActionResult(result);
+      toast({
+        title: 'Competitor selection submitted',
+        description: result.resumeOutcome ? `Resume outcome: ${result.resumeOutcome}` : 'Task response accepted.',
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.opsV2.all });
+      router.replace('/app/reviewer/strategy-reviews');
+    } catch (error) {
+      toast({
+        title: 'Unable to submit the competitor selection',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const outputConstraintRenderedQuestions = parseRenderedQuestionText(task?.renderedQuestion);
   const outputConstraintIssueCards: OutputConstraintIssueState[] = outputConstraintIssueStates.length
     ? outputConstraintIssueStates
@@ -1898,6 +1929,17 @@ export default function ReviewerTaskDetailPage() {
                 </div>
               </CardContent>
             </Card>
+          ) : null}
+
+          {competitorSelectionModel ? (
+            <CompetitorSelectionPicker
+              key={task.id}
+              model={competitorSelectionModel}
+              question={task.renderedQuestion ?? null}
+              readOnly={!isAnswerableTaskStatus(task.status)}
+              pending={respondMutation.isPending}
+              onSubmit={(answer) => void handleCompetitorSelectionSubmit(answer)}
+            />
           ) : null}
 
           {isBlockerSnapshotTask ? (
