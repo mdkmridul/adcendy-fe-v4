@@ -92,6 +92,52 @@ const mockCampaignOverviews: CampaignOverviewV2[] = [
 
 const mockReviewerTasks: ReviewerTaskDetail[] = [
   {
+    // A market whose competitive tiers placed nothing beyond the client's
+    // named competitors (backend block R3b).
+    id: 'rt-competitors',
+    status: 'pending_review',
+    clientName: 'Acme Rings',
+    pipelineRunId: 'run-v2-1003',
+    marketId: 'IN',
+    campaignId: 'cmp-v2-003',
+    campaignTitle: 'Acme Rings Launch',
+    campaignStatus: 'STRATEGY_GENERATION',
+    currentStep: 7,
+    runStatus: 'BLOCKED_AWAITING_REVIEW',
+    currentPhase: 'competitive_tier_review_v2',
+    failureMode: 'competitive_empty_tier_selection_required',
+    renderedQuestion:
+      'Competitive research placed no competitor for Acme Rings in IN beyond the ones the client named (Named Rival). These are the strongest candidates it found: 1. Ringly (ringly.example), id domain:ringly.example; 2. Pulse Band (pulseband.example), id domain:pulseband.example. Which of them should be treated as competitors? Answer with their ids, or go ahead with the client\'s named competitors only.',
+    createdAt: '2026-09-12T07:50:00.000Z',
+    updatedAt: '2026-09-12T07:50:00.000Z',
+    attemptNumber: 1,
+    whatWentWrong:
+      "Competitive research placed no competitor beyond the ones the client named. Pick the candidates to treat as competitors, or go ahead with the client's named competitors only.",
+    currentValuesToFix: {
+      namedCompetitors: [{ id: 'domain:named-rival.example', name: 'Named Rival', domain: 'named-rival.example' }],
+      unconfirmedNamedCompetitors: [{ id: 'domain:news.example', name: 'Other Rival', domain: 'news.example' }],
+      options: [
+        {
+          id: 'domain:ringly.example',
+          name: 'Ringly',
+          domain: 'ringly.example',
+          score: 50,
+          kind: 'adjacent_competitor',
+          whyNotPlaced: 'Found in the research, but not judged a competitor.',
+        },
+        {
+          id: 'domain:pulseband.example',
+          name: 'Pulse Band',
+          domain: 'pulseband.example',
+          score: 34,
+          kind: 'direct_competitor',
+          whyNotPlaced: 'A direct competitor on its own site, but only one independent source confirmed it.',
+        },
+      ],
+    },
+    pipelineRestartPhase: 'competitive_grounding_v2',
+  },
+  {
     id: 'rt-001',
     status: 'PENDING',
     clientName: 'FitPlus',
