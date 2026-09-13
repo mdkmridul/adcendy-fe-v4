@@ -74,16 +74,25 @@
     "step5": {
       "primaryGoal": "lead_generation",
       "monthlyMarketingSpend": "nothing",
-      "paidMediaBudgetRange": "not_sure",
+      "paidMediaBudgetRange": "nothing",
       "marketingHandler": "not_sure",
       "contentCapacity": "not_sure",
+      "marketingHoursPerWeek": "tenToTwenty",
+      "creativeCapabilities": [
+        "photography",
+        "video",
+        "design"
+      ],
+      "deliveryDeadline": "withinThreeMonths",
       "salesCapacity": "not_sure",
       "knownCompetitorStatus": "not_sure"
     },
     "step6": {
+      "averageOrderValue": "INR 1,150",
       "dealValueBand": "under_10k",
       "grossMarginBand": "from_60_to_80_percent",
-      "closeRateBand": "from_30_to_50_percent"
+      "closeRateBand": "from_30_to_50_percent",
+      "paybackWindow": "withinSixMonths"
     },
     "step7": {
       "confirmFocus": true,

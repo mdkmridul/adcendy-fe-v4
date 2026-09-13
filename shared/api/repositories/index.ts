@@ -12,5 +12,6 @@ export { adminReviewRepository } from './adminReview.repo';
 export { opsV2Repository } from './opsV2.repo';
 export { legalRepository } from './legal.repo';
 export { runsV2Repository } from './runsV2.repo';
+export { channelResultsV2Repository } from './channelResultsV2.repo';
 export { billingRepository } from './billing.repo';
 export { userProfileRepository } from './user-profile.repo';

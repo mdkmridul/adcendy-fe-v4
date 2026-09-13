@@ -60,6 +60,9 @@ export interface CampaignFixture {
       paidMediaBudgetRange: string;
       marketingHandler: string;
       contentCapacity: string;
+      marketingHoursPerWeek: string;
+      creativeCapabilities: string[];
+      deliveryDeadline: string;
       salesCapacity?: string;
       currentMarketingActivity?: Array<{
         channel: string;
@@ -88,6 +91,7 @@ export interface CampaignFixture {
       dealValueBand?: string;
       grossMarginBand?: string;
       closeRateBand?: string;
+      paybackWindow: string;
       monthlyRevenue?: string;
       monthlyOrderVolume?: string;
       productCost?: string;

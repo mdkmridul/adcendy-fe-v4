@@ -614,6 +614,203 @@ export function formatEmailListSize(value: EmailListSize | string | null | undef
   return formatWizardEnumValue(value, EMAIL_LIST_SIZE_LABELS);
 }
 
+/**
+ * Paid media budget, asked as the monthly-spend bands plus "not sure".
+ *
+ * This was free text, and a blank answer was quietly filled in with the
+ * monthly marketing spend. That is the whole marketing budget rather than the
+ * paid-ads part of it, and the backend took the copy at face value.
+ */
+export const PAID_MEDIA_BUDGET_RANGE_VALUES = [
+  'nothing',
+  'under_5k',
+  '5k_15k',
+  '15k_50k',
+  '50k_plus',
+  'not_sure',
+] as const;
+
+export type PaidMediaBudgetRange = (typeof PAID_MEDIA_BUDGET_RANGE_VALUES)[number];
+
+export const PAID_MEDIA_BUDGET_RANGE_LABELS: Record<PaidMediaBudgetRange, string> = {
+  ...MONTHLY_MARKETING_SPEND_LABELS,
+  not_sure: 'Not sure',
+};
+
+export const PAID_MEDIA_BUDGET_RANGE_OPTIONS = PAID_MEDIA_BUDGET_RANGE_VALUES.map((value) => ({
+  value,
+  label: PAID_MEDIA_BUDGET_RANGE_LABELS[value],
+}));
+
+export function formatPaidMediaBudgetRange(value: PaidMediaBudgetRange | string | null | undefined) {
+  return formatWizardEnumValue(value, PAID_MEDIA_BUDGET_RANGE_LABELS);
+}
+
+/**
+ * The Wizard v2.1 capacity and payback questions.
+ *
+ * The backend serves these lists from `GET /api/v2/wizard/options` under the
+ * same keys, with the values in camelCase exactly as written here, and expects
+ * them back unchanged. It keeps all four optional so a draft begun before they
+ * existed still commits; the form asks them anyway.
+ */
+export const MARKETING_HOURS_PER_WEEK_VALUES = [
+  'underFive',
+  'fiveToTen',
+  'tenToTwenty',
+  'twentyToForty',
+  'fortyPlus',
+  'notSure',
+] as const;
+
+export type MarketingHoursPerWeek = (typeof MARKETING_HOURS_PER_WEEK_VALUES)[number];
+
+export const MARKETING_HOURS_PER_WEEK_LABELS: Record<MarketingHoursPerWeek, string> = {
+  underFive: 'Under 5 hours',
+  fiveToTen: '5–10 hours',
+  tenToTwenty: '10–20 hours',
+  twentyToForty: '20–40 hours',
+  fortyPlus: '40+ hours (full-time or more)',
+  notSure: 'Not sure',
+};
+
+export const MARKETING_HOURS_PER_WEEK_OPTIONS = MARKETING_HOURS_PER_WEEK_VALUES.map((value) => ({
+  value,
+  label: MARKETING_HOURS_PER_WEEK_LABELS[value],
+}));
+
+export const CREATIVE_CAPABILITY_VALUES = [
+  'video',
+  'photography',
+  'copywriting',
+  'design',
+  'none',
+] as const;
+
+export type CreativeCapability = (typeof CREATIVE_CAPABILITY_VALUES)[number];
+
+export const CREATIVE_CAPABILITY_LABELS: Record<CreativeCapability, string> = {
+  video: 'Video',
+  photography: 'Photography',
+  copywriting: 'Copywriting',
+  design: 'Design',
+  none: 'None of these',
+};
+
+export const CREATIVE_CAPABILITY_OPTIONS = CREATIVE_CAPABILITY_VALUES.map((value) => ({
+  value,
+  label: CREATIVE_CAPABILITY_LABELS[value],
+}));
+
+export const DELIVERY_DEADLINE_VALUES = [
+  'withinOneMonth',
+  'withinThreeMonths',
+  'withinSixMonths',
+  'noFixedDeadline',
+  'notSure',
+] as const;
+
+export type DeliveryDeadline = (typeof DELIVERY_DEADLINE_VALUES)[number];
+
+export const DELIVERY_DEADLINE_LABELS: Record<DeliveryDeadline, string> = {
+  withinOneMonth: 'Within 1 month',
+  withinThreeMonths: 'Within 3 months',
+  withinSixMonths: 'Within 6 months',
+  noFixedDeadline: 'No fixed deadline',
+  notSure: 'Not sure',
+};
+
+export const DELIVERY_DEADLINE_OPTIONS = DELIVERY_DEADLINE_VALUES.map((value) => ({
+  value,
+  label: DELIVERY_DEADLINE_LABELS[value],
+}));
+
+export const PAYBACK_WINDOW_VALUES = [
+  'firstOrder',
+  'withinThreeMonths',
+  'withinSixMonths',
+  'withinTwelveMonths',
+  'longerThanTwelveMonths',
+  'notSure',
+] as const;
+
+export type PaybackWindow = (typeof PAYBACK_WINDOW_VALUES)[number];
+
+export const PAYBACK_WINDOW_LABELS: Record<PaybackWindow, string> = {
+  firstOrder: 'On the first order',
+  withinThreeMonths: 'Within 3 months',
+  withinSixMonths: 'Within 6 months',
+  withinTwelveMonths: 'Within 12 months',
+  longerThanTwelveMonths: 'Longer than 12 months',
+  notSure: 'Not sure',
+};
+
+export const PAYBACK_WINDOW_OPTIONS = PAYBACK_WINDOW_VALUES.map((value) => ({
+  value,
+  label: PAYBACK_WINDOW_LABELS[value],
+}));
+
+export function formatMarketingHoursPerWeek(value: MarketingHoursPerWeek | string | null | undefined) {
+  return formatWizardEnumValue(value, MARKETING_HOURS_PER_WEEK_LABELS);
+}
+
+export function formatCreativeCapabilities(values: readonly string[] | null | undefined) {
+  const labels = (values ?? [])
+    .map((value) => formatWizardEnumValue(value, CREATIVE_CAPABILITY_LABELS))
+    .filter((label): label is string => Boolean(label));
+  return labels.length ? labels.join(', ') : null;
+}
+
+export function formatDeliveryDeadline(value: DeliveryDeadline | string | null | undefined) {
+  return formatWizardEnumValue(value, DELIVERY_DEADLINE_LABELS);
+}
+
+export function formatPaybackWindow(value: PaybackWindow | string | null | undefined) {
+  return formatWizardEnumValue(value, PAYBACK_WINDOW_LABELS);
+}
+
+/** "None of these" is an answer of its own, so it never sits beside a capability. */
+const NO_CREATIVE_CAPABILITY: CreativeCapability = 'none';
+
+/**
+ * Selecting "None of these" clears the other choices; selecting any other
+ * choice clears "None of these". Selecting a chosen value unselects it.
+ */
+export function toggleCreativeCapability(selected: readonly string[], value: string): string[] {
+  if (selected.includes(value)) {
+    return selected.filter((item) => item !== value);
+  }
+
+  if (value === NO_CREATIVE_CAPABILITY) {
+    return [value];
+  }
+
+  return [...selected.filter((item) => item !== NO_CREATIVE_CAPABILITY), value];
+}
+
+/**
+ * Known capabilities only, once each, with "none" dropped when a real
+ * capability is also present - the reading the backend applies on commit.
+ */
+export function normalizeCreativeCapabilities(
+  value: unknown,
+  allowedValues: readonly string[] = CREATIVE_CAPABILITY_VALUES,
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const known = Array.from(
+    new Set(
+      value
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter((item) => allowedValues.includes(item)),
+    ),
+  );
+
+  return known.length > 1 ? known.filter((item) => item !== NO_CREATIVE_CAPABILITY) : known;
+}
+
 export interface RankedSalesChannel {
   channel: SalesChannel;
   rank: number;
@@ -698,6 +895,9 @@ export interface WizardPreviewStep4 {
   primaryGoal?: PrimaryGoal;
   marketingHandler?: MarketingHandler;
   contentCapacity?: string | null;
+  marketingHoursPerWeek?: MarketingHoursPerWeek | string | null;
+  creativeCapabilities?: string[] | null;
+  deliveryDeadline?: DeliveryDeadline | string | null;
   salesCapacity?: string | null;
   currentMarketingActivity?: Array<{
     channel: string;
@@ -721,6 +921,7 @@ export interface WizardPreviewStep4 {
   avgCustomerRetention?: AvgCustomerRetention | null;
   repeatPurchaseFrequency?: RepeatPurchaseFrequency | null;
   salesCycleLength?: string | null;
+  paybackWindow?: PaybackWindow | string | null;
   googleAnalyticsConnected?: boolean | 'unknown';
   monthlyWebsiteTraffic?: MonthlyWebsiteTraffic | null;
   emailListSize?: EmailListSize | null;

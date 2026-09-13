@@ -69,6 +69,10 @@ const monthlyRevenueSchema = z
   .optional()
   .or(z.literal(''));
 
+// A single choice from a backend-served option list. The list is DB-managed,
+// so membership is left to the dropdown that offers it rather than pinned here.
+const optionAnswerSchema = z.string().trim().max(80, 'Keep this under 80 characters').optional().or(z.literal(''));
+
 export const step1Schema = z.object({
   title: z.string().trim().max(120, 'Keep the title under 120 characters').optional().or(z.literal('')),
   marketingTargetType: z.string().trim().min(1, 'Select what is being marketed'),
@@ -230,10 +234,20 @@ export const step3Schema = z.object({
   monthlyMarketingSpend: z.enum(MONTHLY_MARKETING_SPEND_VALUES, {
     required_error: 'Monthly marketing spend is required',
   }),
-  paidMediaBudgetRange: z.string().trim().min(1, 'Paid media budget range is required').max(120, 'Keep this under 120 characters'),
+  // A band now, required by the step 5 submit handler through
+  // `goalsStepAnswersSchema` rather than here. A draft from before the dropdown
+  // loads its free text as unselected, and a requirement in this schema would
+  // then block the step 6 save too - this form backs both steps, and
+  // handleSubmit runs the whole resolver.
+  paidMediaBudgetRange: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   primaryGoal: z.string().trim().min(1, 'Primary goal is required'),
   marketingHandler: z.string().trim().min(1, 'Marketing handler is required'),
   contentCapacity: z.string().trim().min(1, 'Content capacity is required'),
+  // Wizard v2.1 capacity questions. Optional here and on the backend, required
+  // by the step 5 submit handler - for the same reason as the paid budget.
+  marketingHoursPerWeek: optionAnswerSchema,
+  creativeCapabilities: z.array(tagItemSchema).max(10, 'Choose up to 10').default([]),
+  deliveryDeadline: optionAnswerSchema,
   salesCapacity: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   currentMarketingActivity: z.array(currentMarketingActivitySchema).default([]),
   pastMarketing: z.string().trim().max(1200, 'Keep this under 1200 characters').optional().or(z.literal('')),
@@ -261,6 +275,9 @@ export const step3Schema = z.object({
   // Optional by design: a pre-CRM client has no honest answer, and the model
   // sweeps this as a sensitivity axis rather than assuming a figure.
   closeRateBand: z.enum(CLOSE_RATE_BAND_VALUES).default('not_tracked'),
+  // Wizard v2.1. Required by the step 6 handler through
+  // `economicsStepAnswersSchema`, for the reason given for the bands above.
+  paybackWindow: optionAnswerSchema,
   monthlyOrderVolume: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   productCost: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
   monthlyOrdersPerSubscriber: z.string().trim().max(120, 'Keep this under 120 characters').optional().or(z.literal('')),
@@ -281,6 +298,35 @@ export const step3Schema = z.object({
       message: 'Add at least one known competitor when status is provided.',
     });
   }
+});
+
+const requiredAnswerSchema = (message: string) =>
+  z.string({ required_error: message }).trim().min(1, message);
+
+/**
+ * Step 5 answers the form requires before it saves. The backend keeps the
+ * capacity questions optional so a draft begun before them still commits; the
+ * form still asks every one. Checked by the step 5 submit handler, not by
+ * `step3Schema`, which also runs when step 6 is submitted.
+ */
+export const goalsStepAnswersSchema = z.object({
+  paidMediaBudgetRange: requiredAnswerSchema('Choose the paid media budget range that fits.'),
+  marketingHoursPerWeek: requiredAnswerSchema('Choose how many hours a week you can give marketing.'),
+  creativeCapabilities: z
+    .array(z.string(), { required_error: 'Choose what your team can make, or "None of these".' })
+    .min(1, 'Choose what your team can make, or "None of these".')
+    .refine(
+      (values) => !(values.includes('none') && values.length > 1),
+      '"None of these" cannot be combined with other choices.',
+    ),
+  deliveryDeadline: requiredAnswerSchema('Choose when you need to see results.'),
+});
+
+/** Step 6 answers the form requires before it saves - see `goalsStepAnswersSchema`. */
+export const economicsStepAnswersSchema = z.object({
+  paybackWindow: requiredAnswerSchema(
+    'Choose how long you can wait to earn back what it costs to win a customer.',
+  ),
 });
 
 export const step4Schema = z.object({

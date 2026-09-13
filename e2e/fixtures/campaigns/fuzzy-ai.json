@@ -73,6 +73,12 @@
       "paidMediaBudgetRange": "not_sure",
       "marketingHandler": "not_sure",
       "contentCapacity": "not_sure",
+      "marketingHoursPerWeek": "fiveToTen",
+      "creativeCapabilities": [
+        "copywriting",
+        "design"
+      ],
+      "deliveryDeadline": "withinThreeMonths",
       "salesCapacity": "not_sure",
       "knownCompetitorStatus": "provided",
       "knownCompetitors": [
@@ -84,9 +90,11 @@
       ]
     },
     "step6": {
+      "averageContractValue": "USD 1,800",
       "dealValueBand": "from_50k_to_2l",
       "grossMarginBand": "from_60_to_80_percent",
-      "closeRateBand": "from_15_to_30_percent"
+      "closeRateBand": "from_15_to_30_percent",
+      "paybackWindow": "withinTwelveMonths"
     },
     "step7": {
       "confirmFocus": true,

@@ -35,6 +35,11 @@ export const queryKeys = {
     recovery: (campaignId: string, mode: 'active' | 'latest') =>
       [...queryKeys.runsV2.all, 'recovery', campaignId, mode] as const,
   },
+  channelResultsV2: {
+    all: ['channelResultsV2'] as const,
+    list: (campaignId: string) =>
+      [...queryKeys.channelResultsV2.all, 'list', campaignId] as const,
+  },
   weekly: {
     all: ['weekly'] as const,
     submissions: (campaignId: string) =>
