@@ -76,6 +76,8 @@ import {
   type ConsentToggleState,
 } from '@/shared/legal/legal-flow-utils';
 import {
+  economicsStepAnswersSchema,
+  goalsStepAnswersSchema,
   step1Schema,
   step2Schema,
   step3Schema,
@@ -131,6 +133,23 @@ import {
   CLOSE_RATE_BAND_OPTIONS,
   DEAL_VALUE_BAND_OPTIONS,
   GROSS_MARGIN_BAND_OPTIONS,
+  CREATIVE_CAPABILITY_LABELS,
+  CREATIVE_CAPABILITY_OPTIONS,
+  DELIVERY_DEADLINE_LABELS,
+  DELIVERY_DEADLINE_OPTIONS,
+  MARKETING_HOURS_PER_WEEK_LABELS,
+  MARKETING_HOURS_PER_WEEK_OPTIONS,
+  PAID_MEDIA_BUDGET_RANGE_LABELS,
+  PAID_MEDIA_BUDGET_RANGE_OPTIONS,
+  PAYBACK_WINDOW_LABELS,
+  PAYBACK_WINDOW_OPTIONS,
+  formatCreativeCapabilities,
+  formatDeliveryDeadline,
+  formatMarketingHoursPerWeek,
+  formatPaidMediaBudgetRange,
+  formatPaybackWindow,
+  normalizeCreativeCapabilities,
+  toggleCreativeCapability,
 } from '@/shared/types/wizard';
 
 type WizardModalStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -203,6 +222,9 @@ const EMPTY_STEP_3_VALUES: Step3FormData = {
   primaryGoal: '',
   marketingHandler: '',
   contentCapacity: '',
+  marketingHoursPerWeek: '',
+  creativeCapabilities: [],
+  deliveryDeadline: '',
   salesCapacity: '',
   currentMarketingActivity: [],
   pastMarketing: '',
@@ -220,6 +242,7 @@ const EMPTY_STEP_3_VALUES: Step3FormData = {
   dealValueBand: undefined,
   grossMarginBand: undefined,
   closeRateBand: 'not_tracked',
+  paybackWindow: '',
   monthlyOrderVolume: '',
   productCost: '',
   monthlyOrdersPerSubscriber: '',
@@ -352,6 +375,14 @@ const STEP5_CONTENT_CAPACITY_FALLBACK_OPTIONS: WizardStringOption[] = [
   { value: 'high', label: 'High' },
   { value: 'not_sure', label: 'Not sure' },
 ];
+
+// Wizard v2.1 answers, used when the backend option list is unavailable. The
+// values match the backend's lists exactly.
+const STEP5_PAID_MEDIA_BUDGET_RANGE_FALLBACK_OPTIONS: WizardStringOption[] = [...PAID_MEDIA_BUDGET_RANGE_OPTIONS];
+const STEP5_MARKETING_HOURS_PER_WEEK_FALLBACK_OPTIONS: WizardStringOption[] = [...MARKETING_HOURS_PER_WEEK_OPTIONS];
+const STEP5_CREATIVE_CAPABILITY_FALLBACK_OPTIONS: WizardStringOption[] = [...CREATIVE_CAPABILITY_OPTIONS];
+const STEP5_DELIVERY_DEADLINE_FALLBACK_OPTIONS: WizardStringOption[] = [...DELIVERY_DEADLINE_OPTIONS];
+const STEP6_PAYBACK_WINDOW_FALLBACK_OPTIONS: WizardStringOption[] = [...PAYBACK_WINDOW_OPTIONS];
 
 const STEP5_KNOWN_COMPETITOR_STATUS_FALLBACK_OPTIONS: WizardStringOption[] = [
   { value: 'provided', label: 'Provided' },
@@ -1394,19 +1425,38 @@ function getFieldOptions(
   return rawOptions;
 }
 
+type StringFieldOptionsConfig = {
+  /**
+   * Which backend field becomes the option value. The canonical token is the
+   * snake_case form (`notSure` -> `not_sure`); `value` keeps the backend's own
+   * spelling, for fields whose contract is the camelCase value itself.
+   */
+  valueFrom?: 'canonicalToken' | 'value';
+  /**
+   * Plain-language labels by option value. The backend label is generated from
+   * the value ("Under Five"), so a known value reads better from here; an
+   * unknown one falls back to the backend label.
+   */
+  labels?: Record<string, string>;
+};
+
 function getStringFieldOptions(
   wizardOptions: WizardOptionsResponseV2 | undefined,
   fieldKey: string,
   fallbackOptions: WizardStringOption[],
+  { valueFrom = 'canonicalToken', labels }: StringFieldOptionsConfig = {},
 ) {
   const options = getFieldOptions(wizardOptions, fieldKey)
     .filter((option): option is WizardFieldOptionV2 & { value: string } => typeof option.value === 'string')
-    .map((option) => ({
-      value: option.canonicalToken || option.value,
-      label: option.label || option.value,
-      canonicalToken: option.canonicalToken,
-      sourceValue: option.value,
-    }));
+    .map((option) => {
+      const value = valueFrom === 'value' ? option.value : option.canonicalToken || option.value;
+      return {
+        value,
+        label: labels?.[value] || option.label || option.value,
+        canonicalToken: option.canonicalToken,
+        sourceValue: option.value,
+      };
+    });
 
   return options.length ? options : fallbackOptions;
 }
@@ -2210,6 +2260,48 @@ export function CampaignWizardModal({
     () => getStringFieldOptions(wizardOptions, 'contentCapacity', STEP5_CONTENT_CAPACITY_FALLBACK_OPTIONS),
     [wizardOptions],
   );
+  // The paid budget's bands are snake_case already, so the canonical token is
+  // the value to send. The capacity and payback questions send the backend's
+  // camelCase values, which their canonical tokens would turn into snake_case.
+  const paidMediaBudgetRangeOptions = useMemo(
+    () =>
+      getStringFieldOptions(wizardOptions, 'paidMediaBudgetRange', STEP5_PAID_MEDIA_BUDGET_RANGE_FALLBACK_OPTIONS, {
+        labels: PAID_MEDIA_BUDGET_RANGE_LABELS,
+      }),
+    [wizardOptions],
+  );
+  const marketingHoursPerWeekOptions = useMemo(
+    () =>
+      getStringFieldOptions(wizardOptions, 'marketingHoursPerWeek', STEP5_MARKETING_HOURS_PER_WEEK_FALLBACK_OPTIONS, {
+        valueFrom: 'value',
+        labels: MARKETING_HOURS_PER_WEEK_LABELS,
+      }),
+    [wizardOptions],
+  );
+  const creativeCapabilityOptions = useMemo(
+    () =>
+      getStringFieldOptions(wizardOptions, 'creativeCapabilities', STEP5_CREATIVE_CAPABILITY_FALLBACK_OPTIONS, {
+        valueFrom: 'value',
+        labels: CREATIVE_CAPABILITY_LABELS,
+      }),
+    [wizardOptions],
+  );
+  const deliveryDeadlineOptions = useMemo(
+    () =>
+      getStringFieldOptions(wizardOptions, 'deliveryDeadline', STEP5_DELIVERY_DEADLINE_FALLBACK_OPTIONS, {
+        valueFrom: 'value',
+        labels: DELIVERY_DEADLINE_LABELS,
+      }),
+    [wizardOptions],
+  );
+  const paybackWindowOptions = useMemo(
+    () =>
+      getStringFieldOptions(wizardOptions, 'paybackWindow', STEP6_PAYBACK_WINDOW_FALLBACK_OPTIONS, {
+        valueFrom: 'value',
+        labels: PAYBACK_WINDOW_LABELS,
+      }),
+    [wizardOptions],
+  );
   const knownCompetitorStatusOptions = useMemo(
     () => getStringFieldOptions(wizardOptions, 'knownCompetitorStatus', STEP5_KNOWN_COMPETITOR_STATUS_FALLBACK_OPTIONS),
     [wizardOptions],
@@ -2663,12 +2755,21 @@ export function CampaignWizardModal({
         (savedGoalsData.monthlyMarketingSpend as Step3FormData['monthlyMarketingSpend']) ||
         (legacyStep2Data.monthlyMarketingSpend as Step3FormData['monthlyMarketingSpend']) ||
         undefined as never,
-      paidMediaBudgetRange:
-        normalizeString(savedGoalsData.paidMediaBudgetRange as string | undefined) ||
-        normalizeString(savedGoalsData.monthlyMarketingSpend as string | undefined),
+      // A draft from before the dropdown may hold free text here. It loads
+      // unselected so the client picks a band, rather than being mapped to one
+      // on their behalf - and never from the monthly spend, which is the whole
+      // marketing budget rather than the paid-ads part.
+      paidMediaBudgetRange: normalizeStringOptionValue(savedGoalsData.paidMediaBudgetRange, paidMediaBudgetRangeOptions),
       primaryGoal: normalizedPrimaryGoal,
       marketingHandler: normalizedMarketingHandler,
       contentCapacity: normalizedContentCapacity,
+      marketingHoursPerWeek: normalizeStringOptionValue(savedGoalsData.marketingHoursPerWeek, marketingHoursPerWeekOptions),
+      creativeCapabilities: normalizeCreativeCapabilities(
+        (Array.isArray(savedGoalsData.creativeCapabilities) ? savedGoalsData.creativeCapabilities : [])
+          .map((value) => normalizeStringOptionValue(value, creativeCapabilityOptions)),
+        creativeCapabilityOptions.map((option) => option.value),
+      ),
+      deliveryDeadline: normalizeStringOptionValue(savedGoalsData.deliveryDeadline, deliveryDeadlineOptions),
       salesCapacity: normalizeString(savedGoalsData.salesCapacity as string | undefined),
       currentMarketingActivity: normalizeCurrentMarketingActivityItems(
         savedGoalsData.currentMarketingActivity,
@@ -2695,6 +2796,7 @@ export function CampaignWizardModal({
       grossMarginBand: savedEconomicsData.grossMarginBand as Step3FormData['grossMarginBand'],
       closeRateBand:
         (savedEconomicsData.closeRateBand as Step3FormData['closeRateBand']) ?? 'not_tracked',
+      paybackWindow: normalizeStringOptionValue(savedEconomicsData.paybackWindow, paybackWindowOptions),
       monthlyOrderVolume:
         typeof savedEconomicsData.monthlyOrderVolume === 'number'
           ? String(savedEconomicsData.monthlyOrderVolume)
@@ -2766,13 +2868,18 @@ export function CampaignWizardModal({
   }, [
     activeCampaignId,
     contentCapacityOptions,
+    creativeCapabilityOptions,
     currentMarketingActivityAssessmentOptions,
     currentMarketingActivityStatusOptions,
     dataConsentOptInOptions,
+    deliveryDeadlineOptions,
     knownCompetitorStatusOptions,
     languageOptions,
     marketingHandlerOptions,
+    marketingHoursPerWeekOptions,
     open,
+    paidMediaBudgetRangeOptions,
+    paybackWindowOptions,
     primaryGoalOptions,
     reportLanguageOptions,
     step,
@@ -3111,15 +3218,20 @@ export function CampaignWizardModal({
         normalizeStringOptionValue(data.primaryGoal, primaryGoalOptions) ||
         getDefaultStringOptionValue(primaryGoalOptions),
       monthlyMarketingSpend: data.monthlyMarketingSpend,
-      paidMediaBudgetRange:
-        normalizeString(data.paidMediaBudgetRange) ||
-        normalizeString(data.monthlyMarketingSpend),
+      // Sent as chosen. It used to fall back to the monthly spend when blank,
+      // which the backend then read as the paid-ads budget.
+      paidMediaBudgetRange: normalizeStringOptionValue(data.paidMediaBudgetRange, paidMediaBudgetRangeOptions),
       marketingHandler:
         normalizeStringOptionValue(data.marketingHandler, marketingHandlerOptions) ||
         getDefaultStringOptionValue(marketingHandlerOptions),
       contentCapacity:
         normalizeStringOptionValue(data.contentCapacity, contentCapacityOptions) ||
         getDefaultStringOptionValue(contentCapacityOptions, 'not_sure'),
+      marketingHoursPerWeek:
+        normalizeStringOptionValue(data.marketingHoursPerWeek, marketingHoursPerWeekOptions) || undefined,
+      creativeCapabilities: normalizeListItems(data.creativeCapabilities),
+      deliveryDeadline:
+        normalizeStringOptionValue(data.deliveryDeadline, deliveryDeadlineOptions) || undefined,
       salesCapacity: normalizeNullableString(data.salesCapacity),
       currentMarketingActivity: (data.currentMarketingActivity ?? [])
         .map((activity) => ({
@@ -3161,6 +3273,7 @@ export function CampaignWizardModal({
     dealValueBand: data.dealValueBand,
     grossMarginBand: data.grossMarginBand,
     closeRateBand: data.closeRateBand ?? 'not_tracked',
+    paybackWindow: normalizeStringOptionValue(data.paybackWindow, paybackWindowOptions) || undefined,
     monthlyRevenue: normalizeNullableString(data.monthlyRevenue),
     monthlyOrderVolume: normalizeNullableString(data.monthlyOrderVolume),
     productCost: normalizeNullableString(data.productCost),
@@ -3714,6 +3827,9 @@ export function CampaignWizardModal({
     effectivePreviewStep4?.primaryGoal,
     effectivePreviewStep4?.marketingHandler,
     effectivePreviewStep4?.contentCapacity,
+    effectivePreviewStep4?.marketingHoursPerWeek,
+    effectivePreviewStep4?.creativeCapabilities,
+    effectivePreviewStep4?.deliveryDeadline,
     effectivePreviewStep4?.salesCapacity,
     effectivePreviewStep4?.currentMarketingActivity,
     effectivePreviewStep4?.pastMarketing,
@@ -5242,6 +5358,22 @@ export function CampaignWizardModal({
                     if (isDismissClosingRef.current) {
                       return;
                     }
+                    // Asked by the form, optional on the backend so a draft
+                    // begun before these questions still commits. Checked
+                    // here rather than in step3Schema, which also runs on
+                    // step 6.
+                    const goalsAnswers = goalsStepAnswersSchema.safeParse(data);
+                    if (!goalsAnswers.success) {
+                      for (const issue of goalsAnswers.error.issues) {
+                        step3Form.setError(issue.path[0] as keyof Step3FormData, {
+                          type: 'manual',
+                          message: issue.message,
+                        });
+                      }
+                      setSuccessMessage(null);
+                      setErrorMessage('Answer the highlighted questions before continuing.');
+                      return;
+                    }
                     setErrorMessage(null);
                     setSuccessMessage(null);
                     try {
@@ -5333,12 +5465,28 @@ export function CampaignWizardModal({
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <FieldLabel label="Paid media budget range" required />
-                      <Input
-                        data-testid={wizardFieldTestId('paidMediaBudgetRange')}
-                        className={wizardInputClassName}
-                        placeholder="e.g. INR 5,000 to INR 15,000 or not_sure"
-                        {...step3Form.register('paidMediaBudgetRange')}
+                      <FieldLabel
+                        label="Paid media budget range"
+                        helper="What you spend each month on ads alone - not your whole marketing budget."
+                        required
+                      />
+                      <Controller
+                        name="paidMediaBudgetRange"
+                        control={step3Form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                            <SelectTrigger data-testid={wizardFieldTestId('paidMediaBudgetRange')} className={wizardInputClassName}>
+                              <SelectValue placeholder="Select budget" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {paidMediaBudgetRangeOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       />
                       <FieldMeta error={step3Form.formState.errors.paidMediaBudgetRange?.message} />
                     </div>
@@ -5364,6 +5512,102 @@ export function CampaignWizardModal({
                         )}
                       />
                       <FieldMeta error={step3Form.formState.errors.contentCapacity?.message} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel label="How many hours a week can you or your team give marketing?" required />
+                      <Controller
+                        name="marketingHoursPerWeek"
+                        control={step3Form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                            <SelectTrigger data-testid={wizardFieldTestId('marketingHoursPerWeek')} className={wizardInputClassName}>
+                              <SelectValue placeholder="Select hours" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {marketingHoursPerWeekOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldMeta error={step3Form.formState.errors.marketingHoursPerWeek?.message} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel label="When do you need to see results from this plan?" required />
+                      <Controller
+                        name="deliveryDeadline"
+                        control={step3Form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                            <SelectTrigger data-testid={wizardFieldTestId('deliveryDeadline')} className={wizardInputClassName}>
+                              <SelectValue placeholder="Select timing" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {deliveryDeadlineOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldMeta error={step3Form.formState.errors.deliveryDeadline?.message} />
+                    </div>
+
+                    <div className="space-y-3 sm:col-span-2">
+                      <div className="space-y-1">
+                        <FieldLabel label="What can your team make in-house?" helper="Pick everything that applies." required />
+                        <FieldMeta error={getArrayFieldError(step3Form.formState.errors.creativeCapabilities)} />
+                      </div>
+                      <Controller
+                        name="creativeCapabilities"
+                        control={step3Form.control}
+                        render={({ field }) => {
+                          const selectedCapabilities = field.value ?? [];
+                          return (
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              {creativeCapabilityOptions.map((option) => {
+                                const selected = selectedCapabilities.includes(option.value);
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    data-testid={`${wizardFieldTestId('creativeCapabilities')}-${option.value}`}
+                                    aria-pressed={selected}
+                                    onClick={() => field.onChange(toggleCreativeCapability(selectedCapabilities, option.value))}
+                                    className={cn(
+                                      'flex items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition',
+                                      'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(212,168,83,0.35)]',
+                                      selected
+                                        ? 'border-[rgba(212,168,83,0.55)] bg-[rgba(212,168,83,0.08)] text-foreground'
+                                        : 'border-border/70 bg-card/95 text-foreground/85 hover:border-[rgba(212,168,83,0.45)]',
+                                    )}
+                                  >
+                                    <span
+                                      aria-hidden
+                                      className={cn(
+                                        'flex h-4 w-4 items-center justify-center rounded border',
+                                        selected
+                                          ? 'border-primary bg-primary text-primary-foreground'
+                                          : 'border-border/80 bg-transparent',
+                                      )}
+                                    >
+                                      {selected ? <Check className="h-3 w-3" /> : null}
+                                    </span>
+                                    <span>{option.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        }}
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -5929,10 +6173,24 @@ export function CampaignWizardModal({
                     });
                     missingBand = true;
                   }
-                  if (missingBand) {
-                    setErrorMessage(
-                      'Step 6 needs the deal value and gross margin bands.',
-                    );
+                  // Asked by the form, optional on the backend - see step 5.
+                  const economicsAnswers = economicsStepAnswersSchema.safeParse(data);
+                  if (!economicsAnswers.success) {
+                    for (const issue of economicsAnswers.error.issues) {
+                      step3Form.setError(issue.path[0] as keyof Step3FormData, {
+                        type: 'manual',
+                        message: issue.message,
+                      });
+                    }
+                  }
+                  if (missingBand || !economicsAnswers.success) {
+                    const missing = [
+                      missingBand ? 'the deal value and gross margin bands' : null,
+                      economicsAnswers.success
+                        ? null
+                        : 'how long you can wait to earn back what it costs to win a customer',
+                    ].filter(Boolean);
+                    setErrorMessage(`Step 6 needs ${missing.join(' and ')}.`);
                     return;
                   }
                   setErrorMessage(null);
@@ -6043,6 +6301,34 @@ export function CampaignWizardModal({
                         )}
                       />
                       <FieldMeta error={step3Form.formState.errors.closeRateBand?.message} />
+                    </div>
+                    <div className="space-y-2">
+                      <FieldLabel
+                        label="How long can you wait to earn back what it costs to win a customer?"
+                        required
+                      />
+                      <p className="text-[13px] leading-6 text-foreground/80">
+                        For example, if winning a customer costs ₹1,000, how long until their orders have paid that back?
+                      </p>
+                      <Controller
+                        name="paybackWindow"
+                        control={step3Form.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                            <SelectTrigger data-testid={wizardFieldTestId('paybackWindow')} className={wizardInputClassName}>
+                              <SelectValue placeholder="Select a timeframe" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {paybackWindowOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldMeta error={step3Form.formState.errors.paybackWindow?.message} />
                     </div>
                     <div className="space-y-2">
                       <FieldLabel label="Monthly revenue" helper={`Preset values accepted: ${MONTHLY_REVENUE_OPTIONS.map((option) => option.value).join(', ')}`} />
@@ -6225,7 +6511,7 @@ export function CampaignWizardModal({
                       <ReviewSection
                         title="Goals & Context"
                         description="Budget, constraints, goals, and supporting context."
-                        filledLabel={`${goalsFilledCount}/17 filled`}
+                        filledLabel={`${goalsFilledCount}/20 filled`}
                         onEdit={() => openPreviewSectionEditor(5, 'goals')}
                         confirmationId="wizard-confirm-goals"
                         confirmationLabel="I confirm these goals and context inputs look right"
@@ -6234,10 +6520,13 @@ export function CampaignWizardModal({
                       >
                         <ReviewGrid>
                           <SummaryField label="Monthly marketing spend" value={formatMonthlyMarketingSpend(effectivePreviewStep4?.monthlyMarketingSpend)} />
-                          <SummaryField label="Paid media budget range" value={effectivePreviewStep4?.paidMediaBudgetRange} />
+                          <SummaryField label="Paid media budget range" value={formatPaidMediaBudgetRange(effectivePreviewStep4?.paidMediaBudgetRange)} />
                           <SummaryField label="Primary goal" value={formatPrimaryGoal(effectivePreviewStep4?.primaryGoal)} />
                           <SummaryField label="Marketing owner" value={formatMarketingHandler(effectivePreviewStep4?.marketingHandler)} />
                           <SummaryField label="Content capacity" value={effectivePreviewStep4?.contentCapacity} />
+                          <SummaryField label="Hours a week for marketing" value={formatMarketingHoursPerWeek(effectivePreviewStep4?.marketingHoursPerWeek)} />
+                          <SummaryField label="Made in-house" value={formatCreativeCapabilities(effectivePreviewStep4?.creativeCapabilities)} />
+                          <SummaryField label="Results needed" value={formatDeliveryDeadline(effectivePreviewStep4?.deliveryDeadline)} />
                           <SummaryField label="Sales capacity" value={effectivePreviewStep4?.salesCapacity} />
                           <SummaryField label="Current marketing activity" value={formatCurrentMarketingActivity(effectivePreviewStep4?.currentMarketingActivity)} className="md:col-span-2" />
                           <SummaryField label="Past marketing" value={effectivePreviewStep4?.pastMarketing} className="md:col-span-2" />
@@ -6275,6 +6564,7 @@ export function CampaignWizardModal({
                           <SummaryField label="Retention" value={formatAvgCustomerRetention(effectivePreviewStep4?.avgCustomerRetention)} />
                           <SummaryField label="Repeat frequency" value={formatRepeatPurchaseFrequency(effectivePreviewStep4?.repeatPurchaseFrequency)} />
                           <SummaryField label="Sales cycle length" value={effectivePreviewStep4?.salesCycleLength} />
+                          <SummaryField label="Time to earn back a customer's cost" value={formatPaybackWindow(effectivePreviewStep4?.paybackWindow)} />
                           <SummaryField label="Website traffic" value={formatMonthlyWebsiteTraffic(effectivePreviewStep4?.monthlyWebsiteTraffic)} />
                           <SummaryField label="Email list size" value={formatEmailListSize(effectivePreviewStep4?.emailListSize)} />
                           <SummaryField label="Google Analytics" value={formatGoogleAnalyticsConnected(effectivePreviewStep4?.googleAnalyticsConnected as boolean | 'unknown' | undefined)} />

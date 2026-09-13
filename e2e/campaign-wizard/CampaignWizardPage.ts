@@ -26,6 +26,20 @@ const STATIC_OPTION_LABELS: Record<string, string> = {
   '5k_15k': 'INR 5,000 to INR 15,000',
   '15k_50k': 'INR 15,000 to INR 50,000',
   '50k_plus': 'Above INR 50,000',
+  not_sure: 'Not sure',
+  notSure: 'Not sure',
+  underFive: 'Under 5 hours',
+  fiveToTen: '5–10 hours',
+  tenToTwenty: '10–20 hours',
+  twentyToForty: '20–40 hours',
+  fortyPlus: '40+ hours (full-time or more)',
+  withinOneMonth: 'Within 1 month',
+  withinThreeMonths: 'Within 3 months',
+  withinSixMonths: 'Within 6 months',
+  withinTwelveMonths: 'Within 12 months',
+  longerThanTwelveMonths: 'Longer than 12 months',
+  noFixedDeadline: 'No fixed deadline',
+  firstOrder: 'On the first order',
   under_500: 'Under 500 visits',
   '500_2000': '500 to 2,000 visits',
   '2000_10000': '2,000 to 10,000 visits',
@@ -368,8 +382,15 @@ export class CampaignWizardPage {
     await this.chooseSelect('monthlyMarketingSpend', step.monthlyMarketingSpend);
     await this.chooseSelect('primaryGoal', step.primaryGoal);
     await this.chooseSelect('marketingHandler', step.marketingHandler);
-    await this.fill('paidMediaBudgetRange', step.paidMediaBudgetRange);
+    await this.chooseSelect('paidMediaBudgetRange', step.paidMediaBudgetRange);
     await this.chooseSelect('contentCapacity', step.contentCapacity);
+    await this.chooseSelect('marketingHoursPerWeek', step.marketingHoursPerWeek);
+    await this.chooseSelect('deliveryDeadline', step.deliveryDeadline);
+    // Each card toggles. The fixture schema keeps "none" on its own, so every
+    // card starts unselected and ends selected.
+    for (const capability of step.creativeCapabilities) {
+      await this.chooseCard('creativeCapabilities', capability);
+    }
     await this.fill('salesCapacity', step.salesCapacity);
     await this.chooseSelect('knownCompetitorStatus', step.knownCompetitorStatus);
     await this.addTags('constraints', step.constraints);
@@ -432,6 +453,11 @@ export class CampaignWizardPage {
     if (step.closeRateBand) {
       await this.chooseSelect('closeRateBand', step.closeRateBand);
     }
+    // Optional on the backend, required by the wizard form before step 6 saves.
+    if (!step.paybackWindow) {
+      throw new Error('Fixture is missing paybackWindow; step 6 cannot be saved without it.');
+    }
+    await this.chooseSelect('paybackWindow', step.paybackWindow);
     if (step.avgCustomerRetention) {
       await this.chooseSelect('avgCustomerRetention', step.avgCustomerRetention);
     }
@@ -474,8 +500,20 @@ export class CampaignWizardPage {
       ...step3.painPoints,
       step3.desiredOutcome,
     ]);
+    // The review shows option answers by their labels, not their values.
+    const optionLabel = (value: string) => STATIC_OPTION_LABELS[value] ?? value;
+    const creativeCapabilityLabels: Record<string, string> = {
+      video: 'Video',
+      photography: 'Photography',
+      copywriting: 'Copywriting',
+      design: 'Design',
+      none: 'None of these',
+    };
     await this.assertReviewContains(this.reviewSection('Goals & Context'), [
-      step5.paidMediaBudgetRange,
+      optionLabel(step5.paidMediaBudgetRange),
+      optionLabel(step5.marketingHoursPerWeek),
+      ...step5.creativeCapabilities.map((value) => creativeCapabilityLabels[value] ?? value),
+      optionLabel(step5.deliveryDeadline),
       step5.salesCapacity,
       ...(step5.knownCompetitors ?? []),
     ]);
@@ -483,6 +521,7 @@ export class CampaignWizardPage {
       step6.averageOrderValue,
       step6.averageContractValue,
       step6.monthlyRevenue,
+      optionLabel(step6.paybackWindow),
     ]);
   }
 

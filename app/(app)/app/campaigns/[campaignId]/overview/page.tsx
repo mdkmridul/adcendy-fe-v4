@@ -343,6 +343,12 @@ export default function OverviewPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
+            <Button asChild variant="outline" className="w-full justify-between">
+              <Link href={`/app/campaigns/${campaignId}/results`}>
+                Results
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
               {legacyPerformanceEnabled ? (
                 <Button asChild variant="outline" className="w-full justify-between">
                   <Link href={`/app/campaigns/${campaignId}/weekly`}>

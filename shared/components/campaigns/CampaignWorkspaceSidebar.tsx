@@ -111,6 +111,11 @@ function buildWorkspaceItems(
       href: `/app/campaigns/${campaign.id}/strategy`,
       isActive: (pathname) => pathname.includes('/strategy'),
     },
+    {
+      label: 'Results',
+      href: `/app/campaigns/${campaign.id}/results`,
+      isActive: (pathname) => pathname.includes('/results'),
+    },
     ...(legacyPerformanceEnabled
       ? [
           {

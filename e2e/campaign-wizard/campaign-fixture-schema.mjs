@@ -211,9 +211,31 @@ const step5Schema = z
       'other',
     ]),
     monthlyMarketingSpend: z.enum(['nothing', 'under_5k', '5k_15k', '15k_50k', '50k_plus']),
-    paidMediaBudgetRange: boundedText(120),
+    // A dropdown of the monthly-spend bands plus not_sure. Free text no longer
+    // reaches the wizard, so a free-text fixture value could not be selected.
+    paidMediaBudgetRange: z.enum(['nothing', 'under_5k', '5k_15k', '15k_50k', '50k_plus', 'not_sure']),
     marketingHandler: z.enum(['founder_led', 'internal_marketer', 'agency', 'in_house_team', 'not_sure']),
     contentCapacity: z.enum(['none', 'low', 'medium', 'high', 'not_sure']),
+    // Wizard v2.1. Optional on the backend, but the wizard form will not save
+    // step 5 without them, so a fixture that reaches the browser needs all three.
+    marketingHoursPerWeek: z.enum([
+      'underFive',
+      'fiveToTen',
+      'tenToTwenty',
+      'twentyToForty',
+      'fortyPlus',
+      'notSure',
+    ]),
+    creativeCapabilities: z
+      .array(z.enum(['video', 'photography', 'copywriting', 'design', 'none']))
+      .min(1),
+    deliveryDeadline: z.enum([
+      'withinOneMonth',
+      'withinThreeMonths',
+      'withinSixMonths',
+      'noFixedDeadline',
+      'notSure',
+    ]),
     salesCapacity: optionalTextMax(120),
     currentMarketingActivity: z.array(activitySchema).default([]),
     pastMarketing: optionalTextMax(1200),
@@ -281,6 +303,16 @@ const step6Schema = z
         'not_tracked',
       ])
       .default('not_tracked'),
+    // Wizard v2.1. Optional on the backend, required by the form before step 6
+    // saves - "notSure" is always on offer.
+    paybackWindow: z.enum([
+      'firstOrder',
+      'withinThreeMonths',
+      'withinSixMonths',
+      'withinTwelveMonths',
+      'longerThanTwelveMonths',
+      'notSure',
+    ]),
   })
   .strict();
 
@@ -318,7 +350,29 @@ export const campaignFixtureSchema = z
   })
   .strict()
   .superRefine((fixture, context) => {
-    const { step1, step2, step3, step4, step5 } = fixture.wizard;
+    const { step1, step2, step3, step4, step5, step6 } = fixture.wizard;
+
+    // CampaignWizardModal refuses to open the commit confirmation without one
+    // of these two, and bounces the wizard back to step 6 instead. Catch it
+    // here: a fixture that reaches the browser fails ~40s in, on a missing
+    // dialog heading that never names the actual cause.
+    if (!step6.averageOrderValue && !step6.averageContractValue) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wizard', 'step6', 'averageOrderValue'],
+        message:
+          'step6 requires at least one of averageOrderValue or averageContractValue; the wizard cannot be committed without one',
+      });
+    }
+    // "none" means none of these. The wizard clears it when another capability
+    // is picked, so a fixture combining them could not be entered as written.
+    if (step5.creativeCapabilities.includes('none') && step5.creativeCapabilities.length > 1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wizard', 'step5', 'creativeCapabilities'],
+        message: 'creativeCapabilities cannot combine "none" with other capabilities',
+      });
+    }
     if (step1.marketingTargetType !== 'whole_business' && !step2.businessName) {
       context.addIssue({
         code: z.ZodIssueCode.custom,

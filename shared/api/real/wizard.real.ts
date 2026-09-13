@@ -10,6 +10,12 @@ import type {
   WizardStateResponseV2,
   WizardStepState,
 } from '@/shared/types/wizard';
+import {
+  DELIVERY_DEADLINE_VALUES,
+  MARKETING_HOURS_PER_WEEK_VALUES,
+  PAYBACK_WINDOW_VALUES,
+  normalizeCreativeCapabilities,
+} from '@/shared/types/wizard';
 
 type LegacyStepKey = WizardStepState['stepKey'];
 
@@ -669,6 +675,9 @@ function buildLegacyStepDataFromState(
       primaryGoal: mapWithFallback(step5.primaryGoal, PRIMARY_GOAL_FROM_V2),
       marketingHandler: mapWithFallback(step5.marketingHandler, MARKETING_HANDLER_FROM_V2),
       contentCapacity: normalizeNullableString(step5.contentCapacity),
+      marketingHoursPerWeek: normalizeNullableString(step5.marketingHoursPerWeek),
+      creativeCapabilities: normalizeStringList(step5.creativeCapabilities),
+      deliveryDeadline: normalizeNullableString(step5.deliveryDeadline),
       salesCapacity: normalizeNullableString(step5.salesCapacity),
       currentMarketingActivity: Array.isArray(step5.currentMarketingActivity)
         ? step5.currentMarketingActivity
@@ -693,6 +702,7 @@ function buildLegacyStepDataFromState(
       dealValueBand: step6.dealValueBand,
       grossMarginBand: step6.grossMarginBand,
       closeRateBand: step6.closeRateBand ?? 'not_tracked',
+      paybackWindow: normalizeNullableString(step6.paybackWindow),
       monthlyRevenue: normalizeNullableString(step6.monthlyRevenue),
       monthlyOrderVolume: normalizeNullableString(step6.monthlyOrderVolume),
       productCost: normalizeNullableString(step6.productCost),
@@ -730,6 +740,9 @@ function buildPreviewStep4FromState(state: WizardStateResponseV2) {
     primaryGoal: mapWithFallback(step5.primaryGoal, PRIMARY_GOAL_FROM_V2),
     marketingHandler: mapWithFallback(step5.marketingHandler, MARKETING_HANDLER_FROM_V2),
     contentCapacity: normalizeNullableString(step5.contentCapacity),
+    marketingHoursPerWeek: normalizeNullableString(step5.marketingHoursPerWeek),
+    creativeCapabilities: normalizeStringList(step5.creativeCapabilities),
+    deliveryDeadline: normalizeNullableString(step5.deliveryDeadline),
     salesCapacity: normalizeNullableString(step5.salesCapacity),
     currentMarketingActivity: Array.isArray(step5.currentMarketingActivity)
       ? step5.currentMarketingActivity
@@ -748,6 +761,7 @@ function buildPreviewStep4FromState(state: WizardStateResponseV2) {
     avgCustomerRetention: normalizeNullableString(step6.avgCustomerRetention),
     repeatPurchaseFrequency: normalizeNullableString(step6.repeatPurchaseFrequency),
     salesCycleLength: normalizeNullableString(step6.salesCycleLength),
+    paybackWindow: normalizeNullableString(step6.paybackWindow),
     trustSignals: normalizeStringList(step4.trustSignals),
     googleAnalyticsConnected: normalizeGoogleAnalyticsConnected(step4.googleAnalyticsConnected),
     monthlyWebsiteTraffic: normalizeNullableString(step4.monthlyWebsiteTraffic),
@@ -915,6 +929,7 @@ function buildStep5Payload(data: Record<string, unknown>) {
   const channelsStronglyPreferred = normalizeStringList(data.channelsStronglyPreferred);
   const executionConstraints = normalizeStringList(data.executionConstraints);
   const currentMarketingActivity = normalizeCurrentMarketingActivity(data.currentMarketingActivity);
+  const creativeCapabilities = normalizeCreativeCapabilities(data.creativeCapabilities);
 
   return stripUndefined({
     primaryGoal: pickAllowedValue(
@@ -923,7 +938,10 @@ function buildStep5Payload(data: Record<string, unknown>) {
       'other',
     ),
     monthlyMarketingSpend: normalizeNullableString(data.monthlyMarketingSpend),
-    paidMediaBudgetRange: normalizeNullableString(data.paidMediaBudgetRange) ?? normalizeNullableString(data.monthlyMarketingSpend),
+    // Sent as answered. A blank answer used to be filled with the monthly
+    // spend, which is the whole marketing budget rather than the paid-ads part,
+    // and the backend took it as the paid budget.
+    paidMediaBudgetRange: normalizeNullableString(data.paidMediaBudgetRange),
     marketingHandler: pickAllowedValue(
       mapWithFallback(data.marketingHandler, MARKETING_HANDLER_TO_V2),
       MARKETING_HANDLER_VALUES_V2,
@@ -934,6 +952,12 @@ function buildStep5Payload(data: Record<string, unknown>) {
       CONTENT_CAPACITY_VALUES_V2,
       'not_sure',
     ),
+    // Wizard v2.1, sent as the backend's own camelCase values. An unknown value
+    // is dropped rather than coerced to notSure: the backend keeps these
+    // optional, and a guessed answer would read as a real one.
+    marketingHoursPerWeek: pickAllowedValue(data.marketingHoursPerWeek, MARKETING_HOURS_PER_WEEK_VALUES),
+    creativeCapabilities: creativeCapabilities.length ? creativeCapabilities : undefined,
+    deliveryDeadline: pickAllowedValue(data.deliveryDeadline, DELIVERY_DEADLINE_VALUES),
     salesCapacity: normalizeNullableString(data.salesCapacity),
     currentMarketingActivity: currentMarketingActivity.length ? currentMarketingActivity : undefined,
     pastMarketing: normalizeNullableString(data.pastMarketing),
@@ -965,6 +989,13 @@ function buildStep6Payload(data: Record<string, unknown>) {
   const avgCustomerRetention = normalizeNullableString(data.avgCustomerRetention);
   const repeatPurchaseFrequency = normalizeNullableString(data.repeatPurchaseFrequency);
   const salesCycleLength = normalizeNumericString(data.salesCycleLength);
+  // The backend marks dealValueBand and grossMarginBand required on
+  // wizardStep6InputV2Schema, and reads the row back through safeParse. Omit
+  // them and the write still succeeds, but every later read of step 6 fails
+  // that parse and returns null - losing the whole step, not just the bands.
+  const dealValueBand = data.dealValueBand;
+  const grossMarginBand = data.grossMarginBand;
+  const closeRateBand = data.closeRateBand ?? 'not_tracked';
   return stripUndefined({
     averageOrderValue,
     averageContractValue,
@@ -977,6 +1008,11 @@ function buildStep6Payload(data: Record<string, unknown>) {
     avgCustomerRetention,
     repeatPurchaseFrequency,
     salesCycleLength,
+    dealValueBand,
+    grossMarginBand,
+    closeRateBand,
+    // Wizard v2.1, camelCase as the backend lists it; unknown values dropped.
+    paybackWindow: pickAllowedValue(data.paybackWindow, PAYBACK_WINDOW_VALUES),
   });
 }
 

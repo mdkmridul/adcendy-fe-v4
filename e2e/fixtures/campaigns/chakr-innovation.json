@@ -82,6 +82,11 @@
       "paidMediaBudgetRange": "not_sure",
       "marketingHandler": "not_sure",
       "contentCapacity": "not_sure",
+      "marketingHoursPerWeek": "underFive",
+      "creativeCapabilities": [
+        "none"
+      ],
+      "deliveryDeadline": "withinSixMonths",
       "salesCapacity": "not_sure",
       "knownCompetitorStatus": "provided",
       "knownCompetitors": [
@@ -92,9 +97,11 @@
       ]
     },
     "step6": {
+      "averageContractValue": "INR 13,00,000",
       "dealValueBand": "from_10l_to_50l",
       "grossMarginBand": "from_20_to_40_percent",
-      "closeRateBand": "from_5_to_15_percent"
+      "closeRateBand": "from_5_to_15_percent",
+      "paybackWindow": "firstOrder"
     },
     "step7": {
       "confirmFocus": true,
