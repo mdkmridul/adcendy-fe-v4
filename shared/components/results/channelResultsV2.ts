@@ -756,3 +756,48 @@ export function summarizeChannelResultsV2(
         left.currency.localeCompare(right.currency),
     );
 }
+
+// ---------------------------------------------------------------------------
+// The campaign, from either view
+// ---------------------------------------------------------------------------
+
+/**
+ * What the results page needs to know about a campaign. The client's own
+ * workspace and the admin view load a campaign through different calls, so
+ * each maps its answer to this.
+ */
+export interface ResultsCampaignV2 {
+  title: string | null;
+  status: string;
+  ownerEmail: string | null;
+  v2PrimaryMarket?: string | null;
+  v2TargetMarkets?: string[] | null;
+}
+
+/** Results open once the plan is delivered: an active or archived campaign. */
+export function resultsOpenForStatusV2(status: string | null | undefined): boolean {
+  const normalized = (status ?? '').trim().toUpperCase();
+  return normalized === 'ACTIVE' || normalized === 'ARCHIVED';
+}
+
+/**
+ * The admin view's campaign: title, status and owner from the admin campaign
+ * detail, markets from the campaign overview, which the detail does not carry.
+ * Null until the detail has loaded.
+ */
+export function adminResultsCampaignV2(
+  detail:
+    | { campaign: { title: string; status: string; owner?: { email?: string | null } | null } }
+    | null
+    | undefined,
+  overview: { v2PrimaryMarket?: string | null; v2TargetMarkets?: string[] | null } | null | undefined,
+): ResultsCampaignV2 | null {
+  if (!detail) return null;
+  return {
+    title: detail.campaign.title || null,
+    status: detail.campaign.status,
+    ownerEmail: detail.campaign.owner?.email ?? null,
+    v2PrimaryMarket: overview?.v2PrimaryMarket ?? null,
+    v2TargetMarkets: overview?.v2TargetMarkets ?? [],
+  };
+}
