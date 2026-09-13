@@ -28,7 +28,6 @@ import {
   useDeleteChannelResultV2,
   useRecordChannelResultV2,
 } from '@/hooks/useChannelResultsV2';
-import { getCampaignLifecycleStage } from '@/shared/components/campaigns/campaign-ui';
 import { ChannelResultFormV2 } from '@/shared/components/results/ChannelResultFormV2';
 import {
   ChannelResultsByChannelV2,
@@ -44,8 +43,11 @@ import {
   formatPeriodLabelV2,
   marketLabelV2,
   resultToFormValuesV2,
+  resultsOpenForStatusV2,
   type ChannelResultFormValuesV2,
+  type ResultsCampaignV2,
 } from '@/shared/components/results/channelResultsV2';
+import { formatCampaignStatus } from '@/shared/types/campaign';
 import type {
   ChannelResultInputV2,
   ChannelResultViewV2,
@@ -53,18 +55,67 @@ import type {
 
 const EMPTY_RESULTS: ChannelResultViewV2[] = [];
 
-interface ChannelResultsPageV2Props {
+/** Who is looking: the client in their own workspace, or an admin for any campaign. */
+export type ResultsAudienceV2 = 'client' | 'admin';
+
+interface ChannelResultsViewV2Props {
   campaignId: string;
+  campaign: ResultsCampaignV2 | null;
+  isCampaignLoading: boolean;
+  campaignError: string | null;
+  audience: ResultsAudienceV2;
+  /** Where "return" goes while results are not open yet. */
+  backHref: string;
 }
 
-export function ChannelResultsPageV2({ campaignId }: ChannelResultsPageV2Props) {
-  const { campaign, isLoading: isCampaignLoading, error: campaignError } = useCampaign(campaignId);
+/** The client's Results page, inside their campaign workspace. */
+export function ChannelResultsPageV2({ campaignId }: { campaignId: string }) {
+  const { campaign, isLoading, error } = useCampaign(campaignId);
+  const resultsCampaign = useMemo<ResultsCampaignV2 | null>(
+    () =>
+      campaign
+        ? {
+            title: campaign.title ?? null,
+            status: campaign.status,
+            ownerEmail: null,
+            v2PrimaryMarket: campaign.v2PrimaryMarket,
+            v2TargetMarkets: campaign.v2TargetMarkets,
+          }
+        : null,
+    [campaign],
+  );
+
+  return (
+    <ChannelResultsViewV2
+      campaignId={campaignId}
+      campaign={resultsCampaign}
+      isCampaignLoading={isLoading}
+      campaignError={error}
+      audience="client"
+      backHref={`/app/campaigns/${campaignId}/overview`}
+    />
+  );
+}
+
+/**
+ * Record and review a campaign's results. The client's workspace and the admin
+ * view share it; each loads the campaign its own way.
+ */
+export function ChannelResultsViewV2({
+  campaignId,
+  campaign,
+  isCampaignLoading,
+  campaignError,
+  audience,
+  backHref,
+}: ChannelResultsViewV2Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const resultsQuery = useChannelResultsV2(campaignId);
   const recordMutation = useRecordChannelResultV2(campaignId);
   const deleteMutation = useDeleteChannelResultV2(campaignId);
   const formRef = useRef<HTMLDivElement>(null);
+  const isAdminView = audience === 'admin';
 
   const [editing, setEditing] = useState<ChannelResultViewV2 | null>(null);
   const [nextEntry, setNextEntry] = useState<{
@@ -102,28 +153,32 @@ export function ChannelResultsPageV2({ campaignId }: ChannelResultsPageV2Props) 
 
   const header = (
     <div className="space-y-2">
-      <h1 className="font-space-grotesk text-3xl font-bold text-foreground">Results</h1>
+      <h1 className="font-space-grotesk text-3xl font-bold text-foreground">
+        {isAdminView && campaign.title ? `Results: ${campaign.title}` : 'Results'}
+      </h1>
       <p className="max-w-2xl text-muted-foreground">
-        Record what you spent and what came back, channel by channel. We use your own results to
-        sharpen the next plan.
+        {isAdminView
+          ? `What ${campaign.ownerEmail ?? 'the client'} spent and got back, channel by channel. What you record here is marked as entered by the operator, and the next plan reads it like the client's own.`
+          : 'Record what you spent and what came back, channel by channel. We use your own results to sharpen the next plan.'}
       </p>
     </div>
   );
 
-  if (getCampaignLifecycleStage(campaign) !== 'active') {
+  if (!resultsOpenForStatusV2(campaign.status)) {
     return (
       <div className="max-w-5xl space-y-6">
         {header}
         <Card className="border-border bg-card p-8 text-center">
           <h2 className="font-space-grotesk text-xl font-semibold">
-            Results open once your plan is delivered
+            {isAdminView ? 'Results open once the plan is delivered' : 'Results open once your plan is delivered'}
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            When your strategy plan is ready and you start running it, come back here to record
-            what each channel cost and brought in.
+            {isAdminView
+              ? `This campaign is ${formatCampaignStatus(campaign.status) ?? campaign.status}. Results can be recorded once its plan is delivered.`
+              : 'When your strategy plan is ready and you start running it, come back here to record what each channel cost and brought in.'}
           </p>
           <Button asChild className="mt-5">
-            <Link href={`/app/campaigns/${campaignId}/overview`}>Return to campaign overview</Link>
+            <Link href={backHref}>{isAdminView ? 'Back to campaign detail' : 'Return to campaign overview'}</Link>
           </Button>
         </Card>
       </div>
@@ -227,8 +282,8 @@ export function ChannelResultsPageV2({ campaignId }: ChannelResultsPageV2Props) 
         <CardHeader>
           <CardTitle className="font-space-grotesk text-lg">How each channel is doing</CardTitle>
           <CardDescription>
-            Totals across every period you have recorded. Return on spend is revenue divided by
-            spend. Amounts in different currencies are shown separately.
+            Totals across every period recorded. Return on spend is revenue divided by spend.
+            Amounts in different currencies are shown separately.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -238,7 +293,9 @@ export function ChannelResultsPageV2({ campaignId }: ChannelResultsPageV2Props) 
             <ChannelResultsByChannelV2 summaries={summaries} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              Your totals will show here once you record some results.
+              {isAdminView
+                ? 'Totals will show here once results are recorded.'
+                : 'Your totals will show here once you record some results.'}
             </p>
           )}
         </CardContent>
@@ -270,7 +327,9 @@ export function ChannelResultsPageV2({ campaignId }: ChannelResultsPageV2Props) 
             />
           ) : (
             <p className="text-sm text-muted-foreground">
-              Nothing recorded yet. Your saved results will show here.
+              {isAdminView
+                ? 'Nothing recorded yet for this campaign.'
+                : 'Nothing recorded yet. Your saved results will show here.'}
             </p>
           )}
         </CardContent>

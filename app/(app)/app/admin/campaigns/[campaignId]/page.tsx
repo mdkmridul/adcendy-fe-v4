@@ -731,6 +731,11 @@ export default function AdminCampaignDetailPage() {
               Strategy
             </Button>
           )}
+          <Link href={`/admin/campaigns/${campaignId}/results`}>
+            <Button size="sm" variant="outline">
+              Results
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
