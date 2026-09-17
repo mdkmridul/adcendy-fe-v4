@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   ArrowRight,
+  Activity,
   FileStack,
   FolderKanban,
   Receipt,
@@ -191,6 +192,27 @@ export default function AdminPage() {
             <Link href="/admin/jobs">
               <Button variant="outline" className="w-full justify-between">
                 Open Jobs Manager
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Activity className="h-5 w-5" />
+              Anomalies
+            </CardTitle>
+            <CardDescription>
+              Faults no reviewer answer can fix: degraded providers, checks that
+              stopped a document, runs whose worker died.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/admin/anomalies">
+              <Button variant="outline" className="w-full justify-between">
+                Open Anomalies
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>

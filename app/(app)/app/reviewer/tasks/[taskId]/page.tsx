@@ -40,12 +40,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { CampaignDocumentUploader } from '@/shared/components/campaigns/CampaignDocumentUploader';
 import { CompetitorSelectionPicker } from '@/shared/components/ops/CompetitorSelectionPicker';
+import { ProductNounPicker } from '@/shared/components/ops/ProductNounPicker';
 import {
   isAnswerableTaskStatus,
   isCompetitorSelectionTask,
   readCompetitorSelectionModel,
   type CompetitorSelectionAnswer,
 } from '@/shared/components/ops/competitorSelection';
+import {
+  isProductNounTask,
+  readProductNounModel,
+  type ProductNounAnswer,
+} from '@/shared/components/ops/productNounConfirmation';
 
 const OUTPUT_CONSTRAINT_MODE = 'output_constraint_violation';
 const FIELD_LABELS: Record<string, string> = {
@@ -1253,6 +1259,31 @@ export default function ReviewerTaskDetailPage() {
   const competitorSelectionModel =
     task && isCompetitorSelectionTask(task.failureMode) ? readCompetitorSelectionModel(task) : null;
 
+  // The search terms buyers use for what the client sells, when research could
+  // not decide them: until this form the task could only be answered from the
+  // backend, so a held run could not be resumed from this page (R-3b).
+  const productNounModel =
+    task && isProductNounTask(task.failureMode) ? readProductNounModel(task) : null;
+
+  const handleProductNounSubmit = async (answer: ProductNounAnswer) => {
+    try {
+      const result = await respondMutation.mutateAsync({ answer });
+      setLastActionResult(result);
+      toast({
+        title: 'Search terms submitted',
+        description: result.resumeOutcome ? `Resume outcome: ${result.resumeOutcome}` : 'Task response accepted.',
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.opsV2.all });
+      router.replace('/app/reviewer/strategy-reviews');
+    } catch (error) {
+      toast({
+        title: 'Unable to submit the search terms',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleCompetitorSelectionSubmit = async (answer: CompetitorSelectionAnswer) => {
     try {
       const result = await respondMutation.mutateAsync({ answer });
@@ -1929,6 +1960,17 @@ export default function ReviewerTaskDetailPage() {
                 </div>
               </CardContent>
             </Card>
+          ) : null}
+
+          {productNounModel ? (
+            <ProductNounPicker
+              key={task.id}
+              model={productNounModel}
+              question={task.renderedQuestion ?? null}
+              readOnly={!isAnswerableTaskStatus(task.status)}
+              pending={respondMutation.isPending}
+              onSubmit={(answer) => void handleProductNounSubmit(answer)}
+            />
           ) : null}
 
           {competitorSelectionModel ? (

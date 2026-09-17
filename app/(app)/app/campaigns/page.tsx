@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,10 @@ export default function CampaignsPage() {
   } = useCampaignEntitlement();
   const { setLastCampaignId } = useLastCampaign();
   const [wizardModalState, setWizardModalState] = useState<WizardModalState | null>(null);
+  // A successful commit closes the modal and routes to the new run. Closing
+  // fires onOpenChange, whose draft cleanup would replace that route with the
+  // campaign list - so the commit navigation has to claim the close first.
+  const commitNavigationRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const isWizardModalOpen = wizardModalState !== null;
 
@@ -115,6 +119,14 @@ export default function CampaignsPage() {
     const wizardStepParam = Number(searchParams.get('wizardStep'));
 
     if (!draftCampaignId) {
+      commitNavigationRef.current = false;
+      return;
+    }
+
+    // A commit has already routed to the run. The list is mid-refetch, so the
+    // committed campaign reads as missing here - without this the cleanup
+    // below would replace the run route with the campaign list.
+    if (commitNavigationRef.current) {
       return;
     }
 
@@ -300,12 +312,16 @@ export default function CampaignsPage() {
       <CampaignWizardModal
         open={Boolean(wizardModalState)}
         onCommitSuccess={(href) => {
+          commitNavigationRef.current = true;
           setWizardModalState(null);
           router.replace(href);
         }}
         onOpenChange={(open) => {
           if (!open) {
             setWizardModalState(null);
+            if (commitNavigationRef.current) {
+              return;
+            }
             if (searchParams.get('draftCampaignId')) {
               router.replace('/app/campaigns');
             }

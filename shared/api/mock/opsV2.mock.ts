@@ -16,6 +16,8 @@ import type {
   ReviewerTaskItem,
   ReviewerTaskRespondPayload,
   ReviewerTaskRespondResult,
+  RunAnomaly,
+  RunAnomalyReport,
   RunTelemetryAggregate,
   RunTelemetryEvent,
   RunTelemetryPhaseRollup,
@@ -878,6 +880,90 @@ trailer
       status: 'queued',
       statusUrl: `/api/v2/pipeline/runs/${runId}`,
       telemetryUrl: `/api/v2/telemetry/runs/${runId}/aggregate`,
+    };
+  },
+
+  async getRunAnomalies(params?: {
+    days?: number;
+    severity?: string;
+    runId?: string;
+  }): Promise<RunAnomalyReport> {
+    // One of each severity, so the screen can be read without a live stack.
+    const now = new Date().toISOString();
+    const anomalies: RunAnomaly[] = [
+      {
+        id: 'run:run_v2_demo_a',
+        severity: 'critical',
+        source: 'run',
+        code: 'RUN_STRANDED_NO_LIVE_JOB_V2',
+        title: 'The run stopped during gap_analysis_v2',
+        detail:
+          'This run stopped during gap_analysis_v2 and no worker held it afterwards, so nothing was going to finish it.',
+        pipelineRunId: 'run_v2_demo_a',
+        campaignId: 'campaign_demo_a',
+        phaseName: 'gap_analysis_v2',
+        marketId: 'IN',
+        provider: null,
+        operation: null,
+        occurredAt: now,
+        nextStep:
+          'No worker was holding this run. Retry it from the phase named above; the work before it is kept.',
+      },
+      {
+        id: 'provider:demo_b',
+        severity: 'degraded',
+        source: 'provider',
+        code: 'DATAFORSEO_UNAVAILABLE',
+        title: 'dataforseo keyword_metrics came back degraded',
+        detail: 'timeout of 10000ms exceeded',
+        pipelineRunId: 'run_v2_demo_b',
+        campaignId: null,
+        phaseName: null,
+        marketId: 'IN',
+        provider: 'dataforseo',
+        operation: 'keyword_metrics',
+        occurredAt: now,
+        nextStep:
+          'A provider call failed or timed out. Check whether the run continued on worse data.',
+      },
+      {
+        id: 'provider:demo_c',
+        severity: 'handled',
+        source: 'provider',
+        code: 'PROVIDER_ACQUISITION_SUPPRESSED_V2',
+        title: 'serpapi search came back degraded',
+        detail: 'This pass applies diagnostic levers to what the run already collected.',
+        pipelineRunId: 'run_v2_demo_b',
+        campaignId: null,
+        phaseName: null,
+        marketId: 'IN',
+        provider: 'serpapi',
+        operation: 'search',
+        occurredAt: now,
+        nextStep: null,
+      },
+    ];
+    const filtered = params?.severity
+      ? anomalies.filter((entry) => entry.severity === params.severity)
+      : anomalies;
+    return {
+      windowDays: params?.days ?? 7,
+      generatedAt: now,
+      counts: {
+        critical: filtered.filter((e) => e.severity === 'critical').length,
+        degraded: filtered.filter((e) => e.severity === 'degraded').length,
+        handled: filtered.filter((e) => e.severity === 'handled').length,
+      },
+      groups: filtered.map((entry) => ({
+        code: entry.code,
+        severity: entry.severity,
+        count: 1,
+        firstSeenAt: entry.occurredAt,
+        lastSeenAt: entry.occurredAt,
+        runCount: entry.pipelineRunId ? 1 : 0,
+        sample: entry,
+      })),
+      anomalies: filtered,
     };
   },
 

@@ -1,0 +1,185 @@
+{
+  "fixtureVersion": "1.0",
+  "fixtureStatus": "ready",
+  "slug": "ultrahuman",
+  "displayName": "Ultrahuman",
+  "wizard": {
+    "step1": {
+      "marketingTargetType": "whole_business",
+      "focusName": "Ultrahuman",
+      "sourceType": "website",
+      "targetMarkets": [
+        "IN"
+      ],
+      "primaryMarket": "IN",
+      "marketScope": "national",
+      "primaryUrl": "https://www.ultrahuman.com/in/"
+    },
+    "step2": {
+      "businessName": "Ultrahuman",
+      "industryCategory": "healthcare_wellness",
+      "businessModel": "D2C",
+      "audienceModel": "single_sided",
+      "lifecycleStage": "scaling",
+      "businessDescription": "Ultrahuman is a Bengaluru-based consumer health-technology company that designs wearable and at-home devices for tracking sleep, recovery, movement and metabolic health. Its flagship product is the Ultrahuman Ring, a smart ring that monitors sleep, heart rate, heart-rate variability, skin temperature and activity, with core features available without a mandatory subscription. The wider ecosystem includes the Ultrahuman M1 continuous glucose monitor, Ultrahuman Home for monitoring the sleep environment, and Blood Vision at-home blood testing. The company sells directly through its own website and through Amazon, Flipkart and Croma in India, and has users in more than 180 countries.",
+      "productCategory": "Smart ring and connected health wearables for sleep, recovery and metabolic tracking",
+      "productsServices": [
+        "Ultrahuman Ring AIR smart ring for sleep, heart-rate, HRV, skin-temperature and activity tracking",
+        "Ultrahuman Ring PRO smart ring with a titanium build and longer battery life",
+        "Ultrahuman M1 continuous glucose monitoring sensor with metabolic insights",
+        "Ultrahuman Home device for monitoring the sleep environment",
+        "Ultrahuman Blood Vision at-home blood testing across more than 100 biomarkers",
+        "Ultrahuman app with sleep, recovery and movement scores and personalised guidance"
+      ],
+      "priceRange": "not_sure",
+      "differentiators": [
+        "Core ring features are available without a mandatory monthly subscription",
+        "Ring AIR weighs about 2.4 grams, among the lightest smart rings available",
+        "One ecosystem spanning ring, glucose monitor, sleep-environment device and blood testing"
+      ],
+      "sensitiveCategoryFlags": [
+        "none"
+      ]
+    },
+    "step3": {
+      "primaryTargetSegment": "Health-conscious urban Indian adults who want discreet, continuous sleep, recovery and metabolic tracking without a mandatory subscription.",
+      "targetPersona": "A working professional or fitness enthusiast aged roughly 25 to 45 in a major Indian city who already cares about sleep, training and diet, finds wrist-worn watches bulky or distracting at night, compares smart rings on accuracy, battery life, comfort and ongoing cost, and is willing to pay a premium for a device they can wear all day and night.",
+      "language": "english",
+      "painPoints": [
+        "Smartwatches are bulky and uncomfortable to sleep in, so overnight sleep and recovery data is often missing or unreliable.",
+        "Competing smart rings and fitness bands lock key insights behind a recurring monthly subscription.",
+        "Consumers collect plenty of health numbers but struggle to turn them into clear daily decisions about sleep, training and diet."
+      ],
+      "desiredOutcome": "Help health-conscious consumers understand their sleep, recovery and metabolic health from a comfortable ring they wear all day and night, and act on clear daily guidance without paying an ongoing subscription.",
+      "decisionProcess": "The consumer discovers Ultrahuman through reviews, creators, social media or marketplace listings. They compare it with Oura, Samsung Galaxy Ring, Noise Luna and fitness bands on accuracy, battery life, comfort, app quality, price and subscription cost, check ratings and the size guide, and buy through the Ultrahuman website, Amazon, Flipkart or Croma.",
+      "buyerRoles": [
+        "Primary wearable user",
+        "Self-purchasing consumer",
+        "Partner or family member buying the ring as a gift",
+        "Fitness coach or creator influencing the purchase"
+      ]
+    },
+    "step4": {
+      "salesChannels": [
+        {
+          "channel": "own_website",
+          "rank": 1
+        },
+        {
+          "channel": "amazon",
+          "rank": 2
+        },
+        {
+          "channel": "flipkart",
+          "rank": 3
+        },
+        {
+          "channel": "retail_store",
+          "rank": 4
+        }
+      ],
+      "primaryConversionPath": "buy_online",
+      "trustSignals": [
+        "Raised USD 70 million in September 2026 in a round led by Qualcomm Ventures, valuing the company at USD 365 million.",
+        "Reports an annual revenue run rate of about USD 140 million, up roughly 45% year on year.",
+        "Has sold around 800,000 smart rings, with users in more than 180 countries.",
+        "Reported as the leading smart-ring brand in India, with a 30.4% share of the category.",
+        "States that its platform is ISO 27001, GDPR and HIPAA compliant.",
+        "Sold through Amazon, Flipkart and Croma in India alongside its own website."
+      ],
+      "socialHandles": [
+        {
+          "platform": "instagram",
+          "handle": "ultrahumanhq"
+        },
+        {
+          "platform": "youtube",
+          "handle": "UltrahumanOfficial"
+        },
+        {
+          "platform": "linkedin",
+          "handle": "ultrahumanhq"
+        },
+        {
+          "platform": "twitter",
+          "handle": "ultrahumanhq"
+        }
+      ],
+      "digitalPresenceLinks": [
+        {
+          "type": "flipkart",
+          "url": "https://www.flipkart.com/ultrahuman-ring-air-smart/p/itm84a128948dde1",
+          "label": "Ring AIR on Flipkart"
+        },
+        {
+          "type": "other",
+          "url": "https://www.croma.com/lp-ultrahuman-ring",
+          "label": "Croma"
+        }
+      ],
+      "monthlyWebsiteTraffic": "50000_plus",
+      "emailListSize": "10000_plus"
+    },
+    "step5": {
+      "primaryGoal": "revenue_growth",
+      "monthlyMarketingSpend": "50k_plus",
+      "paidMediaBudgetRange": "5k_15k",
+      "marketingHandler": "in_house_team",
+      "contentCapacity": "high",
+      "marketingHoursPerWeek": "fortyPlus",
+      "creativeCapabilities": [
+        "video",
+        "photography",
+        "copywriting",
+        "design"
+      ],
+      "deliveryDeadline": "withinThreeMonths",
+      "knownCompetitorStatus": "provided",
+      "knownCompetitors": [
+        "Oura",
+        "Samsung Galaxy Ring",
+        "Noise Luna Ring",
+        "Gabit",
+        "Whoop"
+      ],
+      "currentMarketingActivity": [
+        {
+          "channel": "Meta ads",
+          "status": "active",
+          "workingAssessment": "not_sure"
+        },
+        {
+          "channel": "Google search ads",
+          "status": "active",
+          "workingAssessment": "not_sure"
+        },
+        {
+          "channel": "Influencer marketing",
+          "status": "active",
+          "workingAssessment": "not_sure"
+        }
+      ]
+    },
+    "step6": {
+      "averageOrderValue": "INR 28,499",
+      "dealValueBand": "from_10k_to_50k",
+      "grossMarginBand": "from_40_to_60_percent",
+      "closeRateBand": "not_tracked",
+      "paybackWindow": "firstOrder",
+      "avgCustomerRetention": "some_repeat",
+      "monthlyOrderVolume": "1000-2000",
+      "repeatPurchaseFrequency": "every_few_months"
+    },
+    "step7": {
+      "confirmFocus": true,
+      "confirmBusiness": true,
+      "confirmAudience": true,
+      "confirmGoals": true,
+      "confirmEconomics": true,
+      "readyToGenerate": true,
+      "dataConsentOptIn": false,
+      "privacyProcessingConsent": true,
+      "aiProcessingConsent": true
+    }
+  }
+}

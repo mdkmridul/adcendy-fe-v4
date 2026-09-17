@@ -17,6 +17,7 @@ import type {
   ReviewerTaskItem,
   ReviewerTaskRespondPayload,
   ReviewerTaskRespondResult,
+  RunAnomalyReport,
   RunTelemetryAggregate,
   RunTelemetryEvent,
   RunTelemetryPhaseRollup,
@@ -156,6 +157,15 @@ export const opsV2Repository = {
     payload: GenerateDeliverableKitV2Payload,
   ): Promise<QueuedDeliverableKitV2> {
     return adapter.generateAdminDeliverableKit(runId, payload);
+  },
+
+  /** What went wrong lately, across runs - the admin anomalies screen. */
+  async getRunAnomalies(params?: {
+    days?: number;
+    severity?: string;
+    runId?: string;
+  }): Promise<RunAnomalyReport> {
+    return adapter.getRunAnomalies(params);
   },
 
   async getCampaignHealth(params?: { limit?: number; onlyUnhealthy?: boolean }): Promise<CampaignHealthItem[]> {
