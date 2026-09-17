@@ -1385,3 +1385,152 @@ export function normalizeAdminCostsSummary(payload: unknown): AdminCostsSummary 
     totalCalls: fallbackNumber(record.totalCalls, record.total_calls, record.calls) ?? null,
   };
 }
+
+/**
+ * What went wrong in a run that no reviewer answer can put right (admin
+ * anomalies). A reviewer task is a question for a person; these are provider
+ * timeouts, checks that stopped a document, and runs whose worker died.
+ */
+export type RunAnomalySeverity = 'critical' | 'degraded' | 'handled';
+
+export type RunAnomalySource = 'run' | 'phase' | 'dispatch' | 'provider';
+
+export interface RunAnomaly {
+  id: string;
+  severity: RunAnomalySeverity;
+  source: RunAnomalySource;
+  code: string;
+  title: string;
+  detail: string | null;
+  pipelineRunId: string | null;
+  campaignId: string | null;
+  phaseName: string | null;
+  marketId: string | null;
+  provider: string | null;
+  operation: string | null;
+  occurredAt: string;
+  nextStep: string | null;
+}
+
+export interface RunAnomalyGroup {
+  code: string;
+  severity: RunAnomalySeverity;
+  count: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  runCount: number;
+  sample: RunAnomaly;
+}
+
+export interface RunAnomalyReport {
+  windowDays: number;
+  generatedAt: string;
+  counts: Record<RunAnomalySeverity, number>;
+  groups: RunAnomalyGroup[];
+  anomalies: RunAnomaly[];
+}
+
+const ANOMALY_SEVERITIES: RunAnomalySeverity[] = [
+  'critical',
+  'degraded',
+  'handled',
+];
+
+const ANOMALY_SOURCES: RunAnomalySource[] = [
+  'run',
+  'phase',
+  'dispatch',
+  'provider',
+];
+
+function asAnomalyText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+export function normalizeRunAnomaly(value: unknown): RunAnomaly | null {
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+  const id = asAnomalyText(record.id);
+  const code = asAnomalyText(record.code);
+  const occurredAt = asAnomalyText(record.occurredAt);
+  if (!id || !code || !occurredAt) {
+    return null;
+  }
+  const severity = ANOMALY_SEVERITIES.includes(
+    record.severity as RunAnomalySeverity,
+  )
+    ? (record.severity as RunAnomalySeverity)
+    : 'degraded';
+  const source = ANOMALY_SOURCES.includes(record.source as RunAnomalySource)
+    ? (record.source as RunAnomalySource)
+    : 'run';
+  return {
+    id,
+    severity,
+    source,
+    code,
+    title: asAnomalyText(record.title) ?? code,
+    detail: asAnomalyText(record.detail),
+    pipelineRunId: asAnomalyText(record.pipelineRunId),
+    campaignId: asAnomalyText(record.campaignId),
+    phaseName: asAnomalyText(record.phaseName),
+    marketId: asAnomalyText(record.marketId),
+    provider: asAnomalyText(record.provider),
+    operation: asAnomalyText(record.operation),
+    occurredAt,
+    nextStep: asAnomalyText(record.nextStep),
+  };
+}
+
+export function normalizeRunAnomalyReport(value: unknown): RunAnomalyReport {
+  const record = asRecord(value) ?? {};
+  const counts = asRecord(record.counts) ?? {};
+  const readCount = (key: RunAnomalySeverity) =>
+    typeof counts[key] === 'number' && Number.isFinite(counts[key])
+      ? (counts[key] as number)
+      : 0;
+  const anomalies = Array.isArray(record.anomalies)
+    ? record.anomalies
+        .map((entry) => normalizeRunAnomaly(entry))
+        .filter((entry): entry is RunAnomaly => entry !== null)
+    : [];
+  const groups = Array.isArray(record.groups)
+    ? record.groups.flatMap((entry) => {
+        const group = asRecord(entry);
+        const sample = group ? normalizeRunAnomaly(group.sample) : null;
+        const code = group ? asAnomalyText(group.code) : null;
+        if (!group || !sample || !code) {
+          return [];
+        }
+        return [
+          {
+            code,
+            severity: ANOMALY_SEVERITIES.includes(
+              group.severity as RunAnomalySeverity,
+            )
+              ? (group.severity as RunAnomalySeverity)
+              : sample.severity,
+            count: typeof group.count === 'number' ? group.count : 1,
+            firstSeenAt: asAnomalyText(group.firstSeenAt) ?? sample.occurredAt,
+            lastSeenAt: asAnomalyText(group.lastSeenAt) ?? sample.occurredAt,
+            runCount: typeof group.runCount === 'number' ? group.runCount : 0,
+            sample,
+          } satisfies RunAnomalyGroup,
+        ];
+      })
+    : [];
+  return {
+    windowDays:
+      typeof record.windowDays === 'number' ? record.windowDays : 7,
+    generatedAt: asAnomalyText(record.generatedAt) ?? new Date().toISOString(),
+    counts: {
+      critical: readCount('critical'),
+      degraded: readCount('degraded'),
+      handled: readCount('handled'),
+    },
+    groups,
+    anomalies,
+  };
+}

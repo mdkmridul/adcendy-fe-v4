@@ -14,6 +14,19 @@ import type {
   SectionReviewRevisionPayload,
 } from '@/shared/types/opsV2';
 
+/** What went wrong lately, across runs (admin anomalies). */
+export function useOpsRunAnomalies(
+  params: { days?: number; severity?: string; runId?: string },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.opsV2.anomalies(params),
+    queryFn: () => opsV2Repository.getRunAnomalies(params),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useOpsCampaignOverviews(
   enabled = true,
   options?: {

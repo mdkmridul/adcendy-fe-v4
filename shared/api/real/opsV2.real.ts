@@ -18,6 +18,7 @@ import type {
   ReviewerTaskItem,
   ReviewerTaskRespondPayload,
   ReviewerTaskRespondResult,
+  RunAnomalyReport,
   RunTelemetryAggregate,
   RunTelemetryEvent,
   RunTelemetryPhaseRollup,
@@ -39,6 +40,7 @@ import {
   normalizeReviewerTaskDetail,
   normalizeReviewerTaskList,
   normalizeReviewerTaskRespondResult,
+  normalizeRunAnomalyReport,
   normalizeRunTelemetryAggregate,
   normalizeRunTelemetryEvents,
   normalizeRunTelemetryPhaseRollups,
@@ -375,6 +377,21 @@ export const opsV2RealAdapter = {
       },
     });
     return normalizeCampaignHealthList(unwrapResponseData(response));
+  },
+
+  async getRunAnomalies(params?: {
+    days?: number;
+    severity?: string;
+    runId?: string;
+  }): Promise<RunAnomalyReport> {
+    const response = await http<ApiResponse<unknown> | unknown>('/api/v2/admin/anomalies', {
+      query: {
+        days: params?.days,
+        severity: params?.severity,
+        runId: params?.runId,
+      },
+    });
+    return normalizeRunAnomalyReport(unwrapResponseData(response));
   },
 
   async getRunEvents(runId: string): Promise<RunTelemetryEvent[]> {
