@@ -273,6 +273,9 @@ function redirectToLogin(): void {
   if (typeof window === 'undefined') return;
   const currentPath = `${window.location.pathname}${window.location.search}`;
   if (!window.location.pathname.startsWith('/auth/')) {
+    // A full page load on purpose: it drops the signed-out user's cached
+    // client state, and this module has no router to push with.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/auth/login?next=${encodeURIComponent(currentPath)}`;
   }
 }

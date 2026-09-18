@@ -62,6 +62,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     const stored = window.localStorage.getItem("adcendy.billingCountry");
     if (stored && /^[A-Z]{2}$/.test(stored)) {
+      // localStorage and navigator exist only in the browser, so they are read
+      // after mount; reading them during render would make the server and
+      // client render disagree.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCountryCode(stored);
       return;
     }
