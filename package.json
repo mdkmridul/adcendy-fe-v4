@@ -78,7 +78,7 @@
     "framer-motion": "12.29.0",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
-    "next": "16.2.12",
+    "next": "16.3.5",
     "next-themes": "^0.4.6",
     "openapi-fetch": "^0.15.0",
     "react": "19.2.0",
@@ -102,14 +102,14 @@
     "@types/react-dom": "^19",
     "cross-env": "^10.1.0",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "16.3.5",
     "openapi-typescript": "^7.10.1",
-    "postcss": "8.5.18",
+    "postcss": "8.5.28",
     "tailwindcss": "^4.1.9",
     "typescript": "^5"
   },
   "overrides": {
-    "postcss": "8.5.18",
-    "sharp": "0.35.0"
+    "postcss": "8.5.28",
+    "sharp": "0.35.4"
   }
 }
