@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -9,18 +8,8 @@ import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 import { billingRepository } from '@/shared/api/repositories/billing.repo';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { formatMinorAmount } from '@/shared/payments/razorpay';
-import {
-  requestedCountryFor,
-  type PricingPreference,
-} from '@/shared/payments/pricingPreference';
 
 type Currency = 'INR' | 'USD';
-
-/** Each side of the toggle is an explicit switch to that market's price. */
-const TOGGLE_PREFERENCE: Record<Currency, PricingPreference> = {
-  INR: 'IN',
-  USD: 'US',
-};
 
 const INCLUDED = [
   'A marketing strategy document built specifically for your business',
@@ -31,16 +20,14 @@ const INCLUDED = [
 ];
 
 export function Pricing() {
-  // The server picks the default from the visitor's country; the toggle is
-  // an explicit switch on top of it (backend R-8).
-  const [preference, setPreference] = useState<PricingPreference>('auto');
   const { status } = useMarketingAuth();
   const isAuthed = status === 'authed';
   const ctaHref = isAuthed ? '/app/checkout' : '/auth/signup';
-  const countryCode = requestedCountryFor(preference);
+  // Prices follow the visitor's location alone; there is no switch
+  // (backend R-8).
   const catalogueQuery = useQuery({
-    queryKey: queryKeys.billing.publicBundles(countryCode),
-    queryFn: () => billingRepository.listPublicBundles(countryCode),
+    queryKey: queryKeys.billing.publicBundles(),
+    queryFn: () => billingRepository.listPublicBundles(),
     staleTime: 60_000,
   });
   const bundles = catalogueQuery.data?.items ?? [];
@@ -60,7 +47,7 @@ export function Pricing() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-6 space-y-4"
+          className="text-center mb-12 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
             Simple, transparent strategy credits
@@ -68,26 +55,6 @@ export function Pricing() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Buy one-time credits now. The same live catalogue powers this page and secure checkout.
           </p>
-        </motion.div>
-
-        {/* Currency toggle */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="flex justify-center mb-12"
-        >
-          <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-card/50">
-            {(['INR', 'USD'] as Currency[]).map((c) => (
-              <button
-                key={c}
-                onClick={() => setPreference(TOGGLE_PREFERENCE[c])}
-                className={`px-5 py-2 rounded-md text-sm font-semibold transition-all ${currency === c ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                {c === 'INR' ? '₹ India' : '$ International'}
-              </button>
-            ))}
-          </div>
         </motion.div>
 
         {catalogueQuery.isPending && (

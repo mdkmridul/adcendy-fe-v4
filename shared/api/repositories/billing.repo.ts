@@ -9,11 +9,10 @@ const adapter = createRuntimeRepositoryAdapter(
 );
 
 export const billingRepository = {
-  listPublicBundles: (countryCode?: string) =>
-    adapter.listPublicBundles(countryCode),
-  listBundles: (countryCode?: string) => adapter.listBundles(countryCode),
-  createOrder: (sku: string, idempotencyKey: string, countryCode?: string) =>
-    adapter.createOrder(sku, idempotencyKey, countryCode),
+  listPublicBundles: () => adapter.listPublicBundles(),
+  listBundles: () => adapter.listBundles(),
+  createOrder: (sku: string, idempotencyKey: string) =>
+    adapter.createOrder(sku, idempotencyKey),
   getOrder: (orderId: string) => adapter.getOrder(orderId),
   verifyPayment: (orderId: string, payload: VerifyPaymentPayload) =>
     adapter.verifyPayment(orderId, payload),

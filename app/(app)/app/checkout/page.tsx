@@ -35,9 +35,6 @@ import ENV from "@/lib/env";
 import {
   INDIAN_PAYMENT_REFUND_MESSAGE,
   isIndianPaymentRefund,
-  pricingSwitchFor,
-  requestedCountryFor,
-  type PricingPreference,
 } from "@/shared/payments/pricingPreference";
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -52,9 +49,6 @@ export default function CheckoutPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  // The server picks prices from the visitor's country; this is only the
-  // explicit switch on top of it (backend R-8).
-  const [preference, setPreference] = useState<PricingPreference>("auto");
   const [selectedSku, setSelectedSku] = useState("GEN_1");
   const [acceptedDocumentIds, setAcceptedDocumentIds] = useState<string[]>([]);
   const [currentOrder, setCurrentOrder] = useState<BillingOrder | null>(null);
@@ -88,18 +82,15 @@ export default function CheckoutPage() {
 
   const displayedOrder = orderQuery.data ?? currentOrder;
   // An India-priced order paid from abroad is refunded, and the buyer is
-  // shown the USD price in its place.
+  // told why.
   const refundedForIndianPayment = isIndianPaymentRefund(displayedOrder);
-  const effectivePreference: PricingPreference = refundedForIndianPayment
-    ? "US"
-    : preference;
-  const countryCode = requestedCountryFor(effectivePreference);
+  // Prices follow the visitor's location alone; there is no switch
+  // (backend R-8).
   const bundlesQuery = useQuery({
-    queryKey: queryKeys.billing.bundles(countryCode),
-    queryFn: () => billingRepository.listBundles(countryCode),
+    queryKey: queryKeys.billing.bundles(),
+    queryFn: () => billingRepository.listBundles(),
     refetchOnWindowFocus: false,
   });
-  const pricingSwitch = pricingSwitchFor(bundlesQuery.data?.currency);
 
   const activeDocuments = useMemo(
     () => documentsQuery.data ?? [],
@@ -225,7 +216,6 @@ export default function CheckoutPage() {
       const order = await billingRepository.createOrder(
         selectedBundle.sku,
         crypto.randomUUID(),
-        countryCode,
       );
       if (!order.providerOrderId)
         throw new Error("Razorpay did not return an order ID.");
@@ -320,15 +310,6 @@ export default function CheckoutPage() {
     requiredDocumentIds.length ===
     CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES.length;
 
-  const changePricing = (nextPreference: PricingPreference) => {
-    setPreference(nextPreference);
-    setSelectedSku("GEN_1");
-    setCurrentOrder(null);
-    setShouldPoll(false);
-    setSubmitError(null);
-    setSubmitSuccess(null);
-  };
-
   return (
     <div className="space-y-5 p-6">
       <div className="space-y-1">
@@ -351,18 +332,6 @@ export default function CheckoutPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-3">
-              {pricingSwitch ? (
-                <div className="sm:col-span-3">
-                  <button
-                    type="button"
-                    onClick={() => changePricing(pricingSwitch.preference)}
-                    disabled={isBusy}
-                    className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
-                  >
-                    {pricingSwitch.label}
-                  </button>
-                </div>
-              ) : null}
               {bundlesQuery.data?.fallbackApplied ? (
                 <Alert className="sm:col-span-3">
                   <AlertDescription>
