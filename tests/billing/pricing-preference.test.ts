@@ -5,31 +5,10 @@ import {
   INDIAN_PAYMENT_REFUND_MESSAGE,
   INR_PRICE_REQUIRES_INDIAN_PAYMENT,
   isIndianPaymentRefund,
-  pricingSwitchFor,
-  requestedCountryFor,
 } from "../../shared/payments/pricingPreference.ts";
 
-// Backend R-8: the server decides which prices a buyer sees; the page only
-// switches explicitly, and India's price is checked at payment.
-
-test("sends no country until the buyer switches, so the server decides", () => {
-  assert.equal(requestedCountryFor("auto"), undefined);
-  assert.equal(requestedCountryFor("IN"), "IN");
-  assert.equal(requestedCountryFor("US"), "US");
-});
-
-test("offers the other market's price, going by what the server returned", () => {
-  assert.deepEqual(pricingSwitchFor("USD"), {
-    label: "In India? See INR prices",
-    preference: "IN",
-  });
-  assert.deepEqual(pricingSwitchFor("INR"), {
-    label: "Not in India? See USD prices",
-    preference: "US",
-  });
-  // Nothing to switch from until the prices have loaded.
-  assert.equal(pricingSwitchFor(undefined), null);
-});
+// Backend R-8: prices follow the visitor's location alone, with no switch,
+// and India's price is checked at payment.
 
 test("recognises an India-priced order refunded for a payment from abroad", () => {
   assert.equal(
@@ -41,13 +20,15 @@ test("recognises an India-priced order refunded for a payment from abroad", () =
   assert.equal(isIndianPaymentRefund(null), false);
 });
 
-test("tells the buyer why they were refunded and what they can pay instead", () => {
+test("tells the buyer why they were refunded and how they can pay", () => {
   assert.match(INDIAN_PAYMENT_REFUND_MESSAGE, /payments made in India/);
   assert.match(INDIAN_PAYMENT_REFUND_MESSAGE, /refunded/);
-  assert.match(INDIAN_PAYMENT_REFUND_MESSAGE, /USD price/);
+  assert.match(INDIAN_PAYMENT_REFUND_MESSAGE, /UPI/);
+  // A buyer in India cannot be shown USD, so the message must not offer it.
+  assert.doesNotMatch(INDIAN_PAYMENT_REFUND_MESSAGE, /USD/);
 });
 
-test("with no country chosen, prices come back in USD, as they do with no Cloudflare header", async () => {
+test("with no location, prices come back in USD, as they do with no Cloudflare header", async () => {
   const landing = await billingMockAdapter.listPublicBundles();
   const checkout = await billingMockAdapter.listBundles();
 

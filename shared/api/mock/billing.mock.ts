@@ -23,8 +23,8 @@ export const billingMockAdapter = {
     return this.listBundles(countryCode);
   },
 
-  // With no country the server prices a visitor with no country header in
-  // USD; the mock does the same.
+  // The country stands in for the visitor's location, which the server reads
+  // from Cloudflare; with none, it prices in USD, as the server does.
   async listBundles(countryCode?: string): Promise<BillingCatalogue> {
     const requestedCountryCode = (countryCode ?? "US").toUpperCase();
     const isIndia = requestedCountryCode === "IN";
