@@ -5,9 +5,10 @@ export const queryKeys = {
   },
   billing: {
     all: ['billing'] as const,
-    publicBundles: (countryCode: string) =>
-      [...queryKeys.billing.all, 'public-bundles', countryCode] as const,
-    bundles: (countryCode: string) => [...queryKeys.billing.all, 'bundles', countryCode] as const,
+    publicBundles: (countryCode?: string) =>
+      [...queryKeys.billing.all, 'public-bundles', countryCode ?? 'auto'] as const,
+    bundles: (countryCode?: string) =>
+      [...queryKeys.billing.all, 'bundles', countryCode ?? 'auto'] as const,
     order: (orderId: string) => [...queryKeys.billing.all, 'order', orderId] as const,
   },
   campaigns: {

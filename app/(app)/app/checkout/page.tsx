@@ -32,11 +32,13 @@ import {
 } from "@/shared/payments/razorpay";
 import { useAuth } from "@/features/auth/useAuth";
 import ENV from "@/lib/env";
-
-const COUNTRY_CODES =
-  "AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(
-    " ",
-  );
+import {
+  INDIAN_PAYMENT_REFUND_MESSAGE,
+  isIndianPaymentRefund,
+  pricingSwitchFor,
+  requestedCountryFor,
+  type PricingPreference,
+} from "@/shared/payments/pricingPreference";
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object" && "message" in error) {
@@ -50,7 +52,9 @@ export default function CheckoutPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [countryCode, setCountryCode] = useState("US");
+  // The server picks prices from the visitor's country; this is only the
+  // explicit switch on top of it (backend R-8).
+  const [preference, setPreference] = useState<PricingPreference>("auto");
   const [selectedSku, setSelectedSku] = useState("GEN_1");
   const [acceptedDocumentIds, setAcceptedDocumentIds] = useState<string[]>([]);
   const [currentOrder, setCurrentOrder] = useState<BillingOrder | null>(null);
@@ -59,40 +63,9 @@ export default function CheckoutPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem("adcendy.billingCountry");
-    if (stored && /^[A-Z]{2}$/.test(stored)) {
-      // localStorage and navigator exist only in the browser, so they are read
-      // after mount; reading them during render would make the server and
-      // client render disagree.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCountryCode(stored);
-      return;
-    }
-    try {
-      const region = new Intl.Locale(navigator.language).region;
-      if (region && /^[A-Z]{2}$/.test(region)) setCountryCode(region);
-    } catch {
-      // US is the documented fallback when the browser locale has no region.
-    }
-  }, []);
-
-  const countryOptions = useMemo(() => {
-    const names = new Intl.DisplayNames(["en"], { type: "region" });
-    return COUNTRY_CODES.map((code) => ({
-      code,
-      label: names.of(code) ?? code,
-    })).sort((a, b) => a.label.localeCompare(b.label));
-  }, []);
-
   const documentsQuery = useQuery({
     queryKey: queryKeys.legal.activeDocuments(),
     queryFn: () => legalRepository.getActiveDocuments(),
-    refetchOnWindowFocus: false,
-  });
-  const bundlesQuery = useQuery({
-    queryKey: queryKeys.billing.bundles(countryCode),
-    queryFn: () => billingRepository.listBundles(countryCode),
     refetchOnWindowFocus: false,
   });
   const orderQuery = useQuery({
@@ -100,7 +73,11 @@ export default function CheckoutPage() {
     queryFn: () => billingRepository.getOrder(currentOrder!.orderId),
     enabled: shouldPoll && Boolean(currentOrder),
     refetchInterval: (query) => {
-      const status = (query.state.data as BillingOrder | undefined)?.status;
+      const order = query.state.data as BillingOrder | undefined;
+      const status = order?.status;
+      // A refund can take days to settle; the buyer is told at once, so
+      // there is nothing more to wait for.
+      if (isIndianPaymentRefund(order)) return false;
       return shouldPoll &&
         (!status || status === "CREATED" || status === "PENDING")
         ? 2000
@@ -108,6 +85,21 @@ export default function CheckoutPage() {
     },
     refetchOnWindowFocus: true,
   });
+
+  const displayedOrder = orderQuery.data ?? currentOrder;
+  // An India-priced order paid from abroad is refunded, and the buyer is
+  // shown the USD price in its place.
+  const refundedForIndianPayment = isIndianPaymentRefund(displayedOrder);
+  const effectivePreference: PricingPreference = refundedForIndianPayment
+    ? "US"
+    : preference;
+  const countryCode = requestedCountryFor(effectivePreference);
+  const bundlesQuery = useQuery({
+    queryKey: queryKeys.billing.bundles(countryCode),
+    queryFn: () => billingRepository.listBundles(countryCode),
+    refetchOnWindowFocus: false,
+  });
+  const pricingSwitch = pricingSwitchFor(bundlesQuery.data?.currency);
 
   const activeDocuments = useMemo(
     () => documentsQuery.data ?? [],
@@ -137,8 +129,6 @@ export default function CheckoutPage() {
     [acceptedDocumentIds, requiredDocumentIds],
   );
 
-  const displayedOrder = orderQuery.data ?? currentOrder;
-
   useEffect(() => {
     if (displayedOrder?.status !== "PAID") return;
 
@@ -159,13 +149,16 @@ export default function CheckoutPage() {
     };
   }, [displayedOrder?.status, queryClient, router]);
 
-  const statusSuccess =
-    displayedOrder?.status === "PAID"
+  // "Credits will appear" would contradict the refund message beside it.
+  const statusSuccess = refundedForIndianPayment
+    ? null
+    : displayedOrder?.status === "PAID"
       ? `Payment captured. ${displayedOrder.credits} ${displayedOrder.credits === 1 ? "credit has" : "credits have"} been added to your account.`
       : submitSuccess;
-  const statusError =
-    displayedOrder?.status === "FAILED" ||
-    displayedOrder?.status === "CANCELLED"
+  const statusError = refundedForIndianPayment
+    ? INDIAN_PAYMENT_REFUND_MESSAGE
+    : displayedOrder?.status === "FAILED" ||
+        displayedOrder?.status === "CANCELLED"
       ? "The payment was not completed. No credits were added; you can try again."
       : displayedOrder?.status === "REFUNDED"
         ? "This payment was refunded. Its credits are no longer available."
@@ -327,9 +320,8 @@ export default function CheckoutPage() {
     requiredDocumentIds.length ===
     CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES.length;
 
-  const changeCountry = (nextCountryCode: string) => {
-    setCountryCode(nextCountryCode);
-    window.localStorage.setItem("adcendy.billingCountry", nextCountryCode);
+  const changePricing = (nextPreference: PricingPreference) => {
+    setPreference(nextPreference);
     setSelectedSku("GEN_1");
     setCurrentOrder(null);
     setShouldPoll(false);
@@ -359,21 +351,18 @@ export default function CheckoutPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-3">
-              <label className="space-y-2 sm:col-span-3">
-                <span className="text-sm font-medium">Billing country</span>
-                <select
-                  value={countryCode}
-                  onChange={(event) => changeCountry(event.target.value)}
-                  disabled={isBusy}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {countryOptions.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {pricingSwitch ? (
+                <div className="sm:col-span-3">
+                  <button
+                    type="button"
+                    onClick={() => changePricing(pricingSwitch.preference)}
+                    disabled={isBusy}
+                    className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+                  >
+                    {pricingSwitch.label}
+                  </button>
+                </div>
+              ) : null}
               {bundlesQuery.data?.fallbackApplied ? (
                 <Alert className="sm:col-span-3">
                   <AlertDescription>

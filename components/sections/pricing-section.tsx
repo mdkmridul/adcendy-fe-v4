@@ -9,8 +9,18 @@ import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 import { billingRepository } from '@/shared/api/repositories/billing.repo';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { formatMinorAmount } from '@/shared/payments/razorpay';
+import {
+  requestedCountryFor,
+  type PricingPreference,
+} from '@/shared/payments/pricingPreference';
 
 type Currency = 'INR' | 'USD';
+
+/** Each side of the toggle is an explicit switch to that market's price. */
+const TOGGLE_PREFERENCE: Record<Currency, PricingPreference> = {
+  INR: 'IN',
+  USD: 'US',
+};
 
 const INCLUDED = [
   'A marketing strategy document built specifically for your business',
@@ -21,11 +31,13 @@ const INCLUDED = [
 ];
 
 export function Pricing() {
-  const [currency, setCurrency] = useState<Currency>('USD');
+  // The server picks the default from the visitor's country; the toggle is
+  // an explicit switch on top of it (backend R-8).
+  const [preference, setPreference] = useState<PricingPreference>('auto');
   const { status } = useMarketingAuth();
   const isAuthed = status === 'authed';
   const ctaHref = isAuthed ? '/app/checkout' : '/auth/signup';
-  const countryCode = currency === 'INR' ? 'IN' : 'US';
+  const countryCode = requestedCountryFor(preference);
   const catalogueQuery = useQuery({
     queryKey: queryKeys.billing.publicBundles(countryCode),
     queryFn: () => billingRepository.listPublicBundles(countryCode),
@@ -33,6 +45,13 @@ export function Pricing() {
   });
   const bundles = catalogueQuery.data?.items ?? [];
   const highlightedIndex = Math.floor(bundles.length / 2);
+  // What the server actually priced in, not what was asked for.
+  const currency: Currency | undefined =
+    catalogueQuery.data?.currency === 'INR'
+      ? 'INR'
+      : catalogueQuery.data
+        ? 'USD'
+        : undefined;
 
   return (
     <section id="pricing" className="bg-background py-20 sm:py-32 px-4 sm:px-6 lg:px-8">
@@ -62,7 +81,7 @@ export function Pricing() {
             {(['INR', 'USD'] as Currency[]).map((c) => (
               <button
                 key={c}
-                onClick={() => setCurrency(c)}
+                onClick={() => setPreference(TOGGLE_PREFERENCE[c])}
                 className={`px-5 py-2 rounded-md text-sm font-semibold transition-all ${currency === c ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {c === 'INR' ? '₹ India' : '$ International'}
