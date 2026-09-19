@@ -79,9 +79,14 @@ export const step1Schema = z.object({
   focusName: z.string().trim().min(1, 'Focus name is required').max(240, 'Keep the focus name under 240 characters'),
   sourceType: z.string().trim().min(1, 'Select a source type'),
   primaryUrl: z.string().trim().max(500, 'Keep the URL under 500 characters').optional().or(z.literal('')),
-  targetMarkets: z.array(tagItemSchema).min(1, 'Add at least one target market').max(4, 'Add up to 4 target markets').default([]),
+  // One strategy covers one country.
+  targetMarkets: z.array(tagItemSchema).min(1, 'Choose the country your customers are in').max(1, 'Choose one country').default([]),
   primaryMarket: z.string().trim().max(120, 'Keep the primary market under 120 characters').optional().or(z.literal('')),
-  marketScope: z.string().trim().min(1, 'Market scope is required'),
+  marketScope: z
+    .string()
+    .trim()
+    .min(1, 'Choose a marketing target location')
+    .refine((value) => ['national', 'regional'].includes(value.toLowerCase()), 'Choose a marketing target location'),
   operationalLocations: z.array(tagItemSchema).default([]),
   regionalLanguageExpansionEnabled: z.boolean().default(false),
   regionalLanguages: z.array(tagItemSchema).default([]),
@@ -106,30 +111,13 @@ export const step1Schema = z.object({
     });
   }
 
-  if (value.targetMarkets.length > 1) {
-    const primaryMarket = value.primaryMarket?.trim() ?? '';
-    if (!primaryMarket) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['primaryMarket'],
-        message: 'Primary market is required when multiple target markets are set.',
-      });
-    } else if (!value.targetMarkets.includes(primaryMarket)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['primaryMarket'],
-        message: 'Primary market must be one of the target markets.',
-      });
-    }
-  }
-
   const normalizedScope = value.marketScope.trim().toLowerCase();
 
-  if ((normalizedScope === 'local' || normalizedScope === 'regional') && value.operationalLocations.length === 0) {
+  if (normalizedScope === 'regional' && value.operationalLocations.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['operationalLocations'],
-      message: 'Operational locations are required for local or regional scope.',
+      message: 'Add the cities or states this plan targets.',
     });
   }
 
@@ -224,7 +212,8 @@ export const step3Schema = z.object({
   targetPersona: z.string().trim().min(1, 'Target persona is required').max(500, 'Keep the target persona under 500 characters'),
   targetAudience: z.string().trim().max(700, 'Keep the target audience under 700 characters').optional().or(z.literal('')),
   audienceSegments: z.array(tagItemSchema).max(10, 'Add up to 10 audience segments').default([]),
-  language: z.string().trim().min(1, 'Language is required'),
+  // The wizard no longer asks; research runs in English.
+  language: z.string().trim().optional().or(z.literal('')),
   reportLanguage: z.string().trim().max(80, 'Keep report language under 80 characters').optional().or(z.literal('')),
   painPoints: z.array(tagItemSchema).min(1, 'Add at least one pain point').default([]),
   desiredOutcome: z.string().trim().min(1, 'Desired outcome is required').max(300, 'Keep the desired outcome under 300 characters'),

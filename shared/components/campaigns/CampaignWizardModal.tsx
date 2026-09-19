@@ -56,7 +56,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -110,7 +109,6 @@ import {
   formatAudienceModel,
   formatDigitalPresenceLinkType,
   formatEmailListSize,
-  formatLanguage,
   formatLifecycleStage,
   formatMarketingHandler,
   formatMarketingTargetType,
@@ -119,7 +117,6 @@ import {
   formatMonthlyWebsiteTraffic,
   formatPrimaryConversionPath,
   formatPrimaryGoal,
-  formatReportLanguage,
   formatRepeatPurchaseFrequency,
   formatSalesChannel,
   formatSocialPlatform,
@@ -303,12 +300,50 @@ const STEP1_SOURCE_TYPE_FALLBACK_OPTIONS: WizardStringOption[] = [
 ];
 
 const STEP1_MARKET_SCOPE_FALLBACK_OPTIONS: WizardStringOption[] = [
-  { value: 'local', label: 'Local' },
-  { value: 'regional', label: 'Regional' },
   { value: 'national', label: 'National' },
-  { value: 'international', label: 'International' },
-  { value: 'global', label: 'Global' },
+  { value: 'regional', label: 'Regional' },
 ];
+
+// One strategy covers one country, and research runs for the whole of it.
+// Only these three have a search setup behind them today.
+const WIZARD_COUNTRY_OPTIONS = [
+  { value: 'IN', label: 'India' },
+  { value: 'US', label: 'United States' },
+  { value: 'UK', label: 'United Kingdom' },
+] as const;
+
+type WizardCountryCode = (typeof WIZARD_COUNTRY_OPTIONS)[number]['value'];
+
+const WIZARD_COUNTRY_ALIASES: Record<string, WizardCountryCode> = {
+  in: 'IN',
+  ind: 'IN',
+  india: 'IN',
+  us: 'US',
+  usa: 'US',
+  'united states': 'US',
+  'united states of america': 'US',
+  uk: 'UK',
+  gb: 'UK',
+  gbr: 'UK',
+  britain: 'UK',
+  'great britain': 'UK',
+  'united kingdom': 'UK',
+};
+
+function toWizardCountryCode(value: string | null | undefined): WizardCountryCode | '' {
+  const token = (value ?? '').trim().toLowerCase().replace(/\./g, '');
+  return WIZARD_COUNTRY_ALIASES[token] ?? '';
+}
+
+// Where inside the one country this plan is aimed. Regional asks which
+// cities or states; the backend treats the old "local" the same as regional.
+const WIZARD_MARKET_SCOPES = ['national', 'regional'] as const;
+
+function getWizardMarketScopeLabel(scope: string, countryLabel: string) {
+  return scope === 'national'
+    ? `National — across ${countryLabel}`
+    : 'Regional — specific cities or states';
+}
 
 const STEP2_AUDIENCE_MODEL_FALLBACK_OPTIONS: WizardStringOption[] = [
   { value: 'single_sided', label: 'One audience' },
@@ -412,7 +447,7 @@ const MARKETING_TARGET_DESCRIPTIONS: Record<string, string> = {
   whole_business: 'A business, brand, or store as a whole',
   product_or_service: 'One specific product or service',
   launch: 'A new launch or release',
-  market_expansion: 'Expansion into a new market or geography',
+  market_expansion: 'Taking the business into a new country',
   specific_audience: 'Focused on one audience segment',
   other: 'Any other strategy focus',
 };
@@ -1614,27 +1649,6 @@ function normalizeCurrentMarketingActivityItems(
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 }
 
-function inferReportLanguageFromInput(language: string) {
-  const normalized = language.trim().toLowerCase();
-  if (!normalized) {
-    return null;
-  }
-
-  if (normalized.includes('hindi')) {
-    return 'hindi';
-  }
-
-  if (normalized.includes('english')) {
-    return 'english';
-  }
-
-  if (normalized.includes('regional') || normalized.includes('tamil') || normalized.includes('telugu') || normalized.includes('kannada') || normalized.includes('malayalam') || normalized.includes('marathi') || normalized.includes('bengali') || normalized.includes('gujarati') || normalized.includes('punjabi')) {
-    return 'regional_other';
-  }
-
-  return null;
-}
-
 function isAudienceSegmentsRequired(audienceModel: unknown) {
   return audienceModel === 'b2b2c' || audienceModel === 'marketplace_platform' || audienceModel === 'multi_sided';
 }
@@ -2068,9 +2082,7 @@ export function CampaignWizardModal({
   const [wizardConsentState, setWizardConsentState] = useState<ConsentToggleState>(DEFAULT_WIZARD_CONSENT_STATE);
   const [isSyncingConsent, setIsSyncingConsent] = useState(false);
 
-  const [targetMarketDraft, setTargetMarketDraft] = useState('');
   const [operationalLocationDraft, setOperationalLocationDraft] = useState('');
-  const [regionalLanguageDraft, setRegionalLanguageDraft] = useState('');
   const [differentiatorDraft, setDifferentiatorDraft] = useState('');
   const [trustSignalDraft, setTrustSignalDraft] = useState('');
   const [productOrServiceDraft, setProductOrServiceDraft] = useState('');
@@ -2080,7 +2092,6 @@ export function CampaignWizardModal({
   const [constraintDraft, setConstraintDraft] = useState('');
   const [channelsToAvoidDraft, setChannelsToAvoidDraft] = useState('');
   const [channelsPreferredDraft, setChannelsPreferredDraft] = useState('');
-  const [executionConstraintDraft, setExecutionConstraintDraft] = useState('');
   const [painPointDraft, setPainPointDraft] = useState('');
   const [buyerRoleDraft, setBuyerRoleDraft] = useState('');
   const [competitorDraft, setCompetitorDraft] = useState('');
@@ -2434,9 +2445,10 @@ export function CampaignWizardModal({
   const watchedMarketingTargetType = step1Form.watch('marketingTargetType');
   const watchedSourceType = step1Form.watch('sourceType');
   const watchedTargetMarkets = step1Form.watch('targetMarkets') ?? [];
-  const watchedRegionalLanguageExpansionEnabled = step1Form.watch('regionalLanguageExpansionEnabled');
+  const selectedCountryCode = toWizardCountryCode(watchedTargetMarkets[0]);
+  const selectedCountryLabel =
+    WIZARD_COUNTRY_OPTIONS.find((option) => option.value === selectedCountryCode)?.label ?? 'your country';
   const watchedOperationalLocations = step1Form.watch('operationalLocations') ?? [];
-  const watchedRegionalLanguages = step1Form.watch('regionalLanguages') ?? [];
   const watchedMarketScope = step1Form.watch('marketScope');
   const watchedDifferentiators = step2Form.watch('differentiators') ?? [];
   const watchedTrustSignals = step2Form.watch('trustSignals') ?? [];
@@ -2459,7 +2471,6 @@ export function CampaignWizardModal({
   const watchedConstraints = step3Form.watch('constraints') ?? [];
   const watchedChannelsToAvoid = step3Form.watch('channelsToAvoid') ?? [];
   const watchedChannelsStronglyPreferred = step3Form.watch('channelsStronglyPreferred') ?? [];
-  const watchedExecutionConstraints = step3Form.watch('executionConstraints') ?? [];
   const watchedCompetitors = step3Form.watch('knownCompetitors') ?? [];
   const watchedKnownCompetitorStatus = step3Form.watch('knownCompetitorStatus');
   // V2 wizard must persist each step; local-only preview mode is disabled.
@@ -2497,6 +2508,17 @@ export function CampaignWizardModal({
     const inferredMarketScope =
       normalizeStringOptionValue(savedData.marketScope, marketScopeOptions) ||
       normalizeStringOptionValue(campaign?.marketScope, marketScopeOptions);
+    // Older drafts may hold several markets, names instead of codes, or a
+    // city. Keep the first one that is a supported country; otherwise the
+    // client picks again.
+    const savedCountryCode =
+      [
+        normalizeString(savedData.primaryMarket as string | undefined),
+        ...normalizeListItems(savedData.targetMarkets),
+        normalizeString(savedData.marketLocation as string | undefined),
+      ]
+        .map((entry) => toWizardCountryCode(entry))
+        .find((code): code is WizardCountryCode => Boolean(code)) ?? '';
 
     const nextValues: Step1FormData = {
       title: normalizeString(savedData.title as string | undefined) || (isFreshAutoCreatedDraft ? '' : campaign?.name) || '',
@@ -2515,20 +2537,13 @@ export function CampaignWizardModal({
             normalizeString(savedData.websiteUrl as string | undefined) ||
             (isFreshAutoCreatedDraft ? '' : campaign?.website) ||
             '',
-      targetMarkets: (() => {
-        const savedMarkets = normalizeListItems(savedData.targetMarkets);
-        if (savedMarkets.length) {
-          return savedMarkets;
-        }
-        const marketLocation = normalizeString(savedData.marketLocation as string | undefined) || (isFreshAutoCreatedDraft ? '' : campaign?.city) || '';
-        return marketLocation ? [marketLocation] : [];
-      })(),
-      primaryMarket:
-        normalizeString(savedData.primaryMarket as string | undefined) ||
-        normalizeString(savedData.marketLocation as string | undefined) ||
-        (isFreshAutoCreatedDraft ? '' : campaign?.city) ||
-        '',
-      marketScope: inferredMarketScope,
+      targetMarkets: savedCountryCode ? [savedCountryCode] : [],
+      primaryMarket: savedCountryCode,
+      marketScope: inferredMarketScope === 'local'
+        ? 'regional'
+        : (WIZARD_MARKET_SCOPES as readonly string[]).includes(inferredMarketScope)
+          ? inferredMarketScope
+          : '',
       operationalLocations: (() => {
         const savedLocations = normalizeListItems(savedData.operationalLocations);
         if (savedLocations.length) {
@@ -2750,7 +2765,14 @@ export function CampaignWizardModal({
       desiredOutcome: normalizeString(savedAudienceData.desiredOutcome as string | undefined),
       decisionProcess: normalizeString(savedAudienceData.decisionProcess as string | undefined),
       buyerRoles: normalizeListItems(savedAudienceData.buyerRoles as string[] | undefined),
-      constraints: nextConstraints.length ? nextConstraints : normalizeListItems(legacyStep2Data.constraints as string[] | undefined),
+      // "Constraints" and "Execution constraints" were two questions for one
+      // list (the backend joins them). Older drafts may hold both.
+      constraints: Array.from(
+        new Set([
+          ...(nextConstraints.length ? nextConstraints : normalizeListItems(legacyStep2Data.constraints as string[] | undefined)),
+          ...normalizeListItems(savedGoalsData.executionConstraints as string[] | undefined),
+        ]),
+      ),
       monthlyMarketingSpend:
         (savedGoalsData.monthlyMarketingSpend as Step3FormData['monthlyMarketingSpend']) ||
         (legacyStep2Data.monthlyMarketingSpend as Step3FormData['monthlyMarketingSpend']) ||
@@ -2786,7 +2808,7 @@ export function CampaignWizardModal({
       knownCompetitorStatus: normalizedKnownCompetitorStatus,
       channelsToAvoid: normalizeListItems(savedGoalsData.channelsToAvoid as string[] | undefined),
       channelsStronglyPreferred: normalizeListItems(savedGoalsData.channelsStronglyPreferred as string[] | undefined),
-      executionConstraints: normalizeListItems(savedGoalsData.executionConstraints as string[] | undefined),
+      executionConstraints: [],
       dataConsentOptIn: normalizedDataConsentOptIn,
       monthlyRevenue: (savedEconomicsData.monthlyRevenue as Step3FormData['monthlyRevenue']) || '',
       averageOrderValue: normalizeString(savedEconomicsData.averageOrderValue as string | undefined),
@@ -3015,7 +3037,6 @@ export function CampaignWizardModal({
     mutationFn: async (data: Step1FormData) => {
       const normalizedTargetMarkets = normalizeListItems(data.targetMarkets);
       const normalizedOperationalLocations = normalizeListItems(data.operationalLocations);
-      const normalizedRegionalLanguages = normalizeListItems(data.regionalLanguages);
       const normalizedPrimaryMarket =
         normalizeString(data.primaryMarket) ||
         (normalizedTargetMarkets.length === 1 ? normalizedTargetMarkets[0] : '');
@@ -3034,8 +3055,9 @@ export function CampaignWizardModal({
         primaryMarket: normalizedPrimaryMarket || null,
         marketScope: data.marketScope,
         operationalLocations: normalizedOperationalLocations,
-        regionalLanguageExpansionEnabled: Boolean(data.regionalLanguageExpansionEnabled),
-        regionalLanguages: data.regionalLanguageExpansionEnabled ? normalizedRegionalLanguages : [],
+        // The wizard no longer asks about languages: research runs in English.
+        regionalLanguageExpansionEnabled: false,
+        regionalLanguages: [],
         marketLocation: normalizedMarketLocation,
       };
 
@@ -3045,7 +3067,7 @@ export function CampaignWizardModal({
         targetMarkets: normalizedTargetMarkets,
         primaryMarket: normalizedPrimaryMarket,
         operationalLocations: normalizedOperationalLocations,
-        regionalLanguages: data.regionalLanguageExpansionEnabled ? normalizedRegionalLanguages : [],
+        regionalLanguages: [],
         marketLocation: normalizedMarketLocation,
       };
       let nextCampaignId = activeCampaignId;
@@ -3165,8 +3187,6 @@ export function CampaignWizardModal({
     targetPersona: normalizeString(data.targetPersona),
     targetAudience: normalizeNullableString(data.targetAudience),
     audienceSegments: normalizeListItems(data.audienceSegments),
-    language: normalizeString(data.language),
-    reportLanguage: normalizeNullableString(data.reportLanguage) ?? inferReportLanguageFromInput(data.language),
     painPoints: normalizeListItems(data.painPoints),
     desiredOutcome: normalizeString(data.desiredOutcome),
     decisionProcess: normalizeString(data.decisionProcess),
@@ -3261,7 +3281,7 @@ export function CampaignWizardModal({
       constraints: normalizeListItems(data.constraints),
       channelsToAvoid: normalizeListItems(data.channelsToAvoid),
       channelsStronglyPreferred: normalizeListItems(data.channelsStronglyPreferred),
-      executionConstraints: normalizeListItems(data.executionConstraints),
+      executionConstraints: [],
       additionalContext: normalizeNullableString(data.additionalContext),
     };
   };
@@ -3556,7 +3576,6 @@ export function CampaignWizardModal({
   const audienceComplete = Boolean(
     effectivePreviewStep3?.primaryTargetSegment &&
       effectivePreviewStep3?.targetPersona &&
-      effectivePreviewStep3?.language &&
       effectivePreviewStep3?.painPoints?.length &&
       effectivePreviewStep3?.desiredOutcome &&
       effectivePreviewStep3?.decisionProcess
@@ -3814,8 +3833,6 @@ export function CampaignWizardModal({
     effectivePreviewStep3?.targetPersona,
     effectivePreviewStep3?.targetAudience,
     effectivePreviewStep3?.audienceSegments,
-    effectivePreviewStep3?.language,
-    effectivePreviewStep3?.reportLanguage,
     effectivePreviewStep3?.desiredOutcome,
     effectivePreviewStep3?.painPoints,
     effectivePreviewStep3?.decisionProcess,
@@ -3853,7 +3870,6 @@ export function CampaignWizardModal({
     effectivePreviewStep1?.primaryMarket,
     effectivePreviewStep1?.marketScope,
     effectivePreviewStep1?.operationalLocations,
-    effectivePreviewStep1?.regionalLanguages,
   ]);
   const businessFilledCount = countFilled([
     effectivePreviewStep2?.businessName,
@@ -3875,8 +3891,6 @@ export function CampaignWizardModal({
     'targetPersona',
     'targetAudience',
     'audienceSegments',
-    'language',
-    'reportLanguage',
     'painPoints',
     'desiredOutcome',
     'decisionProcess',
@@ -4055,112 +4069,74 @@ export function CampaignWizardModal({
                     <FieldMeta error={step1Form.formState.errors.focusName?.message} />
                   </div>
 
-                  <InlineDivider />
+                </WizardSectionCard>
 
-                  <TagInputField
-                    fieldKey="targetMarkets"
-                    label="Target markets"
-                    helper="Add up to 4 markets you want this run to target."
-                    required
-                    footnote="Use country names or codes like India, US, UK, IN."
-                    placeholder="e.g. India, United States"
-                    values={watchedTargetMarkets}
-                    pendingValue={targetMarketDraft}
-                    onPendingChange={setTargetMarketDraft}
-                    onAdd={() => {
-                      if (watchedTargetMarkets.length >= 4) {
-                        step1Form.setError('targetMarkets', {
-                          type: 'manual',
-                          message: 'Add up to 4 target markets.',
-                        });
-                        return;
-                      }
-                      addListItem(watchedTargetMarkets, targetMarketDraft, setTargetMarketDraft, (nextValues) => {
-                        step1Form.setValue('targetMarkets', nextValues, {
+                <WizardSectionCard
+                  eyebrow="Market"
+                  title="Where your customers are"
+                  description="One strategy covers one country. We research the whole country; where you sell inside it shapes the plan."
+                >
+                  <div className="space-y-2">
+                    <FieldLabel label="Which country are your customers in?" required />
+                    <Select
+                      value={selectedCountryCode || undefined}
+                      onValueChange={(value) => {
+                        step1Form.setValue('targetMarkets', [value], {
                           shouldDirty: true,
                           shouldValidate: true,
                         });
-                      });
-                    }}
-                    onRemove={(index) => removeListItem(watchedTargetMarkets, index, (nextValues) => {
-                      step1Form.setValue('targetMarkets', nextValues, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    })}
-                    error={getArrayFieldError(step1Form.formState.errors.targetMarkets)}
-                  />
+                        step1Form.setValue('primaryMarket', value, { shouldDirty: true });
+                      }}
+                    >
+                      <SelectTrigger data-testid={wizardFieldTestId('targetMarkets')} className={wizardInputClassName}>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WIZARD_COUNTRY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldMeta error={getArrayFieldError(step1Form.formState.errors.targetMarkets)} />
+                  </div>
 
                   <InlineDivider />
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {watchedTargetMarkets.length > 1 ? (
-                      <div className="space-y-2">
-                        <FieldLabel
-                          label="Primary market"
-                          helper="Required when you have multiple target markets."
-                          required
-                        />
-                        <Controller
-                          name="primaryMarket"
-                          control={step1Form.control}
-                          render={({ field }) => (
-                            <Select
-                              onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)}
-                              value={field.value || OPTIONAL_SELECT_VALUE}
-                            >
-                              <SelectTrigger data-testid={wizardFieldTestId('primaryMarket')} className={wizardInputClassName}>
-                                <SelectValue placeholder="Select primary market" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={OPTIONAL_SELECT_VALUE}>Not selected</SelectItem>
-                                {watchedTargetMarkets.map((market) => (
-                                  <SelectItem key={market} value={market}>
-                                    {market}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                        <FieldMeta error={step1Form.formState.errors.primaryMarket?.message} />
-                      </div>
-                    ) : null}
-
-                    <div className="space-y-2">
-                      <FieldLabel label="Market scope" required />
-                      <Controller
-                        name="marketScope"
-                        control={step1Form.control}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger data-testid={wizardFieldTestId('marketScope')} className={wizardInputClassName}>
-                              <SelectValue placeholder="Select scope" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {marketScopeOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      <FieldMeta error={step1Form.formState.errors.marketScope?.message} />
-                    </div>
+                  <div className="space-y-2">
+                    <FieldLabel label="Marketing target location" required />
+                    <Controller
+                      name="marketScope"
+                      control={step1Form.control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
+                          <SelectTrigger data-testid={wizardFieldTestId('marketScope')} className={wizardInputClassName}>
+                            <SelectValue placeholder="Select marketing location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {WIZARD_MARKET_SCOPES.map((scope) => (
+                              <SelectItem key={scope} value={scope}>
+                                {getWizardMarketScopeLabel(scope, selectedCountryLabel)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <FieldMeta error={step1Form.formState.errors.marketScope?.message} />
                   </div>
 
-                  {(['local', 'regional'] as const).includes((watchedMarketScope || '').toLowerCase() as 'local' | 'regional') ? (
+                  {(watchedMarketScope || '').toLowerCase() === 'regional' ? (
                     <>
                       <InlineDivider />
                       <TagInputField
                         fieldKey="operationalLocations"
-                        label="Operational locations"
-                        helper="Required for local and regional market scope."
+                        label="Which cities or states?"
+                        helper={`The places this plan is aimed at. Research still covers all of ${selectedCountryLabel}.`}
                         required
-                        footnote="Add cities, regions, or local areas where operations run."
-                        placeholder="e.g. Bengaluru, Pune, South Delhi"
+                        footnote="Press Enter or click Add after each place."
+                        placeholder="e.g. Bengaluru, Pune, Maharashtra"
                         values={watchedOperationalLocations}
                         pendingValue={operationalLocationDraft}
                         onPendingChange={setOperationalLocationDraft}
@@ -4177,57 +4153,6 @@ export function CampaignWizardModal({
                           });
                         })}
                         error={getArrayFieldError(step1Form.formState.errors.operationalLocations)}
-                      />
-                    </>
-                  ) : null}
-
-                  <InlineDivider />
-
-                  <div className="space-y-3 rounded-2xl border border-border/80 bg-card/95 px-4 py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <FieldLabel label="Regional language expansion" helper="Enable if this campaign needs additional regional language coverage." />
-                      </div>
-                      <Controller
-                        name="regionalLanguageExpansionEnabled"
-                        control={step1Form.control}
-                        render={({ field }) => (
-                          <Switch
-                            data-testid={wizardFieldTestId('regionalLanguageExpansionEnabled')}
-                            checked={Boolean(field.value)}
-                            onCheckedChange={field.onChange}
-                          />
-                        )}
-                      />
-                    </div>
-                    <FieldMeta error={step1Form.formState.errors.regionalLanguageExpansionEnabled?.message} />
-                  </div>
-
-                  {watchedRegionalLanguageExpansionEnabled ? (
-                    <>
-                      <InlineDivider />
-                      <TagInputField
-                        fieldKey="regionalLanguages"
-                        label="Regional languages"
-                        helper="Add all regional languages to include for this campaign."
-                        required
-                        placeholder="e.g. Hindi, Tamil, Bengali"
-                        values={watchedRegionalLanguages}
-                        pendingValue={regionalLanguageDraft}
-                        onPendingChange={setRegionalLanguageDraft}
-                        onAdd={() => addListItem(watchedRegionalLanguages, regionalLanguageDraft, setRegionalLanguageDraft, (nextValues) => {
-                          step1Form.setValue('regionalLanguages', nextValues, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
-                        })}
-                        onRemove={(index) => removeListItem(watchedRegionalLanguages, index, (nextValues) => {
-                          step1Form.setValue('regionalLanguages', nextValues, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
-                        })}
-                        error={getArrayFieldError(step1Form.formState.errors.regionalLanguages)}
                       />
                     </>
                   ) : null}
@@ -4668,8 +4593,6 @@ export function CampaignWizardModal({
                     'targetPersona',
                     'targetAudience',
                     'audienceSegments',
-                    'language',
-                    'reportLanguage',
                     'painPoints',
                     'desiredOutcome',
                     'decisionProcess',
@@ -4762,7 +4685,7 @@ export function CampaignWizardModal({
 
                   <InlineDivider />
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_280px]">
+                  <div className="space-y-2">
                     <div className="space-y-2">
                       <FieldLabel label="Broader target audience" />
                       <Textarea
@@ -4774,57 +4697,6 @@ export function CampaignWizardModal({
                       <FieldMeta error={step3Form.formState.errors.targetAudience?.message} />
                     </div>
 
-                    <div className="space-y-2">
-                      <FieldLabel label="Language" required />
-                      <Controller
-                        name="language"
-                        control={step3Form.control}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger data-testid={wizardFieldTestId('language')} className={wizardInputClassName}>
-                              <SelectValue placeholder="Select language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {languageOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      <FieldMeta error={step3Form.formState.errors.language?.message} />
-                    </div>
-                  </div>
-
-                  <InlineDivider />
-
-                  <div className="space-y-2">
-                    <FieldLabel label="Report language" helper="Optional language for final report output." />
-                    <Controller
-                      name="reportLanguage"
-                      control={step3Form.control}
-                      render={({ field }) => (
-                        <Select
-                          onValueChange={(value) => field.onChange(value === OPTIONAL_SELECT_VALUE ? '' : value)}
-                          value={field.value || OPTIONAL_SELECT_VALUE}
-                        >
-                          <SelectTrigger data-testid={wizardFieldTestId('reportLanguage')} className={wizardInputClassName}>
-                            <SelectValue placeholder="Select report language" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={OPTIONAL_SELECT_VALUE}>Auto infer</SelectItem>
-                            {reportLanguageOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldMeta error={step3Form.formState.errors.reportLanguage?.message} />
                   </div>
 
                   <InlineDivider />
@@ -5650,7 +5522,7 @@ export function CampaignWizardModal({
                   <TagInputField
                     fieldKey="constraints"
                     label="Constraints"
-                    helper="Add limits or realities the strategy should respect."
+                    helper="Limits the strategy should respect: team size, timeline, stock, budget rules."
                     footnote="Press Enter or click Add after each constraint"
                     placeholder="e.g. Small team, limited stock, weekends only"
                     values={watchedConstraints}
@@ -5927,32 +5799,6 @@ export function CampaignWizardModal({
                       });
                     })}
                     error={getArrayFieldError(step3Form.formState.errors.channelsStronglyPreferred)}
-                  />
-
-                  <InlineDivider />
-
-                  <TagInputField
-                    fieldKey="executionConstraints"
-                    label="Execution constraints"
-                    helper="Add execution constraints like team, timeline, or inventory limits."
-                    footnote="Press Enter or click Add after each constraint"
-                    placeholder="e.g. one designer only, campaign window 30 days"
-                    values={watchedExecutionConstraints}
-                    pendingValue={executionConstraintDraft}
-                    onPendingChange={setExecutionConstraintDraft}
-                    onAdd={() => addListItem(watchedExecutionConstraints, executionConstraintDraft, setExecutionConstraintDraft, (nextValues) => {
-                      step3Form.setValue('executionConstraints', nextValues, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    })}
-                    onRemove={(index) => removeListItem(watchedExecutionConstraints, index, (nextValues) => {
-                      step3Form.setValue('executionConstraints', nextValues, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    })}
-                    error={getArrayFieldError(step3Form.formState.errors.executionConstraints)}
                   />
 
                   <InlineDivider />
@@ -6447,12 +6293,9 @@ export function CampaignWizardModal({
                           <SummaryField label="Focus name" value={effectivePreviewStep1?.focusName} />
                           <SummaryField label="Source type" value={formatSourceType(effectivePreviewStep1?.sourceType)} />
                           <SummaryField label="Source URL" value={effectivePreviewStep1?.primaryUrl || null} />
-                          <SummaryField label="Target markets" value={formatStringList(effectivePreviewStep1?.targetMarkets)} />
-                          <SummaryField label="Primary market" value={effectivePreviewStep1?.primaryMarket} />
-                          <SummaryField label="Market scope" value={formatMarketScope(effectivePreviewStep1?.marketScope || campaign?.marketScope || null)} />
-                          <SummaryField label="Operational locations" value={formatStringList(effectivePreviewStep1?.operationalLocations)} />
-                          <SummaryField label="Regional expansion enabled" value={effectivePreviewStep1?.regionalLanguageExpansionEnabled ? 'Yes' : null} />
-                          <SummaryField label="Regional languages" value={formatStringList(effectivePreviewStep1?.regionalLanguages)} />
+                          <SummaryField label="Country" value={WIZARD_COUNTRY_OPTIONS.find((option) => option.value === toWizardCountryCode(effectivePreviewStep1?.targetMarkets?.[0]))?.label ?? formatStringList(effectivePreviewStep1?.targetMarkets)} />
+                          <SummaryField label="Marketing target location" value={formatMarketScope(effectivePreviewStep1?.marketScope || campaign?.marketScope || null)} />
+                          <SummaryField label="Cities or states" value={formatStringList(effectivePreviewStep1?.operationalLocations)} />
                         </ReviewGrid>
                       </ReviewSection>
 
@@ -6486,7 +6329,7 @@ export function CampaignWizardModal({
 
                       <ReviewSection
                         title="Audience"
-                        description="Segment, persona, language preferences, pain points, and buying context."
+                        description="Segment, persona, pain points, and buying context."
                         filledLabel={`${audienceFilledCount}/10 filled`}
                         onEdit={() => openPreviewSectionEditor(3, 'audience')}
                         confirmationId="wizard-confirm-audience"
@@ -6499,8 +6342,6 @@ export function CampaignWizardModal({
                           <SummaryField label="Target persona" value={effectivePreviewStep3?.targetPersona} />
                           <SummaryField label="Target audience" value={effectivePreviewStep3?.targetAudience} />
                           <SummaryField label="Audience segments" value={formatStringList(effectivePreviewStep3?.audienceSegments)} />
-                          <SummaryField label="Language" value={formatLanguage(effectivePreviewStep3?.language)} />
-                          <SummaryField label="Report language" value={formatReportLanguage(effectivePreviewStep3?.reportLanguage)} />
                           <SummaryField label="Desired outcome" value={effectivePreviewStep3?.desiredOutcome} />
                           <SummaryField label="Pain points" value={formatStringList(effectivePreviewStep3?.painPoints)} />
                           <SummaryField label="Decision process" value={effectivePreviewStep3?.decisionProcess} />
@@ -6534,7 +6375,6 @@ export function CampaignWizardModal({
                           <SummaryField label="Constraints" value={formatStringList(effectivePreviewStep4?.constraints)} />
                           <SummaryField label="Channels to avoid" value={formatStringList(effectivePreviewStep4?.channelsToAvoid)} />
                           <SummaryField label="Channels strongly preferred" value={formatStringList(effectivePreviewStep4?.channelsStronglyPreferred)} />
-                          <SummaryField label="Execution constraints" value={formatStringList(effectivePreviewStep4?.executionConstraints)} />
                           <SummaryField label="What's working" value={effectivePreviewStep4?.whatsWorking} />
                           <SummaryField label="Biggest frustration" value={effectivePreviewStep4?.biggestFrustration} />
                           <SummaryField label="Known competitors" value={formatStringList(effectivePreviewStep4?.knownCompetitors)} />
