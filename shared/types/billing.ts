@@ -1,3 +1,5 @@
+import type { BillingRefundReason } from "@/shared/payments/pricingPreference";
+
 export type PaymentStatus =
   | "CREATED"
   | "PENDING"
@@ -35,6 +37,11 @@ export interface BillingOrder {
   bundleSku: string;
   createdAt: string;
   paidAt: string | null;
+  /**
+   * Why the order is being refunded instead of credited (backend R-8);
+   * null for every other order.
+   */
+  refundReason?: BillingRefundReason | null;
 }
 
 export interface VerifyPaymentPayload {

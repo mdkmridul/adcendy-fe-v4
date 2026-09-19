@@ -19,12 +19,14 @@ const usBundles: BillingBundle[] = [
 const orders = new Map<string, BillingOrder>();
 
 export const billingMockAdapter = {
-  async listPublicBundles(countryCode: string): Promise<BillingCatalogue> {
+  async listPublicBundles(countryCode?: string): Promise<BillingCatalogue> {
     return this.listBundles(countryCode);
   },
 
-  async listBundles(countryCode: string): Promise<BillingCatalogue> {
-    const requestedCountryCode = countryCode.toUpperCase();
+  // With no country the server prices a visitor with no country header in
+  // USD; the mock does the same.
+  async listBundles(countryCode?: string): Promise<BillingCatalogue> {
+    const requestedCountryCode = (countryCode ?? "US").toUpperCase();
     const isIndia = requestedCountryCode === "IN";
     return {
       catalogueVersion: "2026-08-01",
@@ -40,7 +42,7 @@ export const billingMockAdapter = {
   async createOrder(
     sku: string,
     _idempotencyKey: string,
-    countryCode: string,
+    countryCode?: string,
   ): Promise<BillingOrder> {
     const catalogue = await this.listBundles(countryCode);
     const bundle = catalogue.items.find((item) => item.sku === sku);
@@ -58,6 +60,7 @@ export const billingMockAdapter = {
       bundleSku: bundle.sku,
       createdAt: new Date().toISOString(),
       paidAt: null,
+      refundReason: null,
     };
     orders.set(orderId, order);
     return order;

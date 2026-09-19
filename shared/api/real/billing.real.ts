@@ -7,6 +7,11 @@ import type {
   VerifyPaymentResult,
 } from "@/shared/types/billing";
 
+/** Omitted when the page does not choose, so the server decides. */
+function countryQuery(countryCode?: string): string {
+  return countryCode ? `?countryCode=${encodeURIComponent(countryCode)}` : "";
+}
+
 function unwrapData<T>(response: ApiResponse<T> | T): T {
   if (response && typeof response === "object" && "data" in response) {
     return (response as ApiResponse<T>).data;
@@ -15,32 +20,30 @@ function unwrapData<T>(response: ApiResponse<T> | T): T {
 }
 
 export const billingRealAdapter = {
-  async listPublicBundles(countryCode: string): Promise<BillingCatalogue> {
+  async listPublicBundles(countryCode?: string): Promise<BillingCatalogue> {
     const response = await http<
       ApiResponse<BillingCatalogue> | BillingCatalogue
-    >(
-      `/v1/billing/public/bundles?countryCode=${encodeURIComponent(countryCode)}`,
-    );
+    >(`/v1/billing/public/bundles${countryQuery(countryCode)}`);
     return unwrapData(response);
   },
 
-  async listBundles(countryCode: string): Promise<BillingCatalogue> {
+  async listBundles(countryCode?: string): Promise<BillingCatalogue> {
     const response = await http<
       ApiResponse<BillingCatalogue> | BillingCatalogue
-    >(`/v1/billing/bundles?countryCode=${encodeURIComponent(countryCode)}`);
+    >(`/v1/billing/bundles${countryQuery(countryCode)}`);
     return unwrapData(response);
   },
 
   async createOrder(
     sku: string,
     idempotencyKey: string,
-    countryCode: string,
+    countryCode?: string,
   ): Promise<BillingOrder> {
     const response = await http<ApiResponse<BillingOrder> | BillingOrder>(
       "/v1/billing/orders",
       {
         method: "POST",
-        body: { sku, countryCode },
+        body: countryCode ? { sku, countryCode } : { sku },
         headers: { "Idempotency-Key": idempotencyKey },
       },
     );
