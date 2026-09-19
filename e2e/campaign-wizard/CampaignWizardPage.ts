@@ -3,6 +3,19 @@ import path from 'node:path';
 import { expect, type Locator, type Page, type Response } from '@playwright/test';
 import type { CampaignExecutionReport, CampaignFixture } from './campaign-types';
 
+// The wizard asks for one country by name, and says where the client sells
+// inside it in words that name that country.
+const COUNTRY_LABELS: Record<string, string> = {
+  IN: 'India',
+  US: 'United States',
+  UK: 'United Kingdom',
+};
+
+const marketScopeLabel = (scope: string, countryCode: string) =>
+  scope === 'national'
+    ? `National — across ${COUNTRY_LABELS[countryCode] ?? countryCode}`
+    : 'Regional — specific cities or states';
+
 const STATIC_OPTION_LABELS: Record<string, string> = {
   under_10k: 'Under INR 10,000',
   from_10k_to_50k: 'INR 10,000 to INR 50,000',
@@ -249,18 +262,13 @@ export class CampaignWizardPage {
     await this.fill('title', step.title);
     await this.chooseCard('marketingTargetType', step.marketingTargetType);
     await this.fill('focusName', step.focusName);
-    await this.addTags('targetMarkets', step.targetMarkets);
-    if (step.targetMarkets.length > 1 && step.primaryMarket) {
-      await this.chooseSelect('primaryMarket', step.primaryMarket);
-    }
-    await this.chooseSelect('marketScope', step.marketScope);
-    if (['local', 'regional'].includes(step.marketScope)) {
+    const countryCode = step.targetMarkets[0] ?? '';
+    await this.chooseSelect('targetMarkets', COUNTRY_LABELS[countryCode] ?? countryCode);
+    // "local" fixtures target the same question as regional.
+    const marketScope = step.marketScope === 'local' ? 'regional' : step.marketScope;
+    await this.chooseSelect('marketScope', marketScopeLabel(marketScope, countryCode));
+    if (marketScope === 'regional') {
       await this.addTags('operationalLocations', step.operationalLocations);
-    }
-    if (step.regionalLanguageExpansionEnabled) {
-      await this.field('regionalLanguageExpansionEnabled').click();
-      await expect(this.field('regionalLanguageExpansionEnabled')).toBeChecked();
-      await this.addTags('regionalLanguages', step.regionalLanguages);
     }
     await this.chooseCard('sourceType', step.sourceType);
     if (step.sourceType === 'manual_only') {
@@ -318,10 +326,7 @@ export class CampaignWizardPage {
     await this.fill('primaryTargetSegment', step.primaryTargetSegment);
     await this.fill('targetPersona', step.targetPersona);
     await this.fill('targetAudience', step.targetAudience);
-    await this.chooseSelect('language', step.language);
-    if (step.reportLanguage) {
-      await this.chooseSelect('reportLanguage', step.reportLanguage);
-    }
+    // The wizard no longer asks about languages; research runs in English.
     await this.addTags('audienceSegments', step.audienceSegments);
     await this.fill('desiredOutcome', step.desiredOutcome);
     await this.fill('decisionProcess', step.decisionProcess);
@@ -418,7 +423,8 @@ export class CampaignWizardPage {
     await this.addTags('knownCompetitors', step.knownCompetitors);
     await this.addTags('channelsToAvoid', step.channelsToAvoid);
     await this.addTags('channelsStronglyPreferred', step.channelsStronglyPreferred);
-    await this.addTags('executionConstraints', step.executionConstraints);
+    // Execution constraints are now asked in the one Constraints field.
+    await this.addTags('constraints', step.executionConstraints);
     await this.fill('additionalContext', step.additionalContext);
     await this.saveStep(5, 'Continue');
   }
@@ -486,7 +492,7 @@ export class CampaignWizardPage {
     await this.assertReviewContains(this.reviewSection('Focus'), [
       step1.title,
       step1.focusName,
-      ...step1.targetMarkets,
+      ...step1.targetMarkets.map((code) => COUNTRY_LABELS[code] ?? code),
     ]);
     await this.assertReviewContains(this.reviewSection('Business'), [
       step2.businessName,
