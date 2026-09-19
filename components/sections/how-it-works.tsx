@@ -9,15 +9,15 @@ const STEPS = [
     title: 'You tell us about your business',
     time: '15 minutes',
     description:
-      'A guided wizard captures your product, audience, goals, and current marketing setup. If you have a website, our system scrapes it for positioning, trust signals, and conversion architecture.',
+      'A guided intake captures your product, audience, goals, and the team you have to execute. If you have a website, we analyze it for positioning, trust signals, and how it converts.',
     icon: ClipboardList,
   },
   {
     number: '02',
-    title: 'Our data pipeline gets to work',
+    title: 'We map your market',
     time: 'within 24 hours',
     description:
-      'We pull live competitor data, SERP rankings, keyword opportunities, and market positioning across 7 query categories — branded, non-branded, competitor, segment, and long-tail. Every data point is timestamped to your market.',
+      'We analyze what your competitors are doing across advertising and search, where the keyword and channel opportunities sit, and how your market positions itself — specific to your market, as it stands today.',
     icon: Search,
   },
   {
@@ -25,15 +25,15 @@ const STEPS = [
     title: 'A human strategist reviews and refines',
     time: '3–5 days',
     description:
-      'Nothing ships without passing our review gate. A strategist on our team validates the positioning, pressure-tests every recommendation, and turns the collected intelligence into a playbook you can actually run.',
+      'Nothing ships without passing our review gate. An experienced strategist validates the positioning, pressure-tests every recommendation, and turns the intelligence into direction your team can act on.',
     icon: UserCheck,
   },
   {
     number: '04',
-    title: 'You get a 30-day execution-ready strategy',
+    title: 'Your team gets a strategy they own',
     time: 'delivered day 7',
     description:
-      'Not a pitch deck. A working document with positioning, messaging, channel mix, content themes, paid strategy, and a week-by-week execution calendar. Built to be used, not admired.',
+      'Not a pitch deck. A working document with the market intelligence, positioning, messaging, channel direction, and 30-day priorities — clear enough for your team to run with from day one.',
     icon: FileText,
   },
 ];
@@ -50,7 +50,7 @@ export function HowItWorks() {
           className="text-center max-w-2xl mx-auto mb-16 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            From form to playbook in 7 days
+            From intake to direction in 7 days
           </h2>
           <p className="text-lg text-muted-foreground">
             Four steps. No calls until the strategy lands.

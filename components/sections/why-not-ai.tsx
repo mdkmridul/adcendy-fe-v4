@@ -6,13 +6,13 @@ import { RadioTower, GitBranch, ShieldCheck, FileSearch } from 'lucide-react';
 const PILLARS = [
   {
     icon: RadioTower,
-    title: 'Live data collection, not stored patterns.',
-    body: 'We pull from live SERPs, competitor sites, keyword databases, and search-trend feeds in real time. Every data point is specific to your market and timestamped to today — not inferred from what worked for someone else two years ago.',
+    title: 'Your market as it stands today, not stored patterns.',
+    body: 'We analyze your actual competitors, the searches your buyers run, and where demand is moving. Every finding is specific to your market and current — not inferred from what worked for someone else two years ago.',
   },
   {
     icon: GitBranch,
-    title: 'A structured intelligence pipeline — not a single prompt.',
-    body: 'The data moves through defined stages: collection → enrichment → competitive mapping → strategic synthesis. Each stage has its own quality checks. The system is built to catch gaps before a human ever touches the output.',
+    title: 'Intelligence first, strategy second.',
+    body: 'We map the competitive landscape before a single recommendation is written, with quality checks at every step. The strategy is built on what we find — not the other way round.',
   },
   {
     icon: ShieldCheck,
@@ -21,8 +21,8 @@ const PILLARS = [
   },
   {
     icon: FileSearch,
-    title: 'Every recommendation is traceable.',
-    body: "Every claim in your strategy links back to a specific data source. You know exactly why we're recommending what we're recommending — not because a system was confident about it, but because the market data supports it.",
+    title: 'Every recommendation is grounded.',
+    body: "Recommendations trace back to the market evidence behind them — you see the reasoning for each one, not just a confident assertion. When the data doesn't support a claim, we don't make it.",
   },
 ];
 

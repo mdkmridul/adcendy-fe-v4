@@ -1,7 +1,7 @@
-﻿'use client';
+'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect } from 'react';
+import Link from 'next/link';
 
 const IntelligenceStreamCanvas = dynamic(
   () => import('./IntelligenceStreamCanvas').then(m => ({ default: m.IntelligenceStreamCanvas })),
@@ -49,34 +49,83 @@ export function IntelligenceStreamHero() {
           <h1
             style={{
               ...SERIF,
-              fontSize: 'clamp(46px, 5.5vw, 80px)',
-              lineHeight: 0.98,
+              fontSize: 'clamp(38px, 4.6vw, 68px)',
+              lineHeight: 1.02,
               fontWeight: 400,
-              letterSpacing: '-0.024em',
+              letterSpacing: '-0.022em',
               color: 'rgba(237,232,220,0.93)',
               margin: '0 0 clamp(18px,2.4vw,30px) 0',
               width: '100%',
             }}
           >
-            <span style={{ display: 'block', width: '100%', textAlign: 'left' }}>Marketing Intelligence</span>
-            <span style={{ display: 'block', width: '100%', textAlign: 'center' }}>in motion</span>
+            <span style={{ display: 'block' }}>Intelligence your team can&apos;t build.</span>
+            <span style={{ display: 'block', color: 'rgba(240,193,122,0.92)' }}>A marketing strategy they can own.</span>
           </h1>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p
+          <p
+            style={{
+              fontSize: 'clamp(15px, 1.2vw, 18px)',
+              lineHeight: 1.55,
+              color: 'rgba(237,232,220,0.66)',
+              maxWidth: '62ch',
+              margin: '0 0 clamp(14px,1.6vw,20px) 0',
+            }}
+          >
+            AdCendy maps your market — what your competitors are doing across advertising and search, where the
+            keyword and channel opportunities sit, and the gaps no one&apos;s filling — then turns it into a clear,
+            executable marketing strategy. You get the direction and the intelligence behind it. Your team runs with it.
+          </p>
+
+          <p
+            style={{
+              ...SERIF,
+              fontStyle: 'italic',
+              fontSize: 'clamp(14px, 1.05vw, 16px)',
+              lineHeight: 1.5,
+              color: 'rgba(237,232,220,0.50)',
+              maxWidth: '62ch',
+              margin: '0 0 clamp(26px,3vw,38px) 0',
+            }}
+          >
+            Not a marketing agency, and not a replacement for your team — the strategic head that points your
+            execution in the right direction.
+          </p>
+
+          <div className="flex flex-col sm:flex-row" style={{ gap: '14px' }}>
+            <Link
+              href="/sample-report"
               style={{
-                fontSize: 'clamp(14px, 1.15vw, 18px)',
-                lineHeight: 1.48,
-                color: 'rgba(237,232,220,0.58)',
-                width: 'min(100%, 60ch)',
-                margin: '0 auto',
+                ...MONO,
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.14em',
+                color: '#10161a',
+                background: 'rgba(240,193,122,0.92)',
+                padding: '14px 24px',
+                borderRadius: '3px',
+                textDecoration: 'none',
                 textAlign: 'center',
-                fontFamily: 'inherit',
               }}
             >
-              Real-time analysis of demand, competition,
-              and positioning signals to reveal what others miss.
-            </p>
+              See what&apos;s inside a report -&gt;
+            </Link>
+            <Link
+              href="#who-its-for"
+              style={{
+                ...MONO,
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.14em',
+                color: 'rgba(237,232,220,0.78)',
+                border: '1px solid rgba(237,232,220,0.24)',
+                padding: '14px 24px',
+                borderRadius: '3px',
+                textDecoration: 'none',
+                textAlign: 'center',
+              }}
+            >
+              Check if AdCendy is right for you
+            </Link>
           </div>
         </div>
 

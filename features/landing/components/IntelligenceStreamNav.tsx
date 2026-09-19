@@ -13,6 +13,8 @@ const MONO: React.CSSProperties = {
 const NAV_LINKS = [
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Deliverables', href: '#what-you-get' },
+  { label: 'Benchmarks', href: '#benchmarks' },
+  { label: 'Is It For You', href: '#who-its-for' },
   { label: 'Compare', href: '#comparison' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'FAQs', href: '#faq' },

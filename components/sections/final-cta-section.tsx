@@ -20,8 +20,8 @@ export function FinalCTA() {
           className="space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            Stop building marketing in your head.{' '}
-            <span className="text-primary">Get it on paper.</span>
+            Know what your market is doing.{' '}
+            <span className="text-primary">Give your team the direction to act on it.</span>
           </h2>
           <p className="text-lg text-muted-foreground">
             Free 1-page competitive snapshot. No card, no call, no commitment.

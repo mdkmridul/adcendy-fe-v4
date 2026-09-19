@@ -18,79 +18,34 @@ interface Category {
 
 const CATEGORIES: Category[] = [
   {
-    heading: 'Understanding Your Business',
+    heading: 'Direction: knowing what to do',
     rows: [
-      { label: 'Deep analysis of your website', values: ['yes', 'maybe', 'maybe', 'yes', 'maybe'] },
-      { label: 'Study of what competitors are doing', values: ['yes', 'maybe', 'no', 'maybe', 'maybe'] },
-      { label: 'Research on what customers search for', values: ['yes', 'no', 'no', 'maybe', 'no'] },
-      { label: 'Defining your ideal customer', values: ['yes', 'no', 'no', 'maybe', 'maybe'] },
-      { label: 'Review of how your website converts visitors', values: ['yes', 'maybe', 'no', 'yes', 'no'] },
+      { label: 'Deep read of what your competitors do across advertising and search', values: ['yes', 'no', 'maybe'] },
+      { label: 'Keyword and channel opportunities specific to your market', values: ['yes', 'maybe', 'maybe'] },
+      { label: 'Gaps in your market no one is filling', values: ['yes', 'no', 'maybe'] },
+      { label: 'Objective direction, with no execution work to sell you', values: ['yes', 'maybe', 'no'] },
+      { label: 'A strategy your own team owns and can run', values: ['yes', 'no', 'maybe'] },
     ],
   },
   {
-    heading: 'Your Marketing Plan',
+    heading: 'Hands: doing the work',
     rows: [
-      { label: 'Strategy made specifically for your business', values: ['yes', 'maybe', 'yes', 'maybe', 'no'] },
-      { label: 'Clear 30-day action plan', values: ['yes', 'no', 'maybe', 'maybe', 'no'] },
-      { label: 'Where to focus (Google, Instagram, LinkedIn…)', values: ['yes', 'yes', 'yes', 'maybe', 'maybe'] },
-      { label: 'What topics and content to create', values: ['yes', 'maybe', 'yes', 'maybe', 'maybe'] },
-      { label: 'How to spend your budget', values: ['yes', 'maybe', 'yes', 'yes', 'no'] },
+      { label: 'Runs your ads', values: ['no', 'maybe', 'yes'] },
+      { label: 'Produces your content', values: ['no', 'maybe', 'yes'] },
+      { label: 'Manages your day-to-day marketing', values: ['no', 'no', 'yes'] },
     ],
   },
   {
-    heading: 'Real Human Review',
+    heading: 'The trade',
     rows: [
-      { label: 'Human review gate before delivery', values: ['yes', 'yes', 'yes', 'yes', 'no'] },
-      { label: 'Refined and improved before you see it', values: ['yes', 'maybe', 'yes', 'maybe', 'no'] },
-      { label: 'Tailored to your business stage', values: ['yes', 'maybe', 'yes', 'maybe', 'no'] },
-    ],
-  },
-  {
-    heading: '30 Days of Hands-On Support',
-    rows: [
-      { label: 'Kickoff call to get started', values: ['yes', 'yes', 'yes', 'yes', 'no'] },
-      { label: 'Mid-month check-in call', values: ['yes', 'maybe', 'yes', 'maybe', 'no'] },
-      { label: 'End-of-month review of what worked', values: ['yes', 'yes', 'maybe', 'maybe', 'no'] },
-      { label: 'Email/chat support throughout', values: ['yes', 'yes', 'yes', 'maybe', 'no'] },
-      { label: 'Direction on what your ads should say', values: ['yes', 'yes', 'yes', 'maybe', 'no'] },
-      { label: 'Feedback on your website pages', values: ['yes', 'maybe', 'yes', 'maybe', 'no'] },
-    ],
-  },
-  {
-    heading: "What We Don't Do (honest upfront)",
-    rows: [
-      { label: 'Run your ads for you', values: ['no', 'yes', 'yes', 'maybe', 'no'] },
-      { label: 'Post on your social media', values: ['no', 'yes', 'yes', 'maybe', 'no'] },
-      { label: 'Manage your day-to-day marketing', values: ['no', 'yes', 'yes', 'maybe', 'no'] },
-    ],
-  },
-  {
-    heading: 'How You Pay',
-    rows: [
-      { label: 'Pay once, no subscription', values: ['yes', 'no', 'no', 'maybe', 'maybe'] },
-      { label: 'No long contracts', values: ['yes', 'no', 'no', 'yes', 'yes'] },
-      { label: 'No setup fees', values: ['yes', 'no', 'no', 'yes', 'yes'] },
-      { label: 'No hidden charges on your ad spend', values: ['yes', 'no', 'no', 'yes', 'yes'] },
-      { label: 'Pricing shown clearly upfront', values: ['yes', 'no', 'no', 'maybe', 'yes'] },
-    ],
-  },
-  {
-    heading: 'What You Own',
-    rows: [
-      { label: 'You keep the full strategy document', values: ['yes', 'maybe', 'maybe', 'yes', 'yes'] },
-      { label: 'You own everything we create', values: ['yes', 'maybe', 'maybe', 'yes', 'yes'] },
-      { label: 'Not tied to any platform or tool', values: ['yes', 'no', 'no', 'yes', 'yes'] },
-      { label: 'Walk away anytime', values: ['yes', 'no', 'no', 'yes', 'yes'] },
+      { label: 'How you pay', values: ['Once, no retainer', 'Per task or hourly', 'Monthly retainer, 10–50× the cost'] },
+      { label: 'Direction ready in', values: ['7 days', 'Depends on the task', '30–90 days to ramp'] },
     ],
   },
 ];
 
-const SPEED_ROW = {
-  label: 'Strategy ready in',
-  values: ['7 days', '30–60 days', '30–90 days', '14–30 days', 'Instant (poor quality)'],
-};
-
-const COLUMNS = ['Adcendy', 'Indian Agency', 'US Agency', 'Freelance Marketer', 'DIY AI Tools'];
+const COLUMNS = ['AdCendy', 'Freelancer', 'Agency'];
+const COLUMN_NOTES = ['Intelligence + strategy', 'A pair of hands for one task', 'Execution + some strategy, on retainer'];
 
 function Cell({ value, isAdcendy }: { value: CellValue; isAdcendy: boolean }) {
   if (value === 'yes') {
@@ -133,10 +88,10 @@ export function ComparisonTable() {
           className="text-center mb-4 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            Adcendy vs. the alternatives
+            What do you actually need right now — direction, or hands?
           </h2>
           <p className="text-lg text-muted-foreground">
-            Honest comparison, including what we <em>don&apos;t</em> do.
+            We&apos;re not competing with agencies or freelancers. We&apos;re a different category — and usually the step before them.
           </p>
         </motion.div>
 
@@ -151,7 +106,7 @@ export function ComparisonTable() {
             <thead>
               <tr className="border-b border-border bg-card">
                 <th className="px-4 py-4 text-left font-medium text-muted-foreground w-64">
-                  What you get
+                  What you need
                 </th>
                 {COLUMNS.map((col, idx) => (
                   <th
@@ -163,11 +118,9 @@ export function ComparisonTable() {
                     }`}
                   >
                     {col}
-                    {idx === 0 && (
-                      <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold align-middle">
-                        YOU
-                      </span>
-                    )}
+                    <span className="block mt-1 text-[11px] font-normal text-muted-foreground">
+                      {COLUMN_NOTES[idx]}
+                    </span>
                   </th>
                 ))}
               </tr>
@@ -177,7 +130,7 @@ export function ComparisonTable() {
                 <React.Fragment key={catIdx}>
                   <tr className="bg-muted/30">
                     <td
-                      colSpan={6}
+                      colSpan={COLUMNS.length + 1}
                       className="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
                     >
                       {cat.heading}
@@ -197,14 +150,13 @@ export function ComparisonTable() {
                 </React.Fragment>
               ))}
 
-              {/* Speed row */}
-              <tr className="border-t border-border bg-muted/20">
-                <td className="px-4 py-3 text-xs font-semibold text-foreground">
-                  Strategy ready in
+              <tr className="border-t border-border bg-primary/5">
+                <td
+                  colSpan={COLUMNS.length + 1}
+                  className="px-4 py-4 text-center text-sm font-semibold text-foreground"
+                >
+                  Start with AdCendy when you need to know what to do. Bring in freelancers or an agency to do it.
                 </td>
-                {SPEED_ROW.values.map((val, colIdx) => (
-                  <Cell key={colIdx} value={val} isAdcendy={colIdx === 0} />
-                ))}
               </tr>
             </tbody>
           </table>

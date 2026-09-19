@@ -5,8 +5,10 @@ import dynamic from 'next/dynamic';
 import { IntelligenceStreamNav } from './IntelligenceStreamNav';
 import { IntelligenceStreamHero } from './IntelligenceStreamHero';
 
+const WhyNotYourTeam  = dynamic(() => import('@/components/sections/why-not-your-team').then(m => ({ default: m.WhyNotYourTeam })), { ssr: false });
 const HowItWorks      = dynamic(() => import('@/components/sections/how-it-works').then(m => ({ default: m.HowItWorks })),          { ssr: false });
 const WhatYouGet      = dynamic(() => import('@/components/sections/what-you-get').then(m => ({ default: m.WhatYouGet })),          { ssr: false });
+const Benchmarks      = dynamic(() => import('@/components/sections/benchmarks-section').then(m => ({ default: m.Benchmarks })),     { ssr: false });
 const WhoItsFor       = dynamic(() => import('@/components/sections/who-its-for').then(m => ({ default: m.WhoItsFor })),            { ssr: false });
 const WhyNotAI        = dynamic(() => import('@/components/sections/why-not-ai').then(m => ({ default: m.WhyNotAI })),              { ssr: false });
 const ComparisonTable = dynamic(() => import('@/components/sections/comparison-table').then(m => ({ default: m.ComparisonTable })), { ssr: false });
@@ -55,8 +57,10 @@ export function LandingPageV2() {
       <IntelligenceStreamNav />
       <IntelligenceStreamHero />
       <div className="v2-content-shell">
+        <section id="why-not-your-team"><WhyNotYourTeam /></section>
         <section id="how-it-works"><HowItWorks /></section>
         <section id="what-you-get"><WhatYouGet /></section>
+        <section id="benchmarks"><Benchmarks /></section>
         <section id="who-its-for"><WhoItsFor /></section>
         <section id="why-not-ai"><WhyNotAI /></section>
         <section id="comparison"><ComparisonTable /></section>

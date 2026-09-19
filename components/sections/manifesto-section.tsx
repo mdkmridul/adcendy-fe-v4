@@ -8,12 +8,12 @@ const BELIEFS = [
     body: 'Agencies skip research to hit deadlines. AI tools pattern-match instead of investigating. The output is generic because the input was generic. We invert that — research is where we spend the most time, not the least.',
   },
   {
-    title: 'Founders need decisions, not frameworks.',
+    title: 'Founders need decisions they can act on, not frameworks to interpret.',
     body: "A strategy that says \"consider building a content engine\" isn't a strategy. We tell you what to build, why, and in what order — and we're willing to be wrong in writing.",
   },
   {
     title: 'The process is the product, not the output.',
-    body: "Lots of tools can generate a marketing strategy in 10 seconds. Ours takes 7 days — because we spend 6 of them collecting real data about your actual market, running it through a structured pipeline, and having a strategist pressure-test every recommendation. The time is intentional. The rigour is the value.",
+    body: "Lots of tools can generate a marketing strategy in 10 seconds. Ours takes 7 days — because we spend 6 of them collecting real data about your actual market, analyzing it properly, and having a strategist pressure-test every recommendation. The time is intentional. The rigour is the value.",
   },
 ];
 
@@ -28,7 +28,7 @@ export function Manifesto() {
           className="mb-16 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            Our take on marketing for SMBs
+            How we think about marketing strategy
           </h2>
           <p className="text-lg text-muted-foreground">
             Three things shaped how Adcendy works.

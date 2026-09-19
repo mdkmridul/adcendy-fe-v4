@@ -8,17 +8,17 @@ const FAQS = [
   {
     question: 'How is this different from an AI tool?',
     answer:
-      "Generic tools generate from patterns — they don't know your live competitors, your current SERP, or what's actually moving in your market right now. We collect that data through a live pipeline before any analysis begins. The difference is the source: collected, not generated. Then a human strategist validates it before it reaches you.",
+      "Generic tools generate from patterns — they don't know your actual competitors or what's moving in your market right now. We analyze your real market first, and the strategy is built on what we find. Then a human strategist validates it before it reaches you.",
   },
   {
     question: "What if I don't have a website yet?",
     answer:
-      "We have a structured intake path for pre-website founders. We'll capture your offer, audience, and goals through a guided form and use SERP brand lookup for any external signals.",
+      "We have a structured intake path for pre-website founders. We'll capture your offer, audience, and goals through a guided form and look at what the market already says about you and your competitors.",
   },
   {
     question: 'How long does it actually take?',
     answer:
-      '7 days from wizard completion to delivery. Data collection and pipeline processing runs in the first 24 hours. Human review and strategy refinement takes 3–5 days. Revision round (if needed) adds 1–2 days.',
+      "About 7 days from intake to delivery. Market analysis runs in the first 24 hours; human review and strategy refinement takes 3–5 days; a revision round, if needed, adds 1–2 days. During the pilot we deliberately cap how many strategies we take on at once so this timeline holds — if we're at capacity when you order, we'll tell you the honest turnaround before you pay, not after.",
   },
   {
     question: "What if the strategy doesn't fit my business?",
@@ -28,12 +28,12 @@ const FAQS = [
   {
     question: 'Will you execute the strategy for me?',
     answer:
-      "The strategy document is standalone — you (or your team) can run it. If you want execution support, the 30-Day Sprint adds weekly check-ins, content briefs, and ad creative direction.",
+      "No — and that's deliberate. We're the direction, not the hands. The strategy is built for your team (in-house marketers, freelancers, or an agency) to own and run. Every strategy credit includes 30 days of guided support — a kickoff, a check on your numbers against the plan's targets, and a final review — so your team isn't on its own while they execute. If you have no way to execute yet, we're probably not the right first step.",
   },
   {
     question: 'Can I see a sample before paying?',
     answer:
-      "Yes — anonymized samples are available on request. Or use the free competitive snapshot to see how we work without committing.",
+      "Yes — and we'd encourage it. A redacted sample report shows exactly what's inside before you commit. Or use the free competitive snapshot to see how we read your own market.",
   },
   {
     question: 'Do you work with international clients?',
@@ -43,12 +43,12 @@ const FAQS = [
   {
     question: 'What industries do you specialize in?',
     answer:
-      "Three: SaaS, D2C e-commerce, and coaches/consultants. We've intentionally narrowed to deliver real depth in each — we don't take on every type of business.",
+      "Three: SaaS, D2C e-commerce, and established coaches or consultants who have a team or freelancers to execute. We've intentionally narrowed to deliver real depth in each — and since a strategy only works if you have the hands to run it, we focus on businesses with execution capacity, not solo operators.",
   },
   {
     question: 'Who actually reviews my strategy?',
     answer:
-      "Each strategy is reviewed by a human marketer on our team before delivery. As we scale the pilot, we're expanding the review team to maintain output quality.",
+      "Every strategy is reviewed by an experienced marketer before delivery — nothing ships without passing that review. As we grow, we're building out the review bench so that standard holds as volume increases.",
   },
   {
     question: 'What happens to my data?',

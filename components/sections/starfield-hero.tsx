@@ -29,17 +29,17 @@ export function StarfieldHero() {
         >
           <div className="inline-block px-4 py-1.5 rounded-full border border-border/50 bg-card/30 backdrop-blur-md">
             <span className="text-xs sm:text-sm font-medium text-muted-foreground">
-              For SaaS founders, D2C brands, and coaches building their next 30 days
+              For teams that can execute, but need direction
             </span>
           </div>
 
           <h1 className="font-space-grotesk text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-            Get a marketing strategy you can actually execute —{' '}
-            <span className="text-primary">in 7 days, not 7 weeks.</span>
+            Intelligence your team can&apos;t build.{' '}
+            <span className="text-primary">A marketing strategy they can own.</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            Adcendy runs a live data pipeline across your market — competitors, keywords, SERPs, audience signals — then puts a human strategist on it before anything reaches you.
+            AdCendy maps your market — what your competitors are doing across advertising and search, where the keyword and channel opportunities sit, and the gaps no one&apos;s filling — then turns it into a clear, executable marketing strategy. You get the direction and the intelligence behind it. Your team runs with it.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
@@ -59,7 +59,7 @@ export function StarfieldHero() {
                 whileTap={{ scale: 0.95 }}
                 className="px-8 py-3 border border-border text-foreground font-semibold rounded-lg hover:bg-card/50 transition-colors flex items-center justify-center gap-2"
               >
-                See a sample strategy
+                See what&apos;s inside a report
                 <ChevronRight className="w-4 h-4" />
               </motion.div>
             </Link>

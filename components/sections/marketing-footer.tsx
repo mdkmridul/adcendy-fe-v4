@@ -8,9 +8,9 @@ const LINKS = {
     { label: 'Sample strategy', href: '/sample-report' },
   ],
   For: [
-    { label: 'SaaS founders', href: '#who' },
-    { label: 'D2C brands', href: '#who' },
-    { label: 'Coaches & consultants', href: '#who' },
+    { label: 'SaaS founders', href: '#who-its-for' },
+    { label: 'D2C brands', href: '#who-its-for' },
+    { label: 'Coaches & consultants with a team', href: '#who-its-for' },
   ],
   Company: [
     { label: 'About', href: '#manifesto' },
@@ -34,9 +34,9 @@ export function MarketingFooter() {
               Adcendy
             </Link>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Live data. Human review.
+              Market intelligence. Expert review.
               <br />
-              Strategy that holds up.
+              Direction your team can own.
             </p>
           </div>
 
@@ -69,7 +69,7 @@ export function MarketingFooter() {
             &copy; 2026 Erraiway Technologies LLP. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
-            Adcendy &mdash; Live data. Human review. Strategy that holds up.
+            Adcendy &mdash; Market intelligence. Expert review. Direction your team can own.
           </p>
         </div>
       </div>

@@ -5,8 +5,10 @@ import { MarketingNav } from '@/components/nav/marketing-nav';
 import { StarfieldHero } from '@/components/sections/starfield-hero';
 
 const ProblemSection  = dynamic(() => import('@/components/sections/problem-section').then(m => ({ default: m.ProblemSection })),  { ssr: false });
+const WhyNotYourTeam  = dynamic(() => import('@/components/sections/why-not-your-team').then(m => ({ default: m.WhyNotYourTeam })), { ssr: false });
 const HowItWorks      = dynamic(() => import('@/components/sections/how-it-works').then(m => ({ default: m.HowItWorks })),         { ssr: false });
 const WhatYouGet      = dynamic(() => import('@/components/sections/what-you-get').then(m => ({ default: m.WhatYouGet })),         { ssr: false });
+const Benchmarks      = dynamic(() => import('@/components/sections/benchmarks-section').then(m => ({ default: m.Benchmarks })),       { ssr: false });
 const WhoItsFor       = dynamic(() => import('@/components/sections/who-its-for').then(m => ({ default: m.WhoItsFor })),           { ssr: false });
 const WhyNotAI        = dynamic(() => import('@/components/sections/why-not-ai').then(m => ({ default: m.WhyNotAI })),             { ssr: false });
 const ComparisonTable = dynamic(() => import('@/components/sections/comparison-table').then(m => ({ default: m.ComparisonTable })),{ ssr: false });
@@ -23,9 +25,11 @@ export function LandingPageV1() {
       <MarketingNav />
       <StarfieldHero />
       <ProblemSection />
+      <WhyNotYourTeam />
       <HowItWorks />
       <WhatYouGet />
-      <WhoItsFor />
+      <div id="benchmarks"><Benchmarks /></div>
+      <div id="who-its-for"><WhoItsFor /></div>
       <WhyNotAI />
       <ComparisonTable />
       <Pricing />

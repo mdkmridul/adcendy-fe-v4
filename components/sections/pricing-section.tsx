@@ -12,9 +12,9 @@ import { formatMinorAmount } from '@/shared/payments/razorpay';
 type Currency = 'INR' | 'USD';
 
 const INCLUDED = [
-  'A marketing strategy document built specifically for your business',
+  'Competitive and market intelligence on your market, and a strategy built on it — delivered as a document your team owns',
   'Human review gate — nothing ships without passing it',
-  '30 days of guided support — kickoff call, mid-month check-in, final review',
+  '30 days of guided support — a kickoff, a check on your numbers against the plan’s targets, and a final review, plus an optional revision if the market shifts',
   'Email support throughout',
   'A clear roadmap for what to do next',
 ];
@@ -189,12 +189,26 @@ export function Pricing() {
           </p>
         </motion.div>
 
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.35 }}
+          className="mt-8 text-center text-sm text-muted-foreground"
+        >
+          Running strategies for multiple clients?{' '}
+          <Link href="/contact" className="text-primary font-semibold hover:underline">
+            Talk to us about partnership options
+          </Link>{' '}
+          — we work with agencies and resellers directly, not through bulk discounts.
+        </motion.p>
+
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.4 }}
-          className="mt-8 text-center"
+          className="mt-6 text-center"
         >
           <Link
             href={ctaHref}

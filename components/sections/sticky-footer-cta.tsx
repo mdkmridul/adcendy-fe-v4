@@ -62,10 +62,10 @@ export function StickyFooterCTA() {
             >
               <div className="flex-1 text-center sm:text-left">
                 <h4 className="font-space-grotesk font-semibold text-foreground text-base sm:text-lg">
-                  Ready for your market strategy?
+                  Know your market before your team moves
                 </h4>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Get started with AdCendy in 30 seconds
+                  Competitive intelligence + a strategy your team can own
                 </p>
               </div>
 

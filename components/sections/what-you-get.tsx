@@ -1,19 +1,19 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ChevronRight, Megaphone, Globe, Users, LayoutGrid, MessageSquare, CalendarDays, TrendingUp } from 'lucide-react';
+import { Check, ChevronRight, Megaphone, Globe, Users, LayoutGrid, MessageSquare, CalendarDays, X } from 'lucide-react';
 import Link from 'next/link';
 
 const DELIVERABLES = [
   {
-    title: 'Business positioning audit',
-    description: 'What you\'re saying vs. what your market actually hears.',
-    icon: Megaphone,
+    title: 'Competitive & market intelligence',
+    description: 'How your competitors position themselves, what they\'re doing across advertising and search, and the gaps no one\'s filling.',
+    icon: Globe,
   },
   {
-    title: 'Competitive landscape',
-    description: 'Where the gaps are and how you enter them.',
-    icon: Globe,
+    title: 'Positioning audit',
+    description: 'What you\'re saying vs. what your market actually hears.',
+    icon: Megaphone,
   },
   {
     title: 'ICP refinement',
@@ -21,8 +21,8 @@ const DELIVERABLES = [
     icon: Users,
   },
   {
-    title: 'Channel strategy',
-    description: 'Paid, organic, content, partnerships — with rationale per channel.',
+    title: 'Keyword & channel direction',
+    description: 'Where the openings are — paid, organic, content, partnerships — with the rationale for each.',
     icon: LayoutGrid,
   },
   {
@@ -31,15 +31,24 @@ const DELIVERABLES = [
     icon: MessageSquare,
   },
   {
-    title: '30-day execution calendar',
-    description: 'What to ship each week, in priority order.',
+    title: '30-day priorities',
+    description: 'What your team should aim at each week, in priority order.',
     icon: CalendarDays,
   },
-  {
-    title: 'KPIs and what to expect',
-    description: 'Realistic numbers, not vanity metrics.',
-    icon: TrendingUp,
-  },
+];
+
+const PROVIDES = [
+  'A full competitive and market intelligence workup — competitor positioning, their advertising and search approach in plain terms, keyword and channel opportunities, and the gaps in your market.',
+  'A marketing strategy built on that intelligence — priorities, positioning, channel and messaging direction, grounded in your unit economics.',
+  'Delivered as a clear document your team owns, executes, and refines — not a black box.',
+  'A strategic starting point at consultant-grade depth, without the consultant timeline or retainer.',
+];
+
+const DOES_NOT = [
+  'We don\'t run your marketing. No ad management, no content production, no campaign execution.',
+  'We\'re not an agency or a done-for-you service.',
+  'We don\'t replace your marketing team — we give them direction and intelligence to act on.',
+  'We\'re not useful if you have no way to execute (no team, no freelancers, no capacity). A plan needs hands to run it.',
 ];
 
 export function WhatYouGet() {
@@ -54,10 +63,10 @@ export function WhatYouGet() {
           className="text-center max-w-2xl mx-auto mb-4 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            Inside your strategy document
+            What you get — and what you don&apos;t
           </h2>
           <p className="text-lg text-muted-foreground">
-            This isn&apos;t a deck. It&apos;s a working playbook.
+            Intelligence first, then the direction built on it. The document is just how it reaches your team.
           </p>
         </motion.div>
 
@@ -68,7 +77,7 @@ export function WhatYouGet() {
           transition={{ delay: 0.2 }}
           className="text-center text-sm text-muted-foreground mb-12"
         >
-          Average length: 25–35 pages. Time to read: ~1 hour. Time to act on it: starts day one.
+          Average length: 25–35 pages. Time to read: ~1 hour. Time for your team to act on it: starts day one.
         </motion.p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -103,6 +112,39 @@ export function WhatYouGet() {
         </div>
 
         <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 }}
+          className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-5"
+        >
+          <div className="p-8 rounded-xl border border-primary/30 bg-card/50 space-y-4">
+            <h3 className="font-space-grotesk font-bold text-foreground">What AdCendy provides</h3>
+            <ul className="space-y-3">
+              {PROVIDES.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-3 text-sm text-muted-foreground leading-relaxed">
+                  <Check className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="p-8 rounded-xl border border-border bg-card/50 space-y-4">
+            <h3 className="font-space-grotesk font-bold text-foreground">
+              What AdCendy does <em>not</em> do
+            </h3>
+            <ul className="space-y-3">
+              {DOES_NOT.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-3 text-sm text-muted-foreground leading-relaxed">
+                  <X className="w-4 h-4 text-destructive/60 shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -110,7 +152,7 @@ export function WhatYouGet() {
           className="mt-10 text-center"
         >
           <Link href="/sample-report" className="inline-flex items-center gap-2 text-primary font-semibold hover:underline">
-            See a sample strategy
+            See what&apos;s inside a report
             <ChevronRight className="w-4 h-4" />
           </Link>
         </motion.div>
