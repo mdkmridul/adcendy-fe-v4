@@ -58,18 +58,18 @@ export function LandingPageV2() {
       <IntelligenceStreamNav />
       <IntelligenceStreamHero />
       <div className="v2-content-shell">
-        <section id="why-not-your-team"><WhyNotYourTeam /></section>
-        <section id="how-it-works"><HowItWorks /></section>
-        <section id="what-you-get"><WhatYouGet /></section>
-        <section id="benchmarks"><Benchmarks /></section>
-        <section id="who-its-for"><WhoItsFor /></section>
-        <section id="why-not-ai"><WhyNotAI /></section>
-        <section id="comparison"><ComparisonTable /></section>
-        <section id="budget"><BudgetArgument /></section>
-        <section id="pricing"><Pricing /></section>
-        <section id="manifesto"><Manifesto /></section>
-        <section id="faq"><FAQ /></section>
-        <section id="final-cta"><FinalCTA /></section>
+        <section><WhyNotYourTeam /></section>
+        <section><HowItWorks /></section>
+        <section><WhatYouGet /></section>
+        <section><Benchmarks /></section>
+        <section><WhoItsFor /></section>
+        <section><WhyNotAI /></section>
+        <section><ComparisonTable /></section>
+        <section><BudgetArgument /></section>
+        <section><Pricing /></section>
+        <section><Manifesto /></section>
+        <section><FAQ /></section>
+        <section><FinalCTA /></section>
         <MarketingFooter />
       </div>
       <StickyFooterCTA />

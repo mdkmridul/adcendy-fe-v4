@@ -11,7 +11,7 @@ export function FinalCTA() {
   const ctaHref = isAuthed ? '/app' : '/auth/signup';
 
   return (
-    <section className="py-20 sm:py-32 px-4 sm:px-6 lg:px-8 bg-background">
+    <section id="final-cta" className="py-20 sm:py-32 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-3xl mx-auto text-center space-y-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

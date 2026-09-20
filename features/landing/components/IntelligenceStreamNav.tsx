@@ -10,14 +10,16 @@ const MONO: React.CSSProperties = {
   fontFamily: '"Geist Mono", "Courier New", monospace',
 };
 
+// Root-relative, not bare hashes: this nav also renders above the auth
+// screens, where a bare '#pricing' has nothing to scroll to.
 const NAV_LINKS = [
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Deliverables', href: '#what-you-get' },
-  { label: 'Benchmarks', href: '#benchmarks' },
-  { label: 'Is It For You', href: '#who-its-for' },
-  { label: 'Compare', href: '#comparison' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'FAQs', href: '#faq' },
+  { label: 'How It Works', href: '/#how-it-works' },
+  { label: 'Deliverables', href: '/#what-you-get' },
+  { label: 'Benchmarks', href: '/#benchmarks' },
+  { label: 'Is It For You', href: '/#who-its-for' },
+  { label: 'Compare', href: '/#comparison' },
+  { label: 'Pricing', href: '/#pricing' },
+  { label: 'FAQs', href: '/#faq' },
 ];
 
 export function IntelligenceStreamNav() {

@@ -29,8 +29,8 @@ export function LandingPageV1() {
       <WhyNotYourTeam />
       <HowItWorks />
       <WhatYouGet />
-      <div id="benchmarks"><Benchmarks /></div>
-      <div id="who-its-for"><WhoItsFor /></div>
+      <Benchmarks />
+      <WhoItsFor />
       <WhyNotAI />
       <ComparisonTable />
       <BudgetArgument />

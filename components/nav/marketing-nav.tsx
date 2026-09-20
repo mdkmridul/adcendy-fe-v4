@@ -13,10 +13,12 @@ import {
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 import { ThemeToggle } from '@/shared/components/layout/ThemeToggle';
 
+// Root-relative so these still land somewhere off the landing page.
 const ANCHOR_LINKS = [
-  { label: 'How it works', href: '#how' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'What you get', href: '/#what-you-get' },
+  { label: 'Pricing', href: '/#pricing' },
+  { label: 'FAQ', href: '/#faq' },
 ];
 
 function MarketingNavContent() {
