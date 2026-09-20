@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { billingMockAdapter } from "../../shared/api/mock/billing.mock.ts";
 import { formatMinorAmount } from "../../shared/payments/razorpay.ts";
+import {
+  marketCountDescription,
+  marketCountLabel,
+} from "../../shared/payments/market-catalogue.ts";
 
 const LANDING_DEFAULT_COUNTRY = "US";
 
@@ -17,10 +21,10 @@ test("mock checkout keeps the order identity and transitions it to paid", async 
   const order = await billingMockAdapter.createOrder(
     "GEN_5",
     "checkout-test-idempotency",
-    "IN",
+    "US",
   );
   assert.equal(order.status, "CREATED");
-  assert.equal(order.amountMinor, 79900);
+  assert.equal(order.amountMinor, 999);
 
   const result = await billingMockAdapter.verifyPayment(order.orderId, {
     providerOrderId: order.providerOrderId!,
@@ -71,6 +75,40 @@ test("public landing prices use the same catalogue as authenticated checkout", a
       { credits: 5, amountMinor: 999, currency: "USD" },
       { credits: 11, amountMinor: 1799, currency: "USD" },
     ],
+  );
+});
+
+test("a SKU's credits are spoken about as markets, never as credits", () => {
+  assert.equal(marketCountLabel(1), "One market");
+  assert.equal(marketCountLabel(5), "5 markets");
+  assert.equal(
+    marketCountDescription(1),
+    "One country, one strategy, end to end.",
+  );
+  assert.match(marketCountDescription(11), /^11 countries/);
+
+  for (const credits of [1, 5, 11]) {
+    assert.doesNotMatch(marketCountLabel(credits), /credit/i);
+    assert.doesNotMatch(marketCountDescription(credits), /credit/i);
+  }
+});
+
+test("the landing lists every package the server priced, however many that is", async () => {
+  // The page renders one card per catalogue item, in the server's order. How
+  // many there are is the server's call: India lists a single package, other
+  // countries several, and neither shape is special-cased on the frontend.
+  const india = await billingMockAdapter.listPublicBundles("IN");
+  const us = await billingMockAdapter.listPublicBundles(
+    LANDING_DEFAULT_COUNTRY,
+  );
+
+  assert.deepEqual(
+    india.items.map((item) => marketCountLabel(item.credits)),
+    ["One market"],
+  );
+  assert.deepEqual(
+    us.items.map((item) => marketCountLabel(item.credits)),
+    ["One market", "5 markets", "11 markets"],
   );
 });
 

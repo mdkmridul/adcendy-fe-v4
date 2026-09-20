@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { RadioTower, GitBranch, ShieldCheck, FileSearch } from 'lucide-react';
+import { RadioTower, GitBranch, ShieldCheck, FileSearch, Sparkles, Cpu } from 'lucide-react';
 
 const PILLARS = [
   {
@@ -17,7 +17,7 @@ const PILLARS = [
   {
     icon: ShieldCheck,
     title: 'The human review gate is mandatory, not marketing.',
-    body: "Every strategy goes through a human review before delivery. The reviewer can reject, request additional data, or refine the output. We don't ship if it doesn't pass. This isn't a nice-to-have — it's the last line of quality control.",
+    body: "A named reviewer can reject the strategy, send it back for more data, catch what the model missed, and is accountable for the bet it asks you to make. Nothing ships without passing that gate. Most tools hand you whatever the model produced, unread by anyone.",
   },
   {
     icon: FileSearch,
@@ -37,12 +37,47 @@ export function WhyNotAI() {
           className="text-center mb-16 space-y-4 max-w-3xl mx-auto"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            Most tools guess. We collect.
+            AI-powered, human-judged &mdash; not AI-generated
           </h2>
           <p className="text-lg text-muted-foreground">
-            The difference between a generic strategy and one that actually fits your market
-            is where the intelligence comes from.
+            The difference between a generic strategy and one that actually fits your market is
+            where the intelligence comes from &mdash; and who signs off on it.
           </p>
+        </motion.div>
+
+        {/* AI-powered is not AI-generated: the distinction the whole product rests on. */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
+          <div className="p-8 rounded-xl border border-border bg-card/30 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <h3 className="font-space-grotesk font-bold text-muted-foreground">AI-generated</h3>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              A model guessing from the few lines you typed into it. That is what a free tool or a
+              $20 chatbot gives you: fluent, confident, and built on nothing but your own inputs and
+              whatever it absorbed before your market moved.
+            </p>
+          </div>
+          <div className="p-8 rounded-xl border border-primary/40 bg-primary/5 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Cpu className="w-5 h-5 text-primary" />
+              </div>
+              <h3 className="font-space-grotesk font-bold text-foreground">AI-powered</h3>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              AI doing the heavy lifting &mdash; reading real, current market data at a scale no
+              person could work through by hand. The judgment about what it means and what you
+              should do about it stays human.
+            </p>
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -6,6 +6,11 @@ import { ChevronDown } from 'lucide-react';
 
 const FAQS = [
   {
+    question: 'What counts as one market?',
+    answer:
+      "One market is one country. One strategy covers one country, end to end — the competitors in it, the searches your buyers run in it, and the openings inside it. We work at national level only: we don't build city or state strategies, because the competitor advertising data we read is published at country level, so a city strategy would be national data wearing a local label. What your city does contribute is real — what buyers near you actually search, and which competitors hold presence where you are, get read and folded into the national strategy. Selling into more than one country means more than one market, and we quote that package with you.",
+  },
+  {
     question: 'How is this different from an AI tool?',
     answer:
       "Generic tools generate from patterns — they don't know your actual competitors or what's moving in your market right now. We analyze your real market first, and the strategy is built on what we find. Then a human strategist validates it before it reaches you.",
@@ -28,7 +33,7 @@ const FAQS = [
   {
     question: 'Will you execute the strategy for me?',
     answer:
-      "No — and that's deliberate. We're the direction, not the hands. The strategy is built for your team (in-house marketers, freelancers, or an agency) to own and run. Every strategy credit includes 30 days of guided support — a kickoff, a check on your numbers against the plan's targets, and a final review — so your team isn't on its own while they execute. If you have no way to execute yet, we're probably not the right first step.",
+      "No — and that's deliberate. We're the direction, not the hands. The strategy is built for your team (in-house marketers, freelancers, or an agency) to own and run. Every market includes 30 days of guided support — a kickoff, a check on your numbers against the plan's targets, and a final review — so your team isn't on its own while they execute. If you have no way to execute yet, we're probably not the right first step.",
   },
   {
     question: 'Can I see a sample before paying?',
@@ -38,7 +43,7 @@ const FAQS = [
   {
     question: 'Do you work with international clients?',
     answer:
-      "Yes. We work with clients across India, the US, UK, and SEA. International pricing is in USD; the deliverable is the same.",
+      "Yes. We cover India, the US, and the UK today, and more countries on request. International pricing is in USD; the deliverable is the same. Each country is a separate market — see \"What counts as one market?\" above.",
   },
   {
     question: 'What industries do you specialize in?',

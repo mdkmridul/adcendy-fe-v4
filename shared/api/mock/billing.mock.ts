@@ -6,10 +6,12 @@ import type {
   VerifyPaymentResult,
 } from "@/shared/types/billing";
 
+// A SKU's credits are markets: one credit buys one country, covered end to
+// end. The server owns these prices and how many packages a country gets;
+// this mirrors its shape for mock mode — India lists one package, other
+// countries several — so both layouts get exercised without a backend.
 const indiaBundles: BillingBundle[] = [
   { sku: "GEN_1", credits: 1, amountMinor: 19900, currency: "INR" },
-  { sku: "GEN_5", credits: 5, amountMinor: 79900, currency: "INR" },
-  { sku: "GEN_11", credits: 11, amountMinor: 149900, currency: "INR" },
 ];
 const usBundles: BillingBundle[] = [
   { sku: "GEN_1", credits: 1, amountMinor: 299, currency: "USD" },

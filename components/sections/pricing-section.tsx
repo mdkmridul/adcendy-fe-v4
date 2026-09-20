@@ -3,20 +3,55 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { Check, Globe2, MapPinned } from 'lucide-react';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 import { billingRepository } from '@/shared/api/repositories/billing.repo';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { formatMinorAmount } from '@/shared/payments/razorpay';
+import {
+  marketCountDescription,
+  marketCountLabel,
+} from '@/shared/payments/market-catalogue';
 
 type Currency = 'INR' | 'USD';
+
+// How many packages the server returns is the server's business — India is
+// expected to have one, other markets three or four. Tailwind needs whole
+// class strings, so the layout for each count is spelled out rather than
+// assembled.
+const GRID_BY_CARD_COUNT: Record<number, string> = {
+  1: 'max-w-md grid-cols-1',
+  2: 'max-w-4xl grid-cols-1 md:grid-cols-2',
+  3: 'max-w-5xl grid-cols-1 md:grid-cols-3',
+  4: 'max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+};
+const GRID_FALLBACK = 'max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
 const INCLUDED = [
   'Competitive and market intelligence on your market, and a strategy built on it — delivered as a document your team owns',
   'Human review gate — nothing ships without passing it',
-  '30 days of guided support — a kickoff, a check on your numbers against the plan’s targets, and a final review, plus an optional revision if the market shifts',
+  'One revision round if the strategy doesn’t fit',
+  '30 days of guided support — a kickoff, a check on your numbers against the plan’s targets, and a final review',
   'Email support throughout',
   'A clear roadmap for what to do next',
+];
+
+const MARKET_RULES = [
+  {
+    icon: Globe2,
+    title: 'One market is one country.',
+    body: 'A strategy covers a single country, end to end — the competitors in it, the searches your buyers run in it, the openings inside it.',
+  },
+  {
+    icon: MapPinned,
+    title: 'National only. No city or state strategies.',
+    body: 'The competitor advertising data we read is published at country level. A city strategy would be national data wearing a local label, so we don’t sell one.',
+  },
+  {
+    icon: Check,
+    title: 'Your city still shows up in it.',
+    body: 'What buyers near you actually search, and which competitors hold presence where you are, get read and folded into the national strategy.',
+  },
 ];
 
 export function Pricing() {
@@ -30,8 +65,11 @@ export function Pricing() {
     queryFn: () => billingRepository.listPublicBundles(),
     staleTime: 60_000,
   });
-  const bundles = catalogueQuery.data?.items ?? [];
-  const highlightedIndex = Math.floor(bundles.length / 2);
+  // Whatever the server priced for this visitor, in the order it sent it.
+  const packages = catalogueQuery.data?.items ?? [];
+  // Every listed package, plus the card for countries no package covers.
+  const gridClass =
+    GRID_BY_CARD_COUNT[packages.length + 1] ?? GRID_FALLBACK;
   // What the server actually priced in, not what was asked for.
   const currency: Currency | undefined =
     catalogueQuery.data?.currency === 'INR'
@@ -47,29 +85,64 @@ export function Pricing() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-12 space-y-4"
+          className="text-center mb-10 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            Simple, transparent strategy credits
+            Priced by market
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Buy one-time credits now. The same live catalogue powers this page and secure checkout.
+            You buy markets, not credits. Prices come from our billing server and follow where
+            you are &mdash; the same live catalogue powers this page and secure checkout.
           </p>
         </motion.div>
 
+        {/* What counts as one market — stated here, and again in the FAQ, on purpose. */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.1 }}
+          className="max-w-4xl mx-auto mb-12 p-8 rounded-2xl border border-primary/30 bg-primary/5 space-y-5"
+        >
+          <h3 className="font-space-grotesk font-bold text-foreground">
+            What counts as one market
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {MARKET_RULES.map((rule) => {
+              const Icon = rule.icon;
+              return (
+                <div key={rule.title} className="space-y-2">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="font-space-grotesk text-sm font-bold text-foreground">
+                    {rule.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{rule.body}</p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
         {catalogueQuery.isPending && (
-          <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-3" aria-label="Loading prices">
-            {[0, 1, 2].map((item) => (
+          <div
+            className="max-w-4xl mx-auto mb-12 grid grid-cols-1 gap-6 md:grid-cols-2"
+            aria-label="Loading prices"
+          >
+            {[0, 1].map((item) => (
               <div
                 key={item}
-                className="h-64 animate-pulse rounded-2xl border border-border bg-card/50"
+                className="h-72 animate-pulse rounded-2xl border border-border bg-card/50"
               />
             ))}
           </div>
         )}
 
-        {catalogueQuery.isError && (
-          <div className="mb-12 rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+        {/* A catalogue that priced nothing for this visitor is as good as no price at all. */}
+        {(catalogueQuery.isError ||
+          (catalogueQuery.isSuccess && packages.length === 0)) && (
+          <div className="max-w-4xl mx-auto mb-12 rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Live pricing is temporarily unavailable.
             </p>
@@ -83,77 +156,106 @@ export function Pricing() {
           </div>
         )}
 
-        {catalogueQuery.isSuccess && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            {bundles.map((bundle, idx) => {
-              const highlighted = idx === highlightedIndex;
-              const creditLabel = bundle.credits === 1 ? 'credit' : 'credits';
-              return (
-                <motion.div
-                  key={bundle.sku}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  viewport={{ once: true }}
-                  className={`relative rounded-2xl border transition-all ${highlighted ? 'md:scale-105 bg-card border-primary shadow-lg shadow-primary/20' : 'bg-card/50 border-border hover:border-primary/30'}`}
-                >
-                  {highlighted && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <span className="inline-block px-4 py-1 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full">
-                        Most Popular
+        {catalogueQuery.isSuccess && packages.length > 0 && (
+          <div className={`mx-auto grid gap-6 mb-12 ${gridClass}`}>
+            {packages.map((bundle, idx) => (
+              <motion.div
+                key={bundle.sku}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.08 }}
+                viewport={{ once: true }}
+                className="rounded-2xl border border-primary bg-card shadow-lg shadow-primary/20 transition-all"
+              >
+                <div className="p-8 space-y-6">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-space-grotesk text-xl font-bold text-foreground">
+                        {marketCountLabel(bundle.credits)}
+                      </h3>
+                      <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                        One-time
                       </span>
                     </div>
-                  )}
-
-                  <div className="p-8 space-y-6">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-space-grotesk text-xl font-bold text-foreground">
-                          {bundle.credits} strategy {creditLabel}
-                        </h3>
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                          One-time
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Generate {bundle.credits} complete campaign{' '}
-                        {bundle.credits === 1 ? 'strategy' : 'strategies'}.
-                      </p>
-                    </div>
-
-                    <div className="space-y-0.5">
-                      <motion.p
-                        key={currency}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="text-4xl font-bold text-primary"
-                      >
-                        {formatMinorAmount(bundle)}
-                      </motion.p>
-                      <p className="text-xs text-muted-foreground">one-time purchase</p>
-                    </div>
-
-                    <Link
-                      href={ctaHref}
-                      className={`inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm ${highlighted ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-primary text-primary hover:bg-primary/10'}`}
-                    >
-                      Choose bundle
-                    </Link>
+                    <p className="text-sm text-muted-foreground">
+                      {marketCountDescription(bundle.credits)}
+                    </p>
                   </div>
-                </motion.div>
-              );
-            })}
+
+                  <div className="space-y-0.5">
+                    <motion.p
+                      key={currency}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-4xl font-bold text-primary"
+                    >
+                      {formatMinorAmount(bundle)}
+                    </motion.p>
+                    <p className="text-xs text-muted-foreground">one-time purchase</p>
+                  </div>
+
+                  <Link
+                    href={ctaHref}
+                    className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {bundle.credits === 1 ? 'Start one market' : 'Choose this package'}
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+
+            {/* Not a catalogue item: the way out for countries no package covers. */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: packages.length * 0.08 }}
+              viewport={{ once: true }}
+              className="rounded-2xl border border-border bg-card/50 hover:border-primary/30 transition-all"
+            >
+              <div className="p-8 space-y-6">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-space-grotesk text-xl font-bold text-foreground">
+                      Multiple markets
+                    </h3>
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                      Custom
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Selling into a set of countries these don&rsquo;t cover.
+                  </p>
+                </div>
+
+                <div className="space-y-0.5">
+                  <p className="text-4xl font-bold text-foreground">Let&rsquo;s talk</p>
+                  <p className="text-xs text-muted-foreground">priced with you</p>
+                </div>
+
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  We run the same campaign across each country you name, and price the package
+                  with you.
+                </p>
+
+                <Link
+                  href="/contact"
+                  className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10"
+                >
+                  Get a quote
+                </Link>
+              </div>
+            </motion.div>
           </div>
         )}
 
-        {catalogueQuery.data && (
+        {packages.length > 0 && (
           <p className="-mt-6 mb-12 text-center text-xs text-muted-foreground">
-            Prices from catalogue {catalogueQuery.data.catalogueVersion}
+            Prices from catalogue {catalogueQuery.data?.catalogueVersion}
           </p>
         )}
 
-        {/* Included in every Sprint */}
+        {/* Included in every market */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -161,9 +263,7 @@ export function Pricing() {
           transition={{ delay: 0.2 }}
           className="max-w-3xl mx-auto p-8 rounded-xl border border-border bg-card/50 space-y-5"
         >
-          <h4 className="font-space-grotesk font-bold text-foreground">
-            Every strategy credit includes:
-          </h4>
+          <h4 className="font-space-grotesk font-bold text-foreground">Every market includes:</h4>
           <div className="space-y-3">
             {INCLUDED.map((item, idx) => (
               <div key={idx} className="flex items-start gap-3">

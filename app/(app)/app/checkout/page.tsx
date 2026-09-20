@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,10 @@ import {
   loadRazorpayCheckout,
   type RazorpayCheckoutResponse,
 } from "@/shared/payments/razorpay";
+import {
+  marketCountDescription,
+  marketCountLabel,
+} from "@/shared/payments/market-catalogue";
 import { useAuth } from "@/features/auth/useAuth";
 import ENV from "@/lib/env";
 import {
@@ -140,19 +145,19 @@ export default function CheckoutPage() {
     };
   }, [displayedOrder?.status, queryClient, router]);
 
-  // "Credits will appear" would contradict the refund message beside it.
+  // "Your markets will appear" would contradict the refund message beside it.
   const statusSuccess = refundedForIndianPayment
     ? null
     : displayedOrder?.status === "PAID"
-      ? `Payment captured. ${displayedOrder.credits} ${displayedOrder.credits === 1 ? "credit has" : "credits have"} been added to your account.`
+      ? `Payment captured. ${marketCountLabel(displayedOrder.credits)} added to your account.`
       : submitSuccess;
   const statusError = refundedForIndianPayment
     ? INDIAN_PAYMENT_REFUND_MESSAGE
     : displayedOrder?.status === "FAILED" ||
         displayedOrder?.status === "CANCELLED"
-      ? "The payment was not completed. No credits were added; you can try again."
+      ? "The payment was not completed. No markets were added; you can try again."
       : displayedOrder?.status === "REFUNDED"
-        ? "This payment was refunded. Its credits are no longer available."
+        ? "This payment was refunded. Its markets are no longer available."
         : submitError;
 
   const completeCheckout = async (
@@ -173,11 +178,11 @@ export default function CheckoutPage() {
       setCurrentOrder(result.order);
       if (result.order.status === "PAID") {
         setSubmitSuccess(
-          `Payment captured. ${result.order.credits} ${result.order.credits === 1 ? "credit has" : "credits have"} been added to your account.`,
+          `Payment captured. ${marketCountLabel(result.order.credits)} added to your account.`,
         );
       } else {
         setSubmitSuccess(
-          "Payment verified. Credits will appear as soon as Razorpay confirms capture.",
+          "Payment verified. Your markets will appear as soon as Razorpay confirms capture.",
         );
         setShouldPoll(true);
       }
@@ -194,7 +199,7 @@ export default function CheckoutPage() {
 
   const startPaymentMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedBundle) throw new Error("Select a credit bundle.");
+      if (!selectedBundle) throw new Error("Select how many markets.");
       if (
         requiredDocumentIds.length !==
         CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES.length
@@ -248,7 +253,7 @@ export default function CheckoutPage() {
         amount: order.amountMinor,
         currency: order.currency,
         name: "AdCendy",
-        description: `${order.credits} strategy generation ${order.credits === 1 ? "credit" : "credits"}`,
+        description: `${marketCountLabel(order.credits)} — ${marketCountDescription(order.credits)}`,
         image: `${window.location.origin}/Adcendy-logo-tight.svg`,
         order_id: order.providerOrderId,
         prefill: { email: user?.email },
@@ -314,11 +319,11 @@ export default function CheckoutPage() {
     <div className="space-y-5 p-6">
       <div className="space-y-1">
         <h1 className="font-space-grotesk text-3xl font-bold text-foreground">
-          Billing &amp; credits
+          Billing &amp; markets
         </h1>
         <p className="text-sm text-muted-foreground">
-          Choose a bundle, accept the required policies, and pay securely with
-          Razorpay.
+          Confirm your market, accept the required policies, and pay securely
+          with Razorpay.
         </p>
       </div>
 
@@ -326,9 +331,10 @@ export default function CheckoutPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>1. Choose your bundle</CardTitle>
+              <CardTitle>1. Choose your markets</CardTitle>
               <CardDescription>
-                Prices are loaded from AdCendy’s billing server.
+                One market is one country, covered end to end. Prices are
+                loaded from AdCendy’s billing server.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -350,10 +356,10 @@ export default function CheckoutPage() {
                     className={`rounded-lg border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
                   >
                     <div className="text-2xl font-semibold">
-                      {bundle.credits}
+                      {marketCountLabel(bundle.credits)}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {bundle.credits === 1 ? "credit" : "credits"}
+                      {marketCountDescription(bundle.credits)}
                     </div>
                     <div className="mt-3 font-medium">
                       {formatMinorAmount(bundle)}
@@ -363,16 +369,22 @@ export default function CheckoutPage() {
               })}
               {bundlesQuery.isLoading ? (
                 <p className="text-sm text-muted-foreground">
-                  Loading bundles…
+                  Loading prices…
                 </p>
               ) : null}
               {bundlesQuery.isError ? (
                 <Alert variant="destructive" className="sm:col-span-3">
-                  <AlertDescription>
-                    Could not load billing bundles.
-                  </AlertDescription>
+                  <AlertDescription>Could not load pricing.</AlertDescription>
                 </Alert>
               ) : null}
+              <p className="text-sm text-muted-foreground sm:col-span-3">
+                Need a set of countries these don’t cover?{" "}
+                <Link className="text-primary hover:underline" href="/contact">
+                  Ask us for a multi-market quote
+                </Link>{" "}
+                — we run the same campaign across each country you name and
+                price the package with you.
+              </p>
             </CardContent>
           </Card>
 
@@ -452,8 +464,7 @@ export default function CheckoutPage() {
               <div className="flex items-end justify-between border-b border-border pb-4">
                 <div>
                   <div className="font-medium">
-                    {selectedBundle.credits} strategy{" "}
-                    {selectedBundle.credits === 1 ? "credit" : "credits"}
+                    {marketCountLabel(selectedBundle.credits)}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     One-time purchase
@@ -471,7 +482,7 @@ export default function CheckoutPage() {
                 payment signature
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary" /> Credits added
+                <CheckCircle2 className="h-4 w-4 text-primary" /> Markets added
                 only after capture
               </div>
             </div>
@@ -511,7 +522,7 @@ export default function CheckoutPage() {
                   ? "Checkout open…"
                   : selectedBundle
                     ? `Pay ${formatMinorAmount(selectedBundle)}`
-                    : "Select a bundle"}
+                    : "Select a market"}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               AdCendy never receives or stores your card, UPI PIN, or banking

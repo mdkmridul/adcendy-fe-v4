@@ -12,6 +12,7 @@ const Benchmarks      = dynamic(() => import('@/components/sections/benchmarks-s
 const WhoItsFor       = dynamic(() => import('@/components/sections/who-its-for').then(m => ({ default: m.WhoItsFor })),           { ssr: false });
 const WhyNotAI        = dynamic(() => import('@/components/sections/why-not-ai').then(m => ({ default: m.WhyNotAI })),             { ssr: false });
 const ComparisonTable = dynamic(() => import('@/components/sections/comparison-table').then(m => ({ default: m.ComparisonTable })),{ ssr: false });
+const BudgetArgument = dynamic(() => import('@/components/sections/budget-argument-section').then(m => ({ default: m.BudgetArgument })), { ssr: false });
 const Pricing         = dynamic(() => import('@/components/sections/pricing-section').then(m => ({ default: m.Pricing })),         { ssr: false });
 const Manifesto       = dynamic(() => import('@/components/sections/manifesto-section').then(m => ({ default: m.Manifesto })),     { ssr: false });
 const FAQ             = dynamic(() => import('@/components/sections/faq-section').then(m => ({ default: m.FAQ })),                 { ssr: false });
@@ -32,6 +33,7 @@ export function LandingPageV1() {
       <div id="who-its-for"><WhoItsFor /></div>
       <WhyNotAI />
       <ComparisonTable />
+      <BudgetArgument />
       <Pricing />
       <Manifesto />
       <FAQ />

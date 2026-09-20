@@ -8,7 +8,7 @@ const BELIEFS = [
     body: 'Agencies skip research to hit deadlines. AI tools pattern-match instead of investigating. The output is generic because the input was generic. We invert that — research is where we spend the most time, not the least.',
   },
   {
-    title: 'Founders need decisions they can act on, not frameworks to interpret.',
+    title: 'Founders need decisions they can act on, not suggestions to interpret.',
     body: "A strategy that says \"consider building a content engine\" isn't a strategy. We tell you what to build, why, and in what order — and we're willing to be wrong in writing.",
   },
   {

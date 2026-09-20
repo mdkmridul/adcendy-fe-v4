@@ -34,7 +34,7 @@ export default function ProfilePage() {
         </div>
         <h1 className="font-space-grotesk text-3xl font-semibold">Profile</h1>
         <p className="text-muted-foreground">
-          Your account details, credit balance, and subscription status.
+          Your account details, markets available, and subscription status.
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default function ProfilePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-primary" /> One-time credits
+              <Coins className="h-5 w-5 text-primary" /> Markets available
             </CardTitle>
             <CardDescription>The currently active billing model</CardDescription>
           </CardHeader>
@@ -88,10 +88,11 @@ export default function ProfilePage() {
               {profile?.billing.creditBalance ?? "—"}
             </div>
             <p className="text-sm text-muted-foreground">
-              Available strategy generation credits
+              Markets you can still run a strategy for — one market is one
+              country
             </p>
             <Button asChild>
-              <Link href="/app/checkout">Buy credits</Link>
+              <Link href="/app/checkout">Buy markets</Link>
             </Button>
           </CardContent>
         </Card>
@@ -119,7 +120,8 @@ export default function ProfilePage() {
           ) : (
             <p className="text-sm text-muted-foreground">
               Subscriptions are not available yet. Your account continues to
-              use one-time credits, and no recurring payment can be started.
+              buy markets one at a time, and no recurring payment can be
+              started.
             </p>
           )}
         </CardContent>
