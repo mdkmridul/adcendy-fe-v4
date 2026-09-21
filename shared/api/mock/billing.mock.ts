@@ -13,10 +13,13 @@ import type {
 const indiaBundles: BillingBundle[] = [
   { sku: "GEN_1", credits: 1, amountMinor: 19900, currency: "INR" },
 ];
+// Mirrors the live US catalogue 2026-09-21.
 const usBundles: BillingBundle[] = [
-  { sku: "GEN_1", credits: 1, amountMinor: 299, currency: "USD" },
-  { sku: "GEN_5", credits: 5, amountMinor: 999, currency: "USD" },
-  { sku: "GEN_11", credits: 11, amountMinor: 1799, currency: "USD" },
+  { sku: "Launch", credits: 1, amountMinor: 60000, currency: "USD" },
+  { sku: "2 Markets", credits: 2, amountMinor: 108000, currency: "USD" },
+  { sku: "3 Markets", credits: 3, amountMinor: 153000, currency: "USD" },
+  { sku: "4 Markets", credits: 4, amountMinor: 192000, currency: "USD" },
+  { sku: "5 Markets", credits: 5, amountMinor: 225000, currency: "USD" },
 ];
 const orders = new Map<string, BillingOrder>();
 
@@ -31,8 +34,8 @@ export const billingMockAdapter = {
     const requestedCountryCode = (countryCode ?? "US").toUpperCase();
     const isIndia = requestedCountryCode === "IN";
     return {
-      catalogueVersion: "2026-08-01",
-      effectiveFrom: "2026-08-01T00:00:00.000Z",
+      catalogueVersion: "2026-09-21",
+      effectiveFrom: "2026-09-22T00:00:00.000Z",
       requestedCountryCode,
       pricingCountryCode: isIndia ? "IN" : "US",
       currency: isIndia ? "INR" : "USD",

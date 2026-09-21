@@ -1,13 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Check, Globe2, MapPinned } from 'lucide-react';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
-import { billingRepository } from '@/shared/api/repositories/billing.repo';
-import { queryKeys } from '@/shared/api/queryKeys';
 import { formatMinorAmount } from '@/shared/payments/razorpay';
+import { usePublicCatalogue } from '@/shared/payments/usePublicCatalogue';
 import {
   marketCountDescription,
   marketCountLabel,
@@ -60,11 +58,8 @@ export function Pricing() {
   const ctaHref = isAuthed ? '/app/checkout' : '/auth/signup';
   // Prices follow the visitor's location alone; there is no switch
   // (backend R-8).
-  const catalogueQuery = useQuery({
-    queryKey: queryKeys.billing.publicBundles(),
-    queryFn: () => billingRepository.listPublicBundles(),
-    staleTime: 60_000,
-  });
+  const catalogueQuery = usePublicCatalogue();
+  const { isPilot } = catalogueQuery;
   // Whatever the server priced for this visitor, in the order it sent it.
   const packages = catalogueQuery.data?.items ?? [];
   // Every listed package, plus the card for countries no package covers.
@@ -94,6 +89,11 @@ export function Pricing() {
             You buy markets, not credits. Prices come from our billing server and follow where
             you are &mdash; the same live catalogue powers this page and secure checkout.
           </p>
+          {isPilot && (
+            <p className="inline-block px-4 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
+              Pilot pricing &mdash; these prices hold only while the pilot runs
+            </p>
+          )}
         </motion.div>
 
         {/* What counts as one market — stated here, and again in the FAQ, on purpose. */}
@@ -176,6 +176,11 @@ export function Pricing() {
                       <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
                         One-time
                       </span>
+                      {isPilot && (
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold">
+                          Pilot price
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {marketCountDescription(bundle.credits)}
@@ -192,7 +197,9 @@ export function Pricing() {
                     >
                       {formatMinorAmount(bundle)}
                     </motion.p>
-                    <p className="text-xs text-muted-foreground">one-time purchase</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isPilot ? 'pilot price, one-time purchase' : 'one-time purchase'}
+                    </p>
                   </div>
 
                   <Link
@@ -274,20 +281,22 @@ export function Pricing() {
           </div>
         </motion.div>
 
-        {/* Pilot guarantee */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3 }}
-          className="mt-6 max-w-3xl mx-auto p-6 rounded-xl border border-primary/20 bg-primary/5 text-center space-y-2"
-        >
-          <p className="text-sm font-semibold text-foreground">Pilot guarantee</p>
-          <p className="text-sm text-muted-foreground">
-            If your strategy doesn&apos;t surface at least 3 specific, actionable opportunities you
-            didn&apos;t already know about, we&apos;ll refund the pilot fee. No questions, no forms.
-          </p>
-        </motion.div>
+        {/* The guarantee is the pilot's; it goes when the pilot does. */}
+        {isPilot && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="mt-6 max-w-3xl mx-auto p-6 rounded-xl border border-primary/20 bg-primary/5 text-center space-y-2"
+          >
+            <p className="text-sm font-semibold text-foreground">Pilot guarantee</p>
+            <p className="text-sm text-muted-foreground">
+              If your strategy doesn&apos;t surface at least 3 specific, actionable opportunities you
+              didn&apos;t already know about, we&apos;ll refund the pilot fee. No questions, no forms.
+            </p>
+          </motion.div>
+        )}
 
         <motion.p
           initial={{ opacity: 0 }}

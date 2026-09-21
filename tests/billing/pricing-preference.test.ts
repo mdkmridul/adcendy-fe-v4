@@ -38,7 +38,7 @@ test("with no location, prices come back in USD, as they do with no Cloudflare h
 
 test("a new order starts with no refund reason", async () => {
   const order = await billingMockAdapter.createOrder(
-    "GEN_1",
+    "Launch",
     "pricing-preference-idempotency",
   );
   assert.equal(order.refundReason, null);

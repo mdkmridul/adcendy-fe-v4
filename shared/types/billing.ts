@@ -23,6 +23,12 @@ export interface BillingCatalogue {
   currency: string;
   fallbackApplied: boolean;
   items: BillingBundle[];
+  /**
+   * Whether these are pilot prices. Only an explicit `true` puts pilot
+   * pricing and the pilot guarantee on the page; absent or false removes
+   * every mention of the pilot.
+   */
+  pilot?: boolean;
 }
 
 export interface BillingOrder {

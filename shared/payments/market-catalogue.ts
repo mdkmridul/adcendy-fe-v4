@@ -1,3 +1,5 @@
+import type { BillingCatalogue } from "@/shared/types/billing";
+
 /**
  * AdCendy sells markets. One market is one country, covered end to end, and a
  * catalogue SKU's `credits` is how many markets it buys — the backend still
@@ -14,4 +16,14 @@ export function marketCountDescription(credits: number): string {
   return credits === 1
     ? "One country, one strategy, end to end."
     : `${credits} countries — one strategy each, end to end.`;
+}
+
+/**
+ * The pilot is on only when the server says so outright. A catalogue that
+ * has not loaded, or does not mention the pilot, shows none of it.
+ */
+export function isPilotCatalogue(
+  catalogue: Pick<BillingCatalogue, "pilot"> | undefined,
+): boolean {
+  return catalogue?.pilot === true;
 }

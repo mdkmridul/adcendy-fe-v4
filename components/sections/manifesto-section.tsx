@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { usePublicCatalogue } from '@/shared/payments/usePublicCatalogue';
 
 const BELIEFS = [
   {
@@ -18,6 +19,7 @@ const BELIEFS = [
 ];
 
 export function Manifesto() {
+  const { isPilot } = usePublicCatalogue();
   return (
     <section id="manifesto" className="py-20 sm:py-32 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-4xl mx-auto">
@@ -70,8 +72,13 @@ export function Manifesto() {
           <p className="text-muted-foreground text-sm leading-relaxed">
             We are a small team building Adcendy under{' '}
             <span className="text-foreground font-medium">Erraiway Technologies LLP</span>.
-            We are starting with a 7-client pilot to build this <em>with</em> real founder
-            feedback, not in a vacuum.
+            {isPilot && (
+              <>
+                {' '}
+                We are starting with a 7-client pilot to build this <em>with</em> real founder
+                feedback, not in a vacuum.
+              </>
+            )}
           </p>
         </motion.div>
       </div>

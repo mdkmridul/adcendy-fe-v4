@@ -32,6 +32,7 @@ import {
   type RazorpayCheckoutResponse,
 } from "@/shared/payments/razorpay";
 import {
+  isPilotCatalogue,
   marketCountDescription,
   marketCountLabel,
 } from "@/shared/payments/market-catalogue";
@@ -54,7 +55,9 @@ export default function CheckoutPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [selectedSku, setSelectedSku] = useState("GEN_1");
+  // SKUs are the server's to name, so nothing is preselected by name: until
+  // the buyer picks, the first package the server listed is the choice.
+  const [selectedSku, setSelectedSku] = useState<string | null>(null);
   const [acceptedDocumentIds, setAcceptedDocumentIds] = useState<string[]>([]);
   const [currentOrder, setCurrentOrder] = useState<BillingOrder | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -107,6 +110,7 @@ export default function CheckoutPage() {
   );
   const selectedBundle =
     bundles.find((bundle) => bundle.sku === selectedSku) ?? bundles[0];
+  const isPilot = isPilotCatalogue(bundlesQuery.data);
   const checkoutChecklistItems = useMemo(
     () =>
       buildLegalChecklistItems(
@@ -338,6 +342,11 @@ export default function CheckoutPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-3">
+              {isPilot ? (
+                <p className="text-sm font-medium text-primary sm:col-span-3">
+                  Pilot pricing — these prices hold only while the pilot runs.
+                </p>
+              ) : null}
               {bundlesQuery.data?.fallbackApplied ? (
                 <Alert className="sm:col-span-3">
                   <AlertDescription>

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { billingMockAdapter } from "../../shared/api/mock/billing.mock.ts";
 import { formatMinorAmount } from "../../shared/payments/razorpay.ts";
 import {
+  isPilotCatalogue,
   marketCountDescription,
   marketCountLabel,
 } from "../../shared/payments/market-catalogue.ts";
@@ -19,12 +20,12 @@ test("formats server amounts from paise without changing their value", () => {
 
 test("mock checkout keeps the order identity and transitions it to paid", async () => {
   const order = await billingMockAdapter.createOrder(
-    "GEN_5",
+    "5 Markets",
     "checkout-test-idempotency",
     "US",
   );
   assert.equal(order.status, "CREATED");
-  assert.equal(order.amountMinor, 999);
+  assert.equal(order.amountMinor, 225000);
 
   const result = await billingMockAdapter.verifyPayment(order.orderId, {
     providerOrderId: order.providerOrderId!,
@@ -71,9 +72,11 @@ test("public landing prices use the same catalogue as authenticated checkout", a
       currency,
     })),
     [
-      { credits: 1, amountMinor: 299, currency: "USD" },
-      { credits: 5, amountMinor: 999, currency: "USD" },
-      { credits: 11, amountMinor: 1799, currency: "USD" },
+      { credits: 1, amountMinor: 60000, currency: "USD" },
+      { credits: 2, amountMinor: 108000, currency: "USD" },
+      { credits: 3, amountMinor: 153000, currency: "USD" },
+      { credits: 4, amountMinor: 192000, currency: "USD" },
+      { credits: 5, amountMinor: 225000, currency: "USD" },
     ],
   );
 });
@@ -87,7 +90,7 @@ test("a SKU's credits are spoken about as markets, never as credits", () => {
   );
   assert.match(marketCountDescription(11), /^11 countries/);
 
-  for (const credits of [1, 5, 11]) {
+  for (const credits of [1, 2, 5]) {
     assert.doesNotMatch(marketCountLabel(credits), /credit/i);
     assert.doesNotMatch(marketCountDescription(credits), /credit/i);
   }
@@ -108,8 +111,24 @@ test("the landing lists every package the server priced, however many that is", 
   );
   assert.deepEqual(
     us.items.map((item) => marketCountLabel(item.credits)),
-    ["One market", "5 markets", "11 markets"],
+    ["One market", "2 markets", "3 markets", "4 markets", "5 markets"],
   );
+});
+
+test("pilot pricing shows only when the server says the pilot is on", () => {
+  assert.equal(isPilotCatalogue({ pilot: true }), true);
+  // Anything short of an explicit true removes the pilot from the page —
+  // including a catalogue that has not loaded, or one that never says.
+  assert.equal(isPilotCatalogue({ pilot: false }), false);
+  assert.equal(isPilotCatalogue({}), false);
+  assert.equal(isPilotCatalogue(undefined), false);
+});
+
+test("today's catalogue carries no pilot flag, so the pilot is off", async () => {
+  const catalogue = await billingMockAdapter.listPublicBundles(
+    LANDING_DEFAULT_COUNTRY,
+  );
+  assert.equal(isPilotCatalogue(catalogue), false);
 });
 
 test("frontend CSP permits the Razorpay-hosted Standard Checkout only over HTTPS", async () => {
