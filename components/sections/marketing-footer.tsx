@@ -1,37 +1,43 @@
 import Link from 'next/link';
+import { SectionLink } from '@/components/nav/section-link';
+import {
+  LANDING_SECTIONS as S,
+  LANDING_SUB_TARGETS as T,
+  type LandingTarget,
+} from '@/features/landing/landing-sections';
 
 /**
- * A destination that exists, or one that is still being written. A pending
- * entry is shown as plain text rather than a link to '#': the reader is told
- * it is coming instead of being sent nowhere.
+ * A place on the landing page, another page, or one still being written. A
+ * pending entry is shown as plain text rather than a link to '#': the reader
+ * is told it is coming instead of being sent nowhere.
  */
 type FooterLink =
+  | { section: LandingTarget }
   | { label: string; href: string }
   | { label: string; pending: true };
 
-// Every anchor here is a section id that exists on the landing page, in the
-// order the page presents them. Root-relative so the footer keeps working if
-// it is ever rendered off '/'.
+// The sitemap follows the page, in the order the page presents it, and uses
+// the same labels as the navbar.
 const LINKS: Record<string, FooterLink[]> = {
   Product: [
-    { label: 'How it works', href: '/#how-it-works' },
-    { label: 'What you get', href: '/#what-you-get' },
-    { label: 'Benchmarks', href: '/#benchmarks' },
-    { label: 'Why not an AI tool', href: '/#why-not-ai' },
-    { label: 'Compare', href: '/#comparison' },
-    { label: 'Pricing', href: '/#pricing' },
-    { label: 'FAQ', href: '/#faq' },
+    { section: S.whyNotYourTeam },
+    { section: S.howItWorks },
+    { section: S.whatYouGet },
+    { section: S.benchmarks },
+    { section: S.whyNotAI },
+    { section: S.comparison },
+    { section: S.budget },
+    { section: S.pricing },
+    { section: S.faq },
     { label: 'Sample strategy', href: '/sample-report' },
   ],
-  For: [
-    { label: 'SaaS founders', href: '/#who-its-for' },
-    { label: 'D2C brands', href: '/#who-its-for' },
-    { label: 'Coaches & consultants with a team', href: '/#who-its-for' },
-    { label: 'Who it’s not for', href: '/#who-its-for' },
+  'Is it for you': [
+    { section: T.goodFit },
+    { section: T.notYetFit },
+    { section: T.industries },
   ],
   Company: [
-    { label: 'About', href: '/#manifesto' },
-    { label: 'Why the strategy is the cheap part', href: '/#budget' },
+    { section: S.manifesto },
     { label: 'Contact', href: '/contact' },
   ],
   // Published by the backend and accepted at signup and checkout today; the
@@ -42,6 +48,30 @@ const LINKS: Record<string, FooterLink[]> = {
     { label: 'Refund policy', pending: true },
   ],
 };
+
+const LINK_CLASS = 'text-sm text-muted-foreground hover:text-foreground transition-colors';
+
+function FooterEntry({ link }: { link: FooterLink }) {
+  if ('section' in link) {
+    return (
+      <SectionLink sectionId={link.section.id} className={LINK_CLASS}>
+        {link.section.label}
+      </SectionLink>
+    );
+  }
+  if ('href' in link) {
+    return (
+      <Link href={link.href} className={LINK_CLASS}>
+        {link.label}
+      </Link>
+    );
+  }
+  return (
+    <span className="text-sm text-muted-foreground/70">
+      {link.label} <span className="text-xs text-muted-foreground/50">(In Progress)</span>
+    </span>
+  );
+}
 
 export function MarketingFooter() {
   return (
@@ -68,20 +98,8 @@ export function MarketingFooter() {
               </p>
               <ul className="space-y-2">
                 {links.map((link) => (
-                  <li key={link.label}>
-                    {'href' in link ? (
-                      <Link
-                        href={link.href}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {link.label}
-                      </Link>
-                    ) : (
-                      <span className="text-sm text-muted-foreground/70">
-                        {link.label}{' '}
-                        <span className="text-xs text-muted-foreground/50">(In Progress)</span>
-                      </span>
-                    )}
+                  <li key={'section' in link ? link.section.id : link.label}>
+                    <FooterEntry link={link} />
                   </li>
                 ))}
               </ul>

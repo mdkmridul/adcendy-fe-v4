@@ -5,21 +5,23 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
+import { SectionLink } from '@/components/nav/section-link';
+import { LANDING_SECTIONS } from '../landing-sections';
 
 const MONO: React.CSSProperties = {
   fontFamily: '"Geist Mono", "Courier New", monospace',
 };
 
-// Root-relative, not bare hashes: this nav also renders above the auth
-// screens, where a bare '#pricing' has nothing to scroll to.
+// This nav also renders above the auth screens; SectionLink takes the
+// reader back to '/' first when the section is not on the current page.
 const NAV_LINKS = [
-  { label: 'How It Works', href: '/#how-it-works' },
-  { label: 'Deliverables', href: '/#what-you-get' },
-  { label: 'Benchmarks', href: '/#benchmarks' },
-  { label: 'Is It For You', href: '/#who-its-for' },
-  { label: 'Compare', href: '/#comparison' },
-  { label: 'Pricing', href: '/#pricing' },
-  { label: 'FAQs', href: '/#faq' },
+  LANDING_SECTIONS.howItWorks,
+  LANDING_SECTIONS.whatYouGet,
+  LANDING_SECTIONS.benchmarks,
+  LANDING_SECTIONS.whoItsFor,
+  LANDING_SECTIONS.comparison,
+  LANDING_SECTIONS.pricing,
+  LANDING_SECTIONS.faq,
 ];
 
 export function IntelligenceStreamNav() {
@@ -64,9 +66,9 @@ export function IntelligenceStreamNav() {
 
         <div className="hidden md:flex items-center" style={{ gap: '44px' }}>
           {NAV_LINKS.map(link => (
-            <Link
-              key={link.label}
-              href={link.href}
+            <SectionLink
+              key={link.id}
+              sectionId={link.id}
               style={{
                 ...MONO,
                 fontSize: '10px',
@@ -79,7 +81,7 @@ export function IntelligenceStreamNav() {
               className="hover:text-amber-300/70"
             >
               {link.label}
-            </Link>
+            </SectionLink>
           ))}
         </div>
 

@@ -12,13 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 import { ThemeToggle } from '@/shared/components/layout/ThemeToggle';
+import { LANDING_SECTIONS } from '@/features/landing/landing-sections';
+import { SectionLink } from './section-link';
 
-// Root-relative so these still land somewhere off the landing page.
 const ANCHOR_LINKS = [
-  { label: 'How it works', href: '/#how-it-works' },
-  { label: 'What you get', href: '/#what-you-get' },
-  { label: 'Pricing', href: '/#pricing' },
-  { label: 'FAQ', href: '/#faq' },
+  LANDING_SECTIONS.howItWorks,
+  LANDING_SECTIONS.whatYouGet,
+  LANDING_SECTIONS.pricing,
+  LANDING_SECTIONS.faq,
 ];
 
 function MarketingNavContent() {
@@ -59,13 +60,13 @@ function MarketingNavContent() {
 
         <div className="hidden items-center gap-6 text-sm font-semibold text-muted-foreground md:flex">
           {ANCHOR_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
+            <SectionLink
+              key={link.id}
+              sectionId={link.id}
               className="hover:text-foreground transition-colors"
             >
               {link.label}
-            </Link>
+            </SectionLink>
           ))}
         </div>
 

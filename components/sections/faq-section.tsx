@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { usePublicCatalogue } from '@/shared/payments/usePublicCatalogue';
 
+type Faq = { question: string; answer: string; id?: string };
+
 // Pilot-only promises are said only while the server says the pilot is on.
-function buildFaqs(isPilot: boolean) {
+// An entry with an `id` can be linked to directly, and opens when it is.
+function buildFaqs(isPilot: boolean): Faq[] {
   return [
     {
       question: 'What counts as one market?',
@@ -55,6 +58,7 @@ function buildFaqs(isPilot: boolean) {
         "Yes. We cover India, the US, and the UK today, and more countries on request. International pricing is in USD; the deliverable is the same. Each country is a separate market — see \"What counts as one market?\" above.",
     },
     {
+      id: 'faq-industries',
       question: 'What industries do you specialize in?',
       answer:
         "Three: SaaS, D2C e-commerce, and established coaches or consultants who have a team or freelancers to execute. We've intentionally narrowed to deliver real depth in each — and since a strategy only works if you have the hands to run it, we focus on businesses with execution capacity, not solo operators.",
@@ -77,6 +81,21 @@ export function FAQ() {
   const { isPilot } = usePublicCatalogue();
   const faqs = buildFaqs(isPilot);
 
+  // A link straight to an answer opens it, on arrival and on every click
+  // after, since SectionLink announces the hash even when it is unchanged.
+  useEffect(() => {
+    const openLinked = () => {
+      // The pilot changes answers, never order, so either list gives the index.
+      const linked = buildFaqs(false).findIndex(
+        (faq) => faq.id && `#${faq.id}` === window.location.hash,
+      );
+      if (linked !== -1) setOpenIdx(linked);
+    };
+    openLinked();
+    window.addEventListener('hashchange', openLinked);
+    return () => window.removeEventListener('hashchange', openLinked);
+  }, []);
+
   return (
     <section id="faq" className="bg-background py-20 sm:py-32 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
@@ -98,6 +117,7 @@ export function FAQ() {
           {faqs.map((faq, idx) => (
             <motion.div
               key={idx}
+              id={faq.id}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.04 }}

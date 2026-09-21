@@ -40,6 +40,7 @@ export function WhoItsFor() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            id="who-its-for-fit"
             className="flex flex-col p-8 rounded-xl border border-primary/30 bg-card/50"
           >
             <h3 className="font-space-grotesk text-xl font-bold text-foreground mb-6">
@@ -60,6 +61,7 @@ export function WhoItsFor() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             viewport={{ once: true }}
+            id="who-its-for-not-yet"
             className="flex flex-col p-8 rounded-xl border border-border bg-card/50"
           >
             <h3 className="font-space-grotesk text-xl font-bold text-foreground mb-6">
