@@ -86,3 +86,18 @@ export function splitPilotCatalogue(items: BillingBundle[]): {
     others: regular.filter((item) => !paired.has(item)),
   };
 }
+
+/**
+ * The landing's grouping: pilot bundles on their own, then every regular
+ * bundle — the regular one-market price included — in the server's order.
+ * Pilot bundles appear only while the server reports a pilot offer.
+ */
+export function separatePilotPackages(
+  items: readonly BillingBundle[],
+  pilotOffer: BillingPilotOffer | null | undefined,
+): { pilot: BillingBundle[]; regular: BillingBundle[] } {
+  return {
+    pilot: pilotOffer ? items.filter((item) => item.pilot === true) : [],
+    regular: items.filter((item) => item.pilot !== true),
+  };
+}

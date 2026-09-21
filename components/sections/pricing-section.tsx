@@ -12,7 +12,7 @@ import {
   marketCountDescription,
   marketCountLabel,
   pilotSeatsLabel,
-  splitPilotCatalogue,
+  separatePilotPackages,
 } from '@/shared/payments/market-catalogue';
 
 type Currency = 'INR' | 'USD';
@@ -32,16 +32,10 @@ function PriceBeforeDiscount({ bundle }: { bundle: BillingBundle }) {
 }
 
 // How many packages the server returns is the server's business — India is
-// expected to have one, other markets three or four. Tailwind needs whole
-// class strings, so the layout for each count is spelled out rather than
-// assembled.
-const GRID_BY_CARD_COUNT: Record<number, string> = {
-  1: 'max-w-md grid-cols-1',
-  2: 'max-w-4xl grid-cols-1 md:grid-cols-2',
-  3: 'max-w-5xl grid-cols-1 md:grid-cols-3',
-  4: 'max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
-};
-const GRID_FALLBACK = 'max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+// expected to have one, other markets several. Cards wrap three to a row and
+// a short last row is centred, so any count lays out without a gap.
+const CARD_ROW = 'mx-auto flex max-w-6xl flex-wrap justify-center gap-6';
+const CARD_WIDTH = 'w-full sm:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]';
 
 /** Seats taken and left, as the server counts them. */
 function SeatMeter({ offer }: { offer: BillingPilotOffer }) {
@@ -64,16 +58,17 @@ function SeatMeter({ offer }: { offer: BillingPilotOffer }) {
   );
 }
 
-type PackageKind = 'pilot' | 'regular-price' | 'package';
+type PackageKind = 'pilot' | 'package';
 
 /**
- * One priced package. A pilot card is set apart; the card beside it is the
- * same markets at the regular price, so the pilot's saving can be checked.
+ * One priced package. A pilot card is set apart and carries its own saving
+ * against the regular price, so it needs no twin beside it.
  */
 function PackageCard({
   bundle,
   kind,
   pilotLabel,
+  soldOut = false,
   ctaHref,
   currency,
   delay,
@@ -81,6 +76,7 @@ function PackageCard({
   bundle: BillingBundle;
   kind: PackageKind;
   pilotLabel?: string;
+  soldOut?: boolean;
   ctaHref: string;
   currency: Currency | undefined;
   delay: number;
@@ -94,8 +90,8 @@ function PackageCard({
       viewport={{ once: true }}
       className={
         isPilot
-          ? 'rounded-2xl border-2 border-primary bg-card shadow-lg shadow-primary/30 transition-all'
-          : 'rounded-2xl border border-border bg-card transition-all hover:border-primary/40'
+          ? 'h-full rounded-2xl border-2 border-primary bg-card shadow-lg shadow-primary/30 transition-all'
+          : 'h-full rounded-2xl border border-border bg-card transition-all hover:border-primary/40'
       }
     >
       <div className="p-8 space-y-6">
@@ -110,7 +106,7 @@ function PackageCard({
               </span>
             ) : (
               <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                {kind === 'regular-price' ? 'Regular price' : 'One-time'}
+                One-time
               </span>
             )}
           </div>
@@ -129,28 +125,30 @@ function PackageCard({
           </motion.p>
           <PriceBeforeDiscount bundle={bundle} />
           <p className="text-xs text-muted-foreground">
-            {isPilot
-              ? 'pilot price, one-time purchase'
-              : kind === 'regular-price'
-                ? 'what every client pays after the pilot'
-                : 'one-time purchase'}
+            {isPilot ? 'pilot price, one-time purchase' : 'one-time purchase'}
           </p>
         </div>
 
-        <Link
-          href={ctaHref}
-          className={
-            isPilot
-              ? 'inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10'
-          }
-        >
-          {isPilot
-            ? 'Claim a pilot seat'
-            : bundle.credits === 1
-              ? 'Start one market'
-              : 'Choose this package'}
-        </Link>
+        {soldOut ? (
+          <p className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg text-sm font-semibold border border-border text-muted-foreground">
+            All pilot seats are taken
+          </p>
+        ) : (
+          <Link
+            href={ctaHref}
+            className={
+              isPilot
+                ? 'inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10'
+            }
+          >
+            {isPilot
+              ? 'Claim a pilot seat'
+              : bundle.credits === 1
+                ? 'Start one market'
+                : 'Choose this package'}
+          </Link>
+        )}
       </div>
     </motion.div>
   );
@@ -195,10 +193,12 @@ export function Pricing() {
   const pilotOffer = catalogueQuery.data?.pilotOffer ?? null;
   // Whatever the server priced for this visitor, in the order it sent it.
   const packages = catalogueQuery.data?.items ?? [];
-  // Pilot bundles are shown beside their regular price; the rest in a grid.
-  const { comparisons, others } = splitPilotCatalogue(packages);
-  // Every listed package, plus the card for countries no package covers.
-  const gridClass = GRID_BY_CARD_COUNT[others.length + 1] ?? GRID_FALLBACK;
+  // The pilot stands on its own; every regular package follows, one-market
+  // included, in the server's order.
+  const { pilot: pilotPackages, regular: regularPackages } = separatePilotPackages(
+    packages,
+    pilotOffer,
+  );
   // What the server actually priced in, not what was asked for.
   const currency: Currency | undefined =
     catalogueQuery.data?.currency === 'INR' ? 'INR' : catalogueQuery.data ? 'USD' : undefined;
@@ -287,9 +287,9 @@ export function Pricing() {
 
         {catalogueQuery.isSuccess && packages.length > 0 && (
           <div className="mb-12 space-y-12">
-            {/* The pilot beside the price everyone else pays, so the saving is real. */}
-            {pilotOffer && (
-              <div className="mx-auto max-w-4xl space-y-4">
+            {/* The pilot on its own, ahead of everything else. */}
+            {pilotOffer && pilotPackages.length > 0 && (
+              <div className="mx-auto max-w-4xl space-y-6">
                 <div className="text-center space-y-1">
                   <h3 className="font-space-grotesk text-2xl font-bold text-foreground">
                     {pilotOffer.label}
@@ -304,91 +304,79 @@ export function Pricing() {
                   </p>
                 </div>
                 <SeatMeter offer={pilotOffer} />
-                {comparisons.map(({ pilot, regular }) => (
-                  <div key={pilot.sku} className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <PackageCard
-                      bundle={pilot}
-                      kind="pilot"
-                      pilotLabel={pilotOffer.label}
-                      ctaHref={ctaHref}
-                      currency={currency}
-                      delay={0}
-                    />
-                    {regular && (
+                <div className={CARD_ROW}>
+                  {pilotPackages.map((bundle) => (
+                    <div key={bundle.sku} className="w-full sm:max-w-md">
                       <PackageCard
-                        bundle={regular}
-                        kind="regular-price"
+                        bundle={bundle}
+                        kind="pilot"
+                        pilotLabel={pilotOffer.label}
+                        soldOut={pilotOffer.soldOut}
                         ctaHref={ctaHref}
                         currency={currency}
-                        delay={0.08}
+                        delay={0}
                       />
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="space-y-4">
-              {pilotOffer && (
-                <h3 className="text-center font-space-grotesk text-2xl font-bold text-foreground">
-                  More markets
-                </h3>
-              )}
-              <div className={`mx-auto grid gap-6 ${gridClass}`}>
-                {others.map((bundle, idx) => (
-                  <PackageCard
-                    key={bundle.sku}
-                    bundle={bundle}
-                    kind="package"
-                    ctaHref={ctaHref}
-                    currency={currency}
-                    delay={idx * 0.08}
-                  />
-                ))}
-
-                {/* Not a catalogue item: the way out for countries no package covers. */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: others.length * 0.08 }}
-                  viewport={{ once: true }}
-                  className="rounded-2xl border border-border bg-card/50 hover:border-primary/30 transition-all"
-                >
-                  <div className="p-8 space-y-6">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-space-grotesk text-xl font-bold text-foreground">
-                          Multiple markets
-                        </h3>
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                          Custom
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Selling into a set of countries these don&rsquo;t cover.
-                      </p>
+            {regularPackages.length > 0 && (
+              <div className="space-y-6">
+                {pilotPackages.length > 0 && (
+                  <h3 className="text-center font-space-grotesk text-2xl font-bold text-foreground">
+                    Regular pricing
+                  </h3>
+                )}
+                <div className={CARD_ROW}>
+                  {regularPackages.map((bundle, idx) => (
+                    <div key={bundle.sku} className={CARD_WIDTH}>
+                      <PackageCard
+                        bundle={bundle}
+                        kind="package"
+                        ctaHref={ctaHref}
+                        currency={currency}
+                        delay={idx * 0.08}
+                      />
                     </div>
-
-                    <div className="space-y-0.5">
-                      <p className="text-4xl font-bold text-foreground">Let&rsquo;s talk</p>
-                      <p className="text-xs text-muted-foreground">priced with you</p>
-                    </div>
-
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      We run the same campaign across each country you name, and price the package
-                      with you.
-                    </p>
-
-                    <Link
-                      href="/contact"
-                      className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10"
-                    >
-                      Get a quote
-                    </Link>
-                  </div>
-                </motion.div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Not a catalogue item, so not in the grid: the way out for a set
+                of countries none of the packages covers, right after the last one. */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mx-auto max-w-6xl rounded-2xl border border-primary/40 bg-card p-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-space-grotesk text-xl font-bold text-foreground">
+                    Multiple markets
+                  </h3>
+                  <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                    Custom
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                  Selling into a set of countries these packages don&rsquo;t cover? We run the
+                  same campaign across each country you name, and price the package with you.
+                </p>
+              </div>
+              <div className="shrink-0 space-y-1 md:text-right">
+                <p className="text-2xl font-bold text-foreground">Let&rsquo;s talk</p>
+                <Link
+                  href="/contact"
+                  className="inline-flex items-center justify-center py-3 px-6 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10"
+                >
+                  Get a quote
+                </Link>
+              </div>
+            </motion.div>
           </div>
         )}
 

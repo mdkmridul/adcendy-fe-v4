@@ -9,6 +9,7 @@ import {
   marketCountDescription,
   marketCountLabel,
   pilotSeatsLabel,
+  separatePilotPackages,
   splitPilotCatalogue,
 } from "../../shared/payments/market-catalogue.ts";
 
@@ -185,6 +186,35 @@ test("a pilot bundle shows the price it discounts, and only a real discount", ()
     bundleOriginalPrice({ ...bundle, originalAmountMinor: 49900 }),
     null,
   );
+});
+
+test("the landing sets the pilot apart and lists every regular package after it", async () => {
+  const catalogue = await billingMockAdapter.listPublicBundles("US");
+  const { pilot, regular } = separatePilotPackages(
+    catalogue.items,
+    catalogue.pilotOffer,
+  );
+
+  // The pilot stands alone: no regular package is pulled up beside it.
+  assert.ok(pilot.length > 0);
+  assert.ok(pilot.every((item) => item.pilot === true));
+  // The regular one-market price stays with the other regular packages.
+  assert.ok(regular.some((item) => item.credits === 1));
+  assert.ok(regular.every((item) => item.pilot !== true));
+  // Nothing dropped, nothing reordered.
+  assert.deepEqual(
+    regular.map((item) => item.sku),
+    catalogue.items.filter((item) => item.pilot !== true).map((item) => item.sku),
+  );
+  assert.equal(pilot.length + regular.length, catalogue.items.length);
+});
+
+test("without a pilot offer, pilot packages are not shown at all", async () => {
+  const catalogue = await billingMockAdapter.listPublicBundles("US");
+  const { pilot, regular } = separatePilotPackages(catalogue.items, null);
+
+  assert.deepEqual(pilot, []);
+  assert.ok(regular.every((item) => item.pilot !== true));
 });
 
 test("frontend CSP permits the Razorpay-hosted Standard Checkout only over HTTPS", async () => {
