@@ -10,11 +10,30 @@ import type {
 // end. The server owns these prices and how many packages a country gets;
 // this mirrors its shape for mock mode — India lists one package, other
 // countries several — so both layouts get exercised without a backend.
+// Mirrors the live catalogue 2026-09-21: pilot bundles first, while seats
+// remain, then the regular list.
 const indiaBundles: BillingBundle[] = [
-  { sku: "GEN_1", credits: 1, amountMinor: 19900, currency: "INR" },
+  {
+    sku: "Pilot Launch",
+    credits: 1,
+    amountMinor: 1490000,
+    currency: "INR",
+    pilot: true,
+    originalAmountMinor: 1990000,
+    discountPercent: 25,
+  },
+  { sku: "Launch", credits: 1, amountMinor: 1990000, currency: "INR" },
 ];
-// Mirrors the live US catalogue 2026-09-21.
 const usBundles: BillingBundle[] = [
+  {
+    sku: "Pilot Launch",
+    credits: 1,
+    amountMinor: 49900,
+    currency: "USD",
+    pilot: true,
+    originalAmountMinor: 60000,
+    discountPercent: 17,
+  },
   { sku: "Launch", credits: 1, amountMinor: 60000, currency: "USD" },
   { sku: "2 Markets", credits: 2, amountMinor: 108000, currency: "USD" },
   { sku: "3 Markets", credits: 3, amountMinor: 153000, currency: "USD" },
@@ -41,6 +60,14 @@ export const billingMockAdapter = {
       currency: isIndia ? "INR" : "USD",
       fallbackApplied: !isIndia && requestedCountryCode !== "US",
       items: isIndia ? indiaBundles : usBundles,
+      pilot: true,
+      pilotOffer: {
+        label: "Founding pricing",
+        note: "Introductory pricing for our founding clients",
+        seatsTotal: 10,
+        seatsRemaining: 7,
+        soldOut: false,
+      },
     };
   },
 
@@ -63,6 +90,7 @@ export const billingMockAdapter = {
       credits: bundle.credits,
       status: "CREATED",
       bundleSku: bundle.sku,
+      pilot: bundle.pilot ?? false,
       createdAt: new Date().toISOString(),
       paidAt: null,
       refundReason: null,

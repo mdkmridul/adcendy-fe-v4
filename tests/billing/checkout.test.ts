@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs";
 import { billingMockAdapter } from "../../shared/api/mock/billing.mock.ts";
 import { formatMinorAmount } from "../../shared/payments/razorpay.ts";
 import {
+  bundleOriginalPrice,
   isPilotCatalogue,
   marketCountDescription,
   marketCountLabel,
+  pilotSeatsLabel,
 } from "../../shared/payments/market-catalogue.ts";
 
 const LANDING_DEFAULT_COUNTRY = "US";
@@ -72,6 +74,7 @@ test("public landing prices use the same catalogue as authenticated checkout", a
       currency,
     })),
     [
+      { credits: 1, amountMinor: 49900, currency: "USD" },
       { credits: 1, amountMinor: 60000, currency: "USD" },
       { credits: 2, amountMinor: 108000, currency: "USD" },
       { credits: 3, amountMinor: 153000, currency: "USD" },
@@ -107,11 +110,18 @@ test("the landing lists every package the server priced, however many that is", 
 
   assert.deepEqual(
     india.items.map((item) => marketCountLabel(item.credits)),
-    ["One market"],
+    ["One market", "One market"],
   );
   assert.deepEqual(
     us.items.map((item) => marketCountLabel(item.credits)),
-    ["One market", "2 markets", "3 markets", "4 markets", "5 markets"],
+    [
+      "One market",
+      "One market",
+      "2 markets",
+      "3 markets",
+      "4 markets",
+      "5 markets",
+    ],
   );
 });
 
@@ -124,11 +134,56 @@ test("pilot pricing shows only when the server says the pilot is on", () => {
   assert.equal(isPilotCatalogue(undefined), false);
 });
 
-test("today's catalogue carries no pilot flag, so the pilot is off", async () => {
+test("the pilot sells beside the regular packages, not instead of them", async () => {
   const catalogue = await billingMockAdapter.listPublicBundles(
     LANDING_DEFAULT_COUNTRY,
   );
-  assert.equal(isPilotCatalogue(catalogue), false);
+  assert.equal(isPilotCatalogue(catalogue), true);
+  assert.deepEqual(
+    catalogue.items.map((item) => item.pilot === true),
+    [true, false, false, false, false, false],
+  );
+});
+
+test("pilot seats are shown as the server counts them, sold out included", () => {
+  const offer = {
+    label: "Founding pricing",
+    note: null,
+    seatsTotal: 10,
+    seatsRemaining: 7,
+    soldOut: false,
+  };
+  assert.equal(pilotSeatsLabel(offer), "7 of 10 pilot seats left");
+  assert.equal(
+    pilotSeatsLabel({ ...offer, seatsRemaining: 1 }),
+    "1 of 10 pilot seat left",
+  );
+  assert.equal(
+    pilotSeatsLabel({ ...offer, seatsRemaining: 0, soldOut: true }),
+    "All 10 pilot seats are taken",
+  );
+});
+
+test("a pilot bundle shows the price it discounts, and only a real discount", () => {
+  const bundle = {
+    sku: "Pilot Launch",
+    credits: 1,
+    amountMinor: 49900,
+    currency: "USD",
+    originalAmountMinor: 60000,
+  };
+  assert.deepEqual(bundleOriginalPrice(bundle), {
+    amountMinor: 60000,
+    currency: "USD",
+  });
+  assert.equal(
+    bundleOriginalPrice({ ...bundle, originalAmountMinor: null }),
+    null,
+  );
+  assert.equal(
+    bundleOriginalPrice({ ...bundle, originalAmountMinor: 49900 }),
+    null,
+  );
 });
 
 test("frontend CSP permits the Razorpay-hosted Standard Checkout only over HTTPS", async () => {

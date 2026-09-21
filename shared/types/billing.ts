@@ -13,6 +13,20 @@ export interface BillingBundle {
   credits: number;
   amountMinor: number;
   currency: string;
+  /** A pilot bundle, sold only while pilot seats remain. */
+  pilot?: boolean;
+  /** The price before the discount, when the server states one. */
+  originalAmountMinor?: number | null;
+  discountPercent?: number | null;
+}
+
+/** The pilot as the server reports it; seats are counted from orders. */
+export interface BillingPilotOffer {
+  label: string;
+  note: string | null;
+  seatsTotal: number;
+  seatsRemaining: number;
+  soldOut: boolean;
 }
 
 export interface BillingCatalogue {
@@ -24,11 +38,16 @@ export interface BillingCatalogue {
   fallbackApplied: boolean;
   items: BillingBundle[];
   /**
-   * Whether these are pilot prices. Only an explicit `true` puts pilot
+   * Whether pilot bundles are on sale. Only an explicit `true` puts pilot
    * pricing and the pilot guarantee on the page; absent or false removes
-   * every mention of the pilot.
+   * both. Regular bundles are listed either way.
    */
   pilot?: boolean;
+  /**
+   * Present while the pilot runs in this market, sold out or not, so the
+   * page can show how many seats are left.
+   */
+  pilotOffer?: BillingPilotOffer | null;
 }
 
 export interface BillingOrder {
@@ -41,6 +60,8 @@ export interface BillingOrder {
   credits: number;
   status: PaymentStatus;
   bundleSku: string;
+  /** Bought at the pilot price. */
+  pilot?: boolean;
   createdAt: string;
   paidAt: string | null;
   /**

@@ -1,4 +1,8 @@
-import type { BillingCatalogue } from "@/shared/types/billing";
+import type {
+  BillingBundle,
+  BillingCatalogue,
+  BillingPilotOffer,
+} from "@/shared/types/billing";
 
 /**
  * AdCendy sells markets. One market is one country, covered end to end, and a
@@ -26,4 +30,25 @@ export function isPilotCatalogue(
   catalogue: Pick<BillingCatalogue, "pilot"> | undefined,
 ): boolean {
   return catalogue?.pilot === true;
+}
+
+/**
+ * How many pilot seats are left, in the server's count. Shown sold out too:
+ * a full pilot is part of what makes it believable.
+ */
+export function pilotSeatsLabel(offer: BillingPilotOffer): string {
+  if (offer.soldOut || offer.seatsRemaining <= 0) {
+    return `All ${offer.seatsTotal} pilot seats are taken`;
+  }
+  const seats = offer.seatsRemaining === 1 ? "seat" : "seats";
+  return `${offer.seatsRemaining} of ${offer.seatsTotal} pilot ${seats} left`;
+}
+
+/** The pre-discount price a pilot bundle is measured against, if stated. */
+export function bundleOriginalPrice(
+  bundle: BillingBundle,
+): Pick<BillingBundle, "amountMinor" | "currency"> | null {
+  const original = bundle.originalAmountMinor;
+  if (!original || original <= bundle.amountMinor) return null;
+  return { amountMinor: original, currency: bundle.currency };
 }

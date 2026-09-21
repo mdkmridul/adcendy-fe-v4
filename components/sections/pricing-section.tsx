@@ -6,12 +6,31 @@ import { Check, Globe2, MapPinned } from 'lucide-react';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 import { formatMinorAmount } from '@/shared/payments/razorpay';
 import { usePublicCatalogue } from '@/shared/payments/usePublicCatalogue';
+import type { BillingBundle } from '@/shared/types/billing';
 import {
+  bundleOriginalPrice,
   marketCountDescription,
   marketCountLabel,
+  pilotSeatsLabel,
 } from '@/shared/payments/market-catalogue';
 
 type Currency = 'INR' | 'USD';
+
+/** The struck-through price a discounted bundle is measured against. */
+function PriceBeforeDiscount({ bundle }: { bundle: BillingBundle }) {
+  const original = bundleOriginalPrice(bundle);
+  if (!original) return null;
+  return (
+    <p className="text-sm text-muted-foreground">
+      <span className="line-through">{formatMinorAmount(original)}</span>
+      {bundle.discountPercent ? (
+        <span className="ml-2 font-semibold text-primary">
+          Save {bundle.discountPercent}%
+        </span>
+      ) : null}
+    </p>
+  );
+}
 
 // How many packages the server returns is the server's business — India is
 // expected to have one, other markets three or four. Tailwind needs whole
@@ -60,6 +79,8 @@ export function Pricing() {
   // (backend R-8).
   const catalogueQuery = usePublicCatalogue();
   const { isPilot } = catalogueQuery;
+  // Shown while the pilot runs, sold out included; seats are the server's count.
+  const pilotOffer = catalogueQuery.data?.pilotOffer ?? null;
   // Whatever the server priced for this visitor, in the order it sent it.
   const packages = catalogueQuery.data?.items ?? [];
   // Every listed package, plus the card for countries no package covers.
@@ -89,10 +110,15 @@ export function Pricing() {
             You buy markets, not credits. Prices come from our billing server and follow where
             you are &mdash; the same live catalogue powers this page and secure checkout.
           </p>
-          {isPilot && (
-            <p className="inline-block px-4 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
-              Pilot pricing &mdash; these prices hold only while the pilot runs
-            </p>
+          {pilotOffer && (
+            <div className="space-y-2">
+              <p className="inline-block px-4 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
+                {pilotOffer.label} &mdash; {pilotSeatsLabel(pilotOffer)}
+              </p>
+              {pilotOffer.note && !pilotOffer.soldOut && (
+                <p className="text-sm text-muted-foreground">{pilotOffer.note}</p>
+              )}
+            </div>
           )}
         </motion.div>
 
@@ -176,9 +202,9 @@ export function Pricing() {
                       <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
                         One-time
                       </span>
-                      {isPilot && (
+                      {bundle.pilot && (
                         <span className="inline-block px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold">
-                          Pilot price
+                          {pilotOffer?.label ?? 'Pilot price'}
                         </span>
                       )}
                     </div>
@@ -197,9 +223,15 @@ export function Pricing() {
                     >
                       {formatMinorAmount(bundle)}
                     </motion.p>
+                    <PriceBeforeDiscount bundle={bundle} />
                     <p className="text-xs text-muted-foreground">
-                      {isPilot ? 'pilot price, one-time purchase' : 'one-time purchase'}
+                      {bundle.pilot ? 'pilot price, one-time purchase' : 'one-time purchase'}
                     </p>
+                    {bundle.pilot && pilotOffer && (
+                      <p className="text-xs font-semibold text-primary">
+                        {pilotSeatsLabel(pilotOffer)}
+                      </p>
+                    )}
                   </div>
 
                   <Link

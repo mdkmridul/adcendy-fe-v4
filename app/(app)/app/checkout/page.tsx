@@ -25,16 +25,17 @@ import {
   getCheckoutRequiredDocumentIds,
 } from "@/shared/legal/legal-flow-utils";
 import { CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES } from "@/shared/types/legal";
-import type { BillingOrder } from "@/shared/types/billing";
+import type { BillingBundle, BillingOrder } from "@/shared/types/billing";
 import {
   formatMinorAmount,
   loadRazorpayCheckout,
   type RazorpayCheckoutResponse,
 } from "@/shared/payments/razorpay";
 import {
-  isPilotCatalogue,
+  bundleOriginalPrice,
   marketCountDescription,
   marketCountLabel,
+  pilotSeatsLabel,
 } from "@/shared/payments/market-catalogue";
 import { useAuth } from "@/features/auth/useAuth";
 import ENV from "@/lib/env";
@@ -42,6 +43,22 @@ import {
   INDIAN_PAYMENT_REFUND_MESSAGE,
   isIndianPaymentRefund,
 } from "@/shared/payments/pricingPreference";
+
+/** The struck-through price a discounted bundle is measured against. */
+function PriceBeforeDiscount({ bundle }: { bundle: BillingBundle }) {
+  const original = bundleOriginalPrice(bundle);
+  if (!original) return null;
+  return (
+    <span className="ml-2 text-sm text-muted-foreground">
+      <span className="line-through">{formatMinorAmount(original)}</span>
+      {bundle.discountPercent ? (
+        <span className="ml-1 font-semibold text-primary">
+          −{bundle.discountPercent}%
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object" && "message" in error) {
@@ -110,7 +127,7 @@ export default function CheckoutPage() {
   );
   const selectedBundle =
     bundles.find((bundle) => bundle.sku === selectedSku) ?? bundles[0];
-  const isPilot = isPilotCatalogue(bundlesQuery.data);
+  const pilotOffer = bundlesQuery.data?.pilotOffer ?? null;
   const checkoutChecklistItems = useMemo(
     () =>
       buildLegalChecklistItems(
@@ -342,9 +359,12 @@ export default function CheckoutPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-3">
-              {isPilot ? (
+              {pilotOffer ? (
                 <p className="text-sm font-medium text-primary sm:col-span-3">
-                  Pilot pricing — these prices hold only while the pilot runs.
+                  {pilotOffer.label} — {pilotSeatsLabel(pilotOffer)}.
+                  {pilotOffer.note && !pilotOffer.soldOut
+                    ? ` ${pilotOffer.note}.`
+                    : ""}
                 </p>
               ) : null}
               {bundlesQuery.data?.fallbackApplied ? (
@@ -364,6 +384,11 @@ export default function CheckoutPage() {
                     onClick={() => setSelectedSku(bundle.sku)}
                     className={`rounded-lg border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
                   >
+                    {bundle.pilot && pilotOffer ? (
+                      <div className="mb-1 text-xs font-semibold text-primary">
+                        {pilotOffer.label}
+                      </div>
+                    ) : null}
                     <div className="text-2xl font-semibold">
                       {marketCountLabel(bundle.credits)}
                     </div>
@@ -372,6 +397,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="mt-3 font-medium">
                       {formatMinorAmount(bundle)}
+                      <PriceBeforeDiscount bundle={bundle} />
                     </div>
                   </button>
                 );
