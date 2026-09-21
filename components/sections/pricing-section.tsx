@@ -6,12 +6,13 @@ import { Check, Globe2, MapPinned } from 'lucide-react';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
 import { formatMinorAmount } from '@/shared/payments/razorpay';
 import { usePublicCatalogue } from '@/shared/payments/usePublicCatalogue';
-import type { BillingBundle } from '@/shared/types/billing';
+import type { BillingBundle, BillingPilotOffer } from '@/shared/types/billing';
 import {
   bundleOriginalPrice,
   marketCountDescription,
   marketCountLabel,
   pilotSeatsLabel,
+  splitPilotCatalogue,
 } from '@/shared/payments/market-catalogue';
 
 type Currency = 'INR' | 'USD';
@@ -24,9 +25,7 @@ function PriceBeforeDiscount({ bundle }: { bundle: BillingBundle }) {
     <p className="text-sm text-muted-foreground">
       <span className="line-through">{formatMinorAmount(original)}</span>
       {bundle.discountPercent ? (
-        <span className="ml-2 font-semibold text-primary">
-          Save {bundle.discountPercent}%
-        </span>
+        <span className="ml-2 font-semibold text-primary">Save {bundle.discountPercent}%</span>
       ) : null}
     </p>
   );
@@ -43,6 +42,119 @@ const GRID_BY_CARD_COUNT: Record<number, string> = {
   4: 'max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
 };
 const GRID_FALLBACK = 'max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+
+/** Seats taken and left, as the server counts them. */
+function SeatMeter({ offer }: { offer: BillingPilotOffer }) {
+  const taken = Math.max(0, offer.seatsTotal - offer.seatsRemaining);
+  const percent = Math.round((taken / offer.seatsTotal) * 100);
+  return (
+    <div className="mx-auto max-w-md space-y-1.5">
+      <div
+        className="h-2 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={offer.seatsTotal}
+        aria-valuenow={taken}
+        aria-label="Pilot seats taken"
+      >
+        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="text-center text-xs font-semibold text-primary">{pilotSeatsLabel(offer)}</p>
+    </div>
+  );
+}
+
+type PackageKind = 'pilot' | 'regular-price' | 'package';
+
+/**
+ * One priced package. A pilot card is set apart; the card beside it is the
+ * same markets at the regular price, so the pilot's saving can be checked.
+ */
+function PackageCard({
+  bundle,
+  kind,
+  pilotLabel,
+  ctaHref,
+  currency,
+  delay,
+}: {
+  bundle: BillingBundle;
+  kind: PackageKind;
+  pilotLabel?: string;
+  ctaHref: string;
+  currency: Currency | undefined;
+  delay: number;
+}) {
+  const isPilot = kind === 'pilot';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      viewport={{ once: true }}
+      className={
+        isPilot
+          ? 'rounded-2xl border-2 border-primary bg-card shadow-lg shadow-primary/30 transition-all'
+          : 'rounded-2xl border border-border bg-card transition-all hover:border-primary/40'
+      }
+    >
+      <div className="p-8 space-y-6">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-space-grotesk text-xl font-bold text-foreground">
+              {marketCountLabel(bundle.credits)}
+            </h3>
+            {isPilot ? (
+              <span className="inline-block px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                {pilotLabel ?? 'Pilot price'}
+              </span>
+            ) : (
+              <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                {kind === 'regular-price' ? 'Regular price' : 'One-time'}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{marketCountDescription(bundle.credits)}</p>
+        </div>
+
+        <div className="space-y-0.5">
+          <motion.p
+            key={currency}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className={`text-4xl font-bold ${isPilot ? 'text-primary' : 'text-foreground'}`}
+          >
+            {formatMinorAmount(bundle)}
+          </motion.p>
+          <PriceBeforeDiscount bundle={bundle} />
+          <p className="text-xs text-muted-foreground">
+            {isPilot
+              ? 'pilot price, one-time purchase'
+              : kind === 'regular-price'
+                ? 'what every client pays after the pilot'
+                : 'one-time purchase'}
+          </p>
+        </div>
+
+        <Link
+          href={ctaHref}
+          className={
+            isPilot
+              ? 'inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10'
+          }
+        >
+          {isPilot
+            ? 'Claim a pilot seat'
+            : bundle.credits === 1
+              ? 'Start one market'
+              : 'Choose this package'}
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
 
 const INCLUDED = [
   'Competitive and market intelligence on your market, and a strategy built on it — delivered as a document your team owns',
@@ -83,16 +195,13 @@ export function Pricing() {
   const pilotOffer = catalogueQuery.data?.pilotOffer ?? null;
   // Whatever the server priced for this visitor, in the order it sent it.
   const packages = catalogueQuery.data?.items ?? [];
+  // Pilot bundles are shown beside their regular price; the rest in a grid.
+  const { comparisons, others } = splitPilotCatalogue(packages);
   // Every listed package, plus the card for countries no package covers.
-  const gridClass =
-    GRID_BY_CARD_COUNT[packages.length + 1] ?? GRID_FALLBACK;
+  const gridClass = GRID_BY_CARD_COUNT[others.length + 1] ?? GRID_FALLBACK;
   // What the server actually priced in, not what was asked for.
   const currency: Currency | undefined =
-    catalogueQuery.data?.currency === 'INR'
-      ? 'INR'
-      : catalogueQuery.data
-        ? 'USD'
-        : undefined;
+    catalogueQuery.data?.currency === 'INR' ? 'INR' : catalogueQuery.data ? 'USD' : undefined;
 
   return (
     <section id="pricing" className="bg-background py-20 sm:py-32 px-4 sm:px-6 lg:px-8">
@@ -107,18 +216,13 @@ export function Pricing() {
             Priced by market
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            You buy markets, not credits. Prices come from our billing server and follow where
-            you are &mdash; the same live catalogue powers this page and secure checkout.
+            You buy markets, not credits. Prices come from our billing server and follow where you
+            are &mdash; the same live catalogue powers this page and secure checkout.
           </p>
-          {pilotOffer && (
-            <div className="space-y-2">
-              <p className="inline-block px-4 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
-                {pilotOffer.label} &mdash; {pilotSeatsLabel(pilotOffer)}
-              </p>
-              {pilotOffer.note && !pilotOffer.soldOut && (
-                <p className="text-sm text-muted-foreground">{pilotOffer.note}</p>
-              )}
-            </div>
+          {pilotOffer && !pilotOffer.soldOut && (
+            <p className="inline-block px-4 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
+              {pilotOffer.label} &mdash; {pilotSeatsLabel(pilotOffer)}
+            </p>
           )}
         </motion.div>
 
@@ -166,8 +270,7 @@ export function Pricing() {
         )}
 
         {/* A catalogue that priced nothing for this visitor is as good as no price at all. */}
-        {(catalogueQuery.isError ||
-          (catalogueQuery.isSuccess && packages.length === 0)) && (
+        {(catalogueQuery.isError || (catalogueQuery.isSuccess && packages.length === 0)) && (
           <div className="max-w-4xl mx-auto mb-12 rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Live pricing is temporarily unavailable.
@@ -183,108 +286,109 @@ export function Pricing() {
         )}
 
         {catalogueQuery.isSuccess && packages.length > 0 && (
-          <div className={`mx-auto grid gap-6 mb-12 ${gridClass}`}>
-            {packages.map((bundle, idx) => (
-              <motion.div
-                key={bundle.sku}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.08 }}
-                viewport={{ once: true }}
-                className="rounded-2xl border border-primary bg-card shadow-lg shadow-primary/20 transition-all"
-              >
-                <div className="p-8 space-y-6">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-space-grotesk text-xl font-bold text-foreground">
-                        {marketCountLabel(bundle.credits)}
-                      </h3>
-                      <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                        One-time
-                      </span>
-                      {bundle.pilot && (
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold">
-                          {pilotOffer?.label ?? 'Pilot price'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {marketCountDescription(bundle.credits)}
-                    </p>
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <motion.p
-                      key={currency}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-4xl font-bold text-primary"
-                    >
-                      {formatMinorAmount(bundle)}
-                    </motion.p>
-                    <PriceBeforeDiscount bundle={bundle} />
-                    <p className="text-xs text-muted-foreground">
-                      {bundle.pilot ? 'pilot price, one-time purchase' : 'one-time purchase'}
-                    </p>
-                    {bundle.pilot && pilotOffer && (
-                      <p className="text-xs font-semibold text-primary">
-                        {pilotSeatsLabel(pilotOffer)}
-                      </p>
-                    )}
-                  </div>
-
-                  <Link
-                    href={ctaHref}
-                    className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    {bundle.credits === 1 ? 'Start one market' : 'Choose this package'}
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
-
-            {/* Not a catalogue item: the way out for countries no package covers. */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: packages.length * 0.08 }}
-              viewport={{ once: true }}
-              className="rounded-2xl border border-border bg-card/50 hover:border-primary/30 transition-all"
-            >
-              <div className="p-8 space-y-6">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-space-grotesk text-xl font-bold text-foreground">
-                      Multiple markets
-                    </h3>
-                    <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                      Custom
-                    </span>
-                  </div>
+          <div className="mb-12 space-y-12">
+            {/* The pilot beside the price everyone else pays, so the saving is real. */}
+            {pilotOffer && (
+              <div className="mx-auto max-w-4xl space-y-4">
+                <div className="text-center space-y-1">
+                  <h3 className="font-space-grotesk text-2xl font-bold text-foreground">
+                    {pilotOffer.label}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Selling into a set of countries these don&rsquo;t cover.
+                    {pilotOffer.soldOut
+                      ? 'The pilot is full. Regular prices apply.'
+                      : (pilotOffer.note ?? 'Pilot pricing') +
+                        ' \u2014 limited to ' +
+                        pilotOffer.seatsTotal +
+                        ' clients. Everyone after them pays the regular price.'}
                   </p>
                 </div>
-
-                <div className="space-y-0.5">
-                  <p className="text-4xl font-bold text-foreground">Let&rsquo;s talk</p>
-                  <p className="text-xs text-muted-foreground">priced with you</p>
-                </div>
-
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  We run the same campaign across each country you name, and price the package
-                  with you.
-                </p>
-
-                <Link
-                  href="/contact"
-                  className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10"
-                >
-                  Get a quote
-                </Link>
+                <SeatMeter offer={pilotOffer} />
+                {comparisons.map(({ pilot, regular }) => (
+                  <div key={pilot.sku} className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <PackageCard
+                      bundle={pilot}
+                      kind="pilot"
+                      pilotLabel={pilotOffer.label}
+                      ctaHref={ctaHref}
+                      currency={currency}
+                      delay={0}
+                    />
+                    {regular && (
+                      <PackageCard
+                        bundle={regular}
+                        kind="regular-price"
+                        ctaHref={ctaHref}
+                        currency={currency}
+                        delay={0.08}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
-            </motion.div>
+            )}
+
+            <div className="space-y-4">
+              {pilotOffer && (
+                <h3 className="text-center font-space-grotesk text-2xl font-bold text-foreground">
+                  More markets
+                </h3>
+              )}
+              <div className={`mx-auto grid gap-6 ${gridClass}`}>
+                {others.map((bundle, idx) => (
+                  <PackageCard
+                    key={bundle.sku}
+                    bundle={bundle}
+                    kind="package"
+                    ctaHref={ctaHref}
+                    currency={currency}
+                    delay={idx * 0.08}
+                  />
+                ))}
+
+                {/* Not a catalogue item: the way out for countries no package covers. */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: others.length * 0.08 }}
+                  viewport={{ once: true }}
+                  className="rounded-2xl border border-border bg-card/50 hover:border-primary/30 transition-all"
+                >
+                  <div className="p-8 space-y-6">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-space-grotesk text-xl font-bold text-foreground">
+                          Multiple markets
+                        </h3>
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                          Custom
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Selling into a set of countries these don&rsquo;t cover.
+                      </p>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <p className="text-4xl font-bold text-foreground">Let&rsquo;s talk</p>
+                      <p className="text-xs text-muted-foreground">priced with you</p>
+                    </div>
+
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      We run the same campaign across each country you name, and price the package
+                      with you.
+                    </p>
+
+                    <Link
+                      href="/contact"
+                      className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10"
+                    >
+                      Get a quote
+                    </Link>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -324,8 +428,9 @@ export function Pricing() {
           >
             <p className="text-sm font-semibold text-foreground">Pilot guarantee</p>
             <p className="text-sm text-muted-foreground">
-              If your strategy doesn&apos;t surface at least 3 specific, actionable opportunities you
-              didn&apos;t already know about, we&apos;ll refund the pilot fee. No questions, no forms.
+              If your strategy doesn&apos;t surface at least 3 specific, actionable opportunities
+              you didn&apos;t already know about, we&apos;ll refund the pilot fee. No questions, no
+              forms.
             </p>
           </motion.div>
         )}

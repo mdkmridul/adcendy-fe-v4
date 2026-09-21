@@ -36,6 +36,7 @@ import {
   marketCountDescription,
   marketCountLabel,
   pilotSeatsLabel,
+  splitPilotCatalogue,
 } from "@/shared/payments/market-catalogue";
 import { useAuth } from "@/features/auth/useAuth";
 import ENV from "@/lib/env";
@@ -57,6 +58,56 @@ function PriceBeforeDiscount({ bundle }: { bundle: BillingBundle }) {
         </span>
       ) : null}
     </span>
+  );
+}
+
+/** One selectable package; a pilot option is set apart. */
+function BundleOption({
+  bundle,
+  tag,
+  note,
+  highlight = false,
+  selected,
+  onSelect,
+}: {
+  bundle: BillingBundle;
+  tag?: string;
+  note?: string | null;
+  highlight?: boolean;
+  selected: boolean;
+  onSelect: (sku: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(bundle.sku)}
+      className={`rounded-lg p-4 text-left transition-colors ${highlight ? "border-2" : "border"} ${selected ? "border-primary bg-primary/10" : highlight ? "border-primary/60 hover:border-primary" : "border-border hover:border-primary/50"}`}
+    >
+      {tag ? (
+        <div
+          className={`mb-1 text-xs font-semibold ${highlight ? "text-primary" : "text-muted-foreground"}`}
+        >
+          {tag}
+        </div>
+      ) : null}
+      <div className="text-2xl font-semibold">
+        {marketCountLabel(bundle.credits)}
+      </div>
+      <div className="text-sm text-muted-foreground">
+        {marketCountDescription(bundle.credits)}
+      </div>
+      <div className="mt-3 font-medium">
+        {formatMinorAmount(bundle)}
+        <PriceBeforeDiscount bundle={bundle} />
+      </div>
+      {note ? (
+        <div
+          className={`mt-1 text-xs ${highlight ? "font-semibold text-primary" : "text-muted-foreground"}`}
+        >
+          {note}
+        </div>
+      ) : null}
+    </button>
   );
 }
 
@@ -128,6 +179,11 @@ export default function CheckoutPage() {
   const selectedBundle =
     bundles.find((bundle) => bundle.sku === selectedSku) ?? bundles[0];
   const pilotOffer = bundlesQuery.data?.pilotOffer ?? null;
+  // The pilot is shown beside the regular price for the same markets.
+  const { comparisons, others } = useMemo(
+    () => splitPilotCatalogue(bundles),
+    [bundles],
+  );
   const checkoutChecklistItems = useMemo(
     () =>
       buildLegalChecklistItems(
@@ -375,33 +431,48 @@ export default function CheckoutPage() {
                   </AlertDescription>
                 </Alert>
               ) : null}
-              {bundles.map((bundle) => {
-                const selected = selectedBundle?.sku === bundle.sku;
-                return (
-                  <button
-                    key={bundle.sku}
-                    type="button"
-                    onClick={() => setSelectedSku(bundle.sku)}
-                    className={`rounded-lg border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
-                  >
-                    {bundle.pilot && pilotOffer ? (
-                      <div className="mb-1 text-xs font-semibold text-primary">
-                        {pilotOffer.label}
-                      </div>
-                    ) : null}
-                    <div className="text-2xl font-semibold">
-                      {marketCountLabel(bundle.credits)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {marketCountDescription(bundle.credits)}
-                    </div>
-                    <div className="mt-3 font-medium">
-                      {formatMinorAmount(bundle)}
-                      <PriceBeforeDiscount bundle={bundle} />
-                    </div>
-                  </button>
-                );
-              })}
+              {comparisons.length > 0 ? (
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:col-span-3">
+                  Pilot price beside the regular price
+                </p>
+              ) : null}
+              {comparisons.map(({ pilot, regular }) => (
+                <div
+                  key={pilot.sku}
+                  className="grid gap-3 sm:col-span-3 sm:grid-cols-2"
+                >
+                  <BundleOption
+                    bundle={pilot}
+                    tag={pilotOffer?.label ?? "Pilot price"}
+                    note={pilotOffer ? pilotSeatsLabel(pilotOffer) : null}
+                    highlight
+                    selected={selectedBundle?.sku === pilot.sku}
+                    onSelect={setSelectedSku}
+                  />
+                  {regular ? (
+                    <BundleOption
+                      bundle={regular}
+                      tag="Regular price"
+                      note="What every client pays after the pilot"
+                      selected={selectedBundle?.sku === regular.sku}
+                      onSelect={setSelectedSku}
+                    />
+                  ) : null}
+                </div>
+              ))}
+              {comparisons.length > 0 && others.length > 0 ? (
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:col-span-3">
+                  More markets
+                </p>
+              ) : null}
+              {others.map((bundle) => (
+                <BundleOption
+                  key={bundle.sku}
+                  bundle={bundle}
+                  selected={selectedBundle?.sku === bundle.sku}
+                  onSelect={setSelectedSku}
+                />
+              ))}
               {bundlesQuery.isLoading ? (
                 <p className="text-sm text-muted-foreground">
                   Loading prices…

@@ -9,6 +9,7 @@ import {
   marketCountDescription,
   marketCountLabel,
   pilotSeatsLabel,
+  splitPilotCatalogue,
 } from "../../shared/payments/market-catalogue.ts";
 
 const LANDING_DEFAULT_COUNTRY = "US";
@@ -210,4 +211,32 @@ test("a captured payment refreshes entitlement and returns to the main dashboard
   assert.match(checkoutPage, /displayedOrder\?\.status !== "PAID"/);
   assert.match(checkoutPage, /queryKeys\.profile\.me\(\)/);
   assert.match(checkoutPage, /router\.replace\("\/app"\)/);
+});
+
+test("each pilot price sits beside the regular price for the same markets", async () => {
+  const catalogue = await billingMockAdapter.listPublicBundles(
+    LANDING_DEFAULT_COUNTRY,
+  );
+  const { comparisons, others } = splitPilotCatalogue(catalogue.items);
+
+  assert.deepEqual(
+    comparisons.map(({ pilot, regular }) => [pilot.sku, regular?.sku]),
+    [["Pilot Launch", "Launch"]],
+  );
+  assert.deepEqual(
+    others.map((item) => item.sku),
+    ["2 Markets", "3 Markets", "4 Markets", "5 Markets"],
+  );
+  // Every server item is shown exactly once.
+  assert.equal(comparisons.length * 2 + others.length, catalogue.items.length);
+});
+
+test("without a pilot, every package is a regular one", () => {
+  const items = [
+    { sku: "Launch", credits: 1, amountMinor: 60000, currency: "USD" },
+  ];
+  assert.deepEqual(splitPilotCatalogue(items), {
+    comparisons: [],
+    others: items,
+  });
 });

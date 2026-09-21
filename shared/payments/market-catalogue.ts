@@ -52,3 +52,37 @@ export function bundleOriginalPrice(
   if (!original || original <= bundle.amountMinor) return null;
   return { amountMinor: original, currency: bundle.currency };
 }
+
+/** A pilot bundle beside the regular bundle buying the same markets. */
+export interface PilotComparison {
+  pilot: BillingBundle;
+  regular: BillingBundle | null;
+}
+
+/**
+ * Splits the server's list for display: each pilot bundle paired with the
+ * regular bundle for the same number of markets, so the page can show both
+ * prices side by side, and the regular bundles left over, in the server's
+ * order. Nothing is repriced or dropped.
+ */
+export function splitPilotCatalogue(items: BillingBundle[]): {
+  comparisons: PilotComparison[];
+  others: BillingBundle[];
+} {
+  const regular = items.filter((item) => item.pilot !== true);
+  const paired = new Set<BillingBundle>();
+  const comparisons = items
+    .filter((item) => item.pilot === true)
+    .map((pilot) => {
+      const match =
+        regular.find(
+          (item) => item.credits === pilot.credits && !paired.has(item),
+        ) ?? null;
+      if (match) paired.add(match);
+      return { pilot, regular: match };
+    });
+  return {
+    comparisons,
+    others: regular.filter((item) => !paired.has(item)),
+  };
+}

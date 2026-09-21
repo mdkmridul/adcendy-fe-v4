@@ -19,7 +19,8 @@ const BELIEFS = [
 ];
 
 export function Manifesto() {
-  const { isPilot } = usePublicCatalogue();
+  const { isPilot, data } = usePublicCatalogue();
+  const pilotSeats = data?.pilotOffer?.seatsTotal;
   return (
     <section id="manifesto" className="py-20 sm:py-32 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-4xl mx-auto">
@@ -72,11 +73,11 @@ export function Manifesto() {
           <p className="text-muted-foreground text-sm leading-relaxed">
             We are a small team building Adcendy under{' '}
             <span className="text-foreground font-medium">Erraiway Technologies LLP</span>.
-            {isPilot && (
+            {isPilot && pilotSeats && (
               <>
                 {' '}
-                We are starting with a 7-client pilot to build this <em>with</em> real founder
-                feedback, not in a vacuum.
+                We are starting with a {pilotSeats}-client pilot to build this <em>with</em> real
+                founder feedback, not in a vacuum.
               </>
             )}
           </p>
