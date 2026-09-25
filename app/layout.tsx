@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { DM_Sans, Space_Grotesk, Inter } from 'next/font/google'
 import { Providers } from '@/shared/providers/Providers'
 import { ApiDebugPanel } from '@/components/dev/api-debug-panel'
+import { BUSINESS_TERMS } from '@/shared/marketing/business-terms'
 import Script from 'next/script'
 import './globals.css'
 
@@ -29,9 +30,11 @@ const _dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'AdCendy - Market Intelligence & Strategy Reports',
-  description: 'Transform market signals into actionable strategy. Get comprehensive competitive intelligence and 30-minute strategy reports powered by real market evidence.',
-  generator: 'v0.app',
+  title: {
+    default: 'AdCendy - Market Intelligence & Strategy Reports',
+    template: '%s | AdCendy',
+  },
+  description: `Competitive intelligence and a human-reviewed marketing strategy your team can own, delivered within ${BUSINESS_TERMS.delivery.businessDays} business days.`,
   icons: {
     icon: [
       {

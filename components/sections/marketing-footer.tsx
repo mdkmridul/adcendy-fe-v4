@@ -5,16 +5,13 @@ import {
   LANDING_SUB_TARGETS as T,
   type LandingTarget,
 } from '@/features/landing/landing-sections';
+import { usePublicLegalDocuments } from '@/shared/legal/useLegalCatalogue';
+import { copyrightNotice } from '@/shared/marketing/business-terms';
 
-/**
- * A place on the landing page, another page, or one still being written. A
- * pending entry is shown as plain text rather than a link to '#': the reader
- * is told it is coming instead of being sent nowhere.
- */
+/** A place on the landing page, or another page. */
 type FooterLink =
   | { section: LandingTarget }
-  | { label: string; href: string }
-  | { label: string; pending: true };
+  | { label: string; href: string };
 
 // The sitemap follows the page, in the order the page presents it, and uses
 // the same labels as the navbar.
@@ -40,14 +37,15 @@ const LINKS: Record<string, FooterLink[]> = {
     { section: S.manifesto },
     { label: 'Contact', href: '/contact' },
   ],
-  // Published by the backend and accepted at signup and checkout today; the
-  // public pages that render them are still to come.
-  Legal: [
-    { label: 'Privacy', pending: true },
-    { label: 'Terms', pending: true },
-    { label: 'Refund policy', pending: true },
-  ],
 };
+
+/** The published policies, as the Backend lists them; the column hides until they load. */
+function useLegalLinks(): FooterLink[] {
+  const { data } = usePublicLegalDocuments();
+  return (data ?? [])
+    .filter((document) => document.url)
+    .map((document) => ({ label: document.title, href: document.url as string }));
+}
 
 const LINK_CLASS = 'text-sm text-muted-foreground hover:text-foreground transition-colors';
 
@@ -59,21 +57,17 @@ function FooterEntry({ link }: { link: FooterLink }) {
       </SectionLink>
     );
   }
-  if ('href' in link) {
-    return (
-      <Link href={link.href} className={LINK_CLASS}>
-        {link.label}
-      </Link>
-    );
-  }
   return (
-    <span className="text-sm text-muted-foreground/70">
-      {link.label} <span className="text-xs text-muted-foreground/50">(In Progress)</span>
-    </span>
+    <Link href={link.href} className={LINK_CLASS}>
+      {link.label}
+    </Link>
   );
 }
 
 export function MarketingFooter() {
+  const legalLinks = useLegalLinks();
+  const columns = legalLinks.length > 0 ? { ...LINKS, Legal: legalLinks } : LINKS;
+
   return (
     <footer className="border-t border-border bg-background px-4 sm:px-6 lg:px-8 py-16">
       <div className="max-w-7xl mx-auto">
@@ -91,7 +85,7 @@ export function MarketingFooter() {
           </div>
 
           {/* Link columns */}
-          {Object.entries(LINKS).map(([section, links]) => (
+          {Object.entries(columns).map(([section, links]) => (
             <div key={section} className="space-y-3">
               <p className="text-xs font-semibold text-foreground uppercase tracking-wider">
                 {section}
@@ -109,7 +103,7 @@ export function MarketingFooter() {
 
         <div className="pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; 2026 Erraiway Technologies LLP. All rights reserved.
+            {copyrightNotice()}
           </p>
           <p className="text-xs text-muted-foreground">
             Adcendy &mdash; Market intelligence. Expert review. Direction your team can own.

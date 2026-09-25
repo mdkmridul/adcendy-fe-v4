@@ -2,12 +2,21 @@
 
 import { motion } from 'framer-motion';
 import { ClipboardList, Search, UserCheck, FileText } from 'lucide-react';
+import { BUSINESS_TERMS as TERMS, deliveryWindowLabel } from '@/shared/marketing/business-terms';
 
-const STEPS = [
+// Only the intake and the delivery commitment carry a time: the stages in
+// between are ours to schedule, and the policy promises the end date only.
+const STEPS: Array<{
+  number: string;
+  title: string;
+  time?: string;
+  description: string;
+  icon: typeof ClipboardList;
+}> = [
   {
     number: '01',
     title: 'You tell us about your business',
-    time: '15 minutes',
+    time: `${TERMS.intake.formMinutes} minutes`,
     description:
       'A guided intake captures your product, audience, goals, and the team you have to execute. If you have a website, we analyze it for positioning, trust signals, and how it converts.',
     icon: ClipboardList,
@@ -15,7 +24,6 @@ const STEPS = [
   {
     number: '02',
     title: 'We map your market',
-    time: 'within 24 hours',
     description:
       'We analyze what your competitors are doing across advertising and search, where the keyword and channel opportunities sit, and how your market positions itself — specific to your market, as it stands today.',
     icon: Search,
@@ -23,7 +31,6 @@ const STEPS = [
   {
     number: '03',
     title: 'A human strategist reviews and refines',
-    time: '3–5 days',
     description:
       'Nothing ships without passing our review gate. An experienced strategist validates the positioning, pressure-tests every recommendation, and turns the intelligence into direction your team can act on.',
     icon: UserCheck,
@@ -31,7 +38,7 @@ const STEPS = [
   {
     number: '04',
     title: 'Your team gets a strategy they own',
-    time: 'delivered day 7',
+    time: `delivered ${deliveryWindowLabel()}`,
     description:
       'Not a pitch deck. A working document with the market intelligence, positioning, messaging, channel direction, and 30-day priorities — clear enough for your team to run with from day one.',
     icon: FileText,
@@ -50,7 +57,7 @@ export function HowItWorks() {
           className="text-center max-w-2xl mx-auto mb-16 space-y-4"
         >
           <h2 className="font-space-grotesk text-4xl sm:text-5xl font-bold text-foreground">
-            From intake to direction in 7 days
+            From intake to direction {deliveryWindowLabel()}
           </h2>
           <p className="text-lg text-muted-foreground">
             Four steps. No calls until the strategy lands.
@@ -77,9 +84,11 @@ export function HowItWorks() {
                   <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
                     <span className="font-space-grotesk text-sm font-bold text-primary">{step.number}</span>
                   </div>
-                  <div className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                    {step.time}
-                  </div>
+                  {step.time ? (
+                    <div className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                      {step.time}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">

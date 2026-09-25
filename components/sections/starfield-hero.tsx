@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { Starfield } from '@/components/interactive/starfield';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
+import { BUSINESS_TERMS as TERMS, deliveryWindowLabel } from '@/shared/marketing/business-terms';
 
 export function StarfieldHero() {
   const { status } = useMarketingAuth();
@@ -71,7 +72,7 @@ export function StarfieldHero() {
             transition={{ delay: 0.4, duration: 0.6 }}
             className="text-xs text-muted-foreground"
           >
-            No card. No call. 5-minute form, results in 24 hours.
+            No card. No call. {TERMS.intake.formMinutes}-minute form, delivered {deliveryWindowLabel()}.
           </motion.p>
         </motion.div>
       </div>
@@ -85,7 +86,7 @@ export function StarfieldHero() {
         <div className="flex items-center gap-3 px-4 py-2 rounded-full border border-border/50 bg-card/30 backdrop-blur-md">
           <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
           <span className="text-xs font-semibold text-muted-foreground">
-            7 days · Human-reviewed · Execution-ready
+            {TERMS.delivery.businessDays} business days · Human-reviewed · Execution-ready
           </span>
         </div>
       </motion.div>

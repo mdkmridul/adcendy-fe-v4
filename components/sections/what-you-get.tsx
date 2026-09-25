@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Check, ChevronRight, Megaphone, Globe, Users, LayoutGrid, MessageSquare, CalendarDays, X } from 'lucide-react';
 import Link from 'next/link';
+import { BUSINESS_TERMS as TERMS } from '@/shared/marketing/business-terms';
 
 const DELIVERABLES = [
   {
@@ -77,7 +78,7 @@ export function WhatYouGet() {
           transition={{ delay: 0.2 }}
           className="text-center text-sm text-muted-foreground mb-12"
         >
-          Average length: 25–35 pages. Time to read: ~1 hour. Time for your team to act on it: starts day one.
+          Average length: {TERMS.report.pages} pages. Time to read: {TERMS.report.readingTime}. Time for your team to act on it: starts day one.
         </motion.p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

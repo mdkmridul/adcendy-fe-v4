@@ -12,8 +12,10 @@ import {
   marketCountDescription,
   marketCountLabel,
   pilotSeatsLabel,
+  priceGroupHeading,
   separatePilotPackages,
 } from '@/shared/payments/market-catalogue';
+import { BUSINESS_TERMS as TERMS, PILOT_GUARANTEE_TEXT, revisionRoundsLabel } from '@/shared/marketing/business-terms';
 
 type Currency = 'INR' | 'USD';
 
@@ -154,11 +156,68 @@ function PackageCard({
   );
 }
 
+/**
+ * How wide the quote card is: as wide as the last row of packages above it,
+ * so it reads as the row's continuation. Rows hold three cards on large
+ * screens; Tailwind needs each width spelled out.
+ */
+function customCardWidth(regularCount: number): string {
+  const lastRow = regularCount % 3;
+  if (lastRow === 1 || regularCount === 0) return CARD_WIDTH;
+  if (lastRow === 2) return 'w-full lg:w-[calc(66.666%-0.5rem)]';
+  return 'w-full';
+}
+
+/**
+ * The multi-market quote, in a package card's styling: the same border,
+ * type and button, with "Let's talk" where a price would be.
+ */
+function CustomQuoteCard() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="h-full rounded-2xl border border-border bg-card transition-all hover:border-primary/40"
+    >
+      <div className="p-8 grid gap-6 md:grid-cols-2 md:items-end">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-space-grotesk text-xl font-bold text-foreground">
+              Multiple markets
+            </h3>
+            <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+              Custom
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Selling into a set of countries these packages don&rsquo;t cover? We run the same
+            campaign across each country you name, and price the package with you.
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-0.5">
+            <p className="text-4xl font-bold text-foreground">Let&rsquo;s talk</p>
+            <p className="text-xs text-muted-foreground">priced with you</p>
+          </div>
+          <Link
+            href="/contact"
+            className="inline-flex w-full items-center justify-center py-3 px-4 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10"
+          >
+            Get a quote
+          </Link>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 const INCLUDED = [
   'Competitive and market intelligence on your market, and a strategy built on it — delivered as a document your team owns',
   'Human review gate — nothing ships without passing it',
-  'One revision round if the strategy doesn’t fit',
-  '30 days of guided support — a kickoff, a check on your numbers against the plan’s targets, and a final review',
+  `${revisionRoundsLabel({ sentenceStart: true })} if the strategy doesn’t fit`,
+  `${TERMS.guidedSupportDays} days of guided support — a kickoff, a check on your numbers against the plan’s targets, and a final review`,
   'Email support throughout',
   'A clear roadmap for what to do next',
 ];
@@ -226,6 +285,22 @@ export function Pricing() {
           )}
         </motion.div>
 
+        {/* The guarantee is the pilot's; it leads the prices while the pilot runs,
+            and goes when the pilot does. */}
+        {isPilot && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-10 max-w-3xl mx-auto p-6 rounded-xl border border-primary/30 bg-primary/5 text-center space-y-2"
+          >
+            <p className="text-sm font-semibold text-foreground">Pilot guarantee</p>
+            <p className="text-sm text-muted-foreground">
+              {PILOT_GUARANTEE_TEXT}
+            </p>
+          </motion.div>
+        )}
+
         {/* What counts as one market — stated here, and again in the FAQ, on purpose. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -292,7 +367,7 @@ export function Pricing() {
               <div className="mx-auto max-w-4xl space-y-6">
                 <div className="text-center space-y-1">
                   <h3 className="font-space-grotesk text-2xl font-bold text-foreground">
-                    {pilotOffer.label}
+                    {priceGroupHeading(pilotOffer.label)}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {pilotOffer.soldOut
@@ -322,13 +397,13 @@ export function Pricing() {
               </div>
             )}
 
-            {regularPackages.length > 0 && (
-              <div className="space-y-6">
-                {pilotPackages.length > 0 && (
-                  <h3 className="text-center font-space-grotesk text-2xl font-bold text-foreground">
-                    Regular pricing
-                  </h3>
-                )}
+            <div className="space-y-6">
+              {regularPackages.length > 0 && pilotPackages.length > 0 && (
+                <h3 className="text-center font-space-grotesk text-2xl font-bold text-foreground">
+                  Regular price
+                </h3>
+              )}
+              {regularPackages.length > 0 && (
                 <div className={CARD_ROW}>
                   {regularPackages.map((bundle, idx) => (
                     <div key={bundle.sku} className={CARD_WIDTH}>
@@ -342,41 +417,17 @@ export function Pricing() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Not a catalogue item, so not in the grid: the way out for a set
-                of countries none of the packages covers, right after the last one. */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="mx-auto max-w-6xl rounded-2xl border border-primary/40 bg-card p-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-space-grotesk text-xl font-bold text-foreground">
-                    Multiple markets
-                  </h3>
-                  <span className="inline-block px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                    Custom
-                  </span>
+              {/* Not a catalogue item, so not in the grid: it sits right under the
+                  last row, as wide as that row, styled like the cards above it. */}
+              <div className={CARD_ROW}>
+                <div className={customCardWidth(regularPackages.length)}>
+                  <CustomQuoteCard />
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                  Selling into a set of countries these packages don&rsquo;t cover? We run the
-                  same campaign across each country you name, and price the package with you.
-                </p>
               </div>
-              <div className="shrink-0 space-y-1 md:text-right">
-                <p className="text-2xl font-bold text-foreground">Let&rsquo;s talk</p>
-                <Link
-                  href="/contact"
-                  className="inline-flex items-center justify-center py-3 px-6 rounded-lg font-semibold transition-all text-sm border border-primary text-primary hover:bg-primary/10"
-                >
-                  Get a quote
-                </Link>
-              </div>
-            </motion.div>
+            </div>
+
           </div>
         )}
 
@@ -404,24 +455,6 @@ export function Pricing() {
             ))}
           </div>
         </motion.div>
-
-        {/* The guarantee is the pilot's; it goes when the pilot does. */}
-        {isPilot && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="mt-6 max-w-3xl mx-auto p-6 rounded-xl border border-primary/20 bg-primary/5 text-center space-y-2"
-          >
-            <p className="text-sm font-semibold text-foreground">Pilot guarantee</p>
-            <p className="text-sm text-muted-foreground">
-              If your strategy doesn&apos;t surface at least 3 specific, actionable opportunities
-              you didn&apos;t already know about, we&apos;ll refund the pilot fee. No questions, no
-              forms.
-            </p>
-          </motion.div>
-        )}
 
         <motion.p
           initial={{ opacity: 0 }}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { usePublicCatalogue } from '@/shared/payments/usePublicCatalogue';
+import { BUSINESS_TERMS as TERMS, PILOT_GUARANTEE_TEXT, deliveryWindowLabel, revisionRoundsLabel } from '@/shared/marketing/business-terms';
 
 type Faq = { question: string; answer: string; id?: string };
 
@@ -29,7 +30,7 @@ function buildFaqs(isPilot: boolean): Faq[] {
     {
       question: 'How long does it actually take?',
       answer:
-        "About 7 days from intake to delivery. Market analysis runs in the first 24 hours; human review and strategy refinement takes 3–5 days; a revision round, if needed, adds 1–2 days. " +
+        `We deliver ${deliveryWindowLabel()} of confirming your inputs are complete. That is a written commitment in our Delivery Policy, not an estimate. ` +
         (isPilot
           ? "During the pilot we deliberately cap how many strategies we take on at once so this timeline holds — if we're at capacity when you order, we'll tell you the honest turnaround before you pay, not after."
           : "If we're ever at capacity when you order, we'll tell you the honest turnaround before you pay, not after."),
@@ -37,15 +38,15 @@ function buildFaqs(isPilot: boolean): Faq[] {
     {
       question: "What if the strategy doesn't fit my business?",
       answer:
-        "You get one revision round included." +
+        `You get ${revisionRoundsLabel()} included.` +
         (isPilot
-          ? " If after that the strategy still doesn't surface 3 actionable opportunities specific to your business, we refund the pilot fee."
+          ? ` During the pilot, the pilot guarantee also applies: ${PILOT_GUARANTEE_TEXT}`
           : ""),
     },
     {
       question: 'Will you execute the strategy for me?',
       answer:
-        "No — and that's deliberate. We're the direction, not the hands. The strategy is built for your team (in-house marketers, freelancers, or an agency) to own and run. Every market includes 30 days of guided support — a kickoff, a check on your numbers against the plan's targets, and a final review — so your team isn't on its own while they execute. If you have no way to execute yet, we're probably not the right first step.",
+        `No — and that's deliberate. We're the direction, not the hands. The strategy is built for your team (in-house marketers, freelancers, or an agency) to own and run. Every market includes ${TERMS.guidedSupportDays} days of guided support — a kickoff, a check on your numbers against the plan's targets, and a final review — so your team isn't on its own while they execute. If you have no way to execute yet, we're probably not the right first step.`,
     },
     {
       question: 'Can I see a sample before paying?',

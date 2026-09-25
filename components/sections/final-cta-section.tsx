@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { useMarketingAuth } from '@/src/lib/auth/useAuth';
+import { BUSINESS_TERMS as TERMS, deliveryWindowLabel } from '@/shared/marketing/business-terms';
 
 export function FinalCTA() {
   const { status } = useMarketingAuth();
@@ -49,7 +50,7 @@ export function FinalCTA() {
             href="/contact"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
           >
-            Or book a 20-minute call if you'd rather talk first
+            Or book a {TERMS.intake.callMinutes}-minute call if you'd rather talk first
           </Link>
         </motion.div>
 
@@ -60,7 +61,7 @@ export function FinalCTA() {
           transition={{ delay: 0.25 }}
           className="text-xs text-muted-foreground"
         >
-          No card. No call. 5-minute form, results in 24 hours.
+          No card. No call. {TERMS.intake.formMinutes}-minute form, delivered {deliveryWindowLabel()}.
         </motion.p>
       </div>
     </section>

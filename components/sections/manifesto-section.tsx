@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { usePublicCatalogue } from '@/shared/payments/usePublicCatalogue';
+import { BUSINESS_TERMS as TERMS } from '@/shared/marketing/business-terms';
 
 const BELIEFS = [
   {
@@ -14,7 +15,7 @@ const BELIEFS = [
   },
   {
     title: 'The process is the product, not the output.',
-    body: "Lots of tools can generate a marketing strategy in 10 seconds. Ours takes 7 days — because we spend 6 of them collecting real data about your actual market, analyzing it properly, and having a strategist pressure-test every recommendation. The time is intentional. The rigour is the value.",
+    body: `Lots of tools can generate a marketing strategy in 10 seconds. Ours takes up to ${TERMS.delivery.businessDays} business days — because we spend them collecting real data about your actual market, analyzing it properly, and having a strategist pressure-test every recommendation. The time is intentional. The rigour is the value.`,
   },
 ];
 
@@ -72,7 +73,7 @@ export function Manifesto() {
         >
           <p className="text-muted-foreground text-sm leading-relaxed">
             We are a small team building Adcendy under{' '}
-            <span className="text-foreground font-medium">Erraiway Technologies LLP</span>.
+            <span className="text-foreground font-medium">{TERMS.company.legalName}</span>.
             {isPilot && pilotSeats && (
               <>
                 {' '}

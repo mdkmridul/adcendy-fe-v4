@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, Minus, X } from 'lucide-react';
+import { BUSINESS_TERMS as TERMS } from '@/shared/marketing/business-terms';
 
 type CellValue = 'yes' | 'maybe' | 'no' | string;
 
@@ -39,7 +40,7 @@ const CATEGORIES: Category[] = [
     heading: 'The trade',
     rows: [
       { label: 'How you pay', values: ['Once, no retainer', 'Per task or hourly', 'Monthly retainer, 10–50× the cost'] },
-      { label: 'Direction ready in', values: ['7 days', 'Depends on the task', '30–90 days to ramp'] },
+      { label: 'Direction ready in', values: [`${TERMS.delivery.businessDays} business days`, 'Depends on the task', '30–90 days to ramp'] },
     ],
   },
 ];
