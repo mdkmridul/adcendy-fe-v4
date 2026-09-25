@@ -77,7 +77,8 @@ test('standalone container starts only after runtime validation', () => {
   assert.match(nextConfig, /productionBrowserSourceMaps: false/);
   assert.match(nextConfig, /Content-Security-Policy/);
   assert.match(nextConfig, /connect-src 'self'/);
-  assert.match(dockerfile, /FROM node:22\.14\.0-alpine/);
+  assert.match(dockerfile, /^ARG NODE_VERSION=22\.14\.0$/m);
+  assert.match(dockerfile, /FROM node:\$\{NODE_VERSION\}-alpine AS runner/);
   assert.match(dockerfile, /USER nextjs/);
   assert.match(dockerfile, /validate-runtime-config\.ts/);
   assert.match(dockerfile, /\/health\/ready/);

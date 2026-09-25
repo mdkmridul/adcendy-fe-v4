@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22.14.0
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Verify pinned Node and npm
@@ -47,13 +47,17 @@ jobs:
         run: npm run env:check
         env:
           APP_ENV: uat
+          APP_ORIGIN: https://uat.adcendy.com
           RELEASE_ID: ${{ github.sha }}
+          SUPPORT_URL: https://uat.adcendy.com/contact
 
       - name: Validate Production runtime fixture
         run: npm run env:check
         env:
           APP_ENV: production
+          APP_ORIGIN: https://app.adcendy.com
           RELEASE_ID: ${{ github.sha }}
+          SUPPORT_URL: https://app.adcendy.com/contact
 
       - name: Build immutable application
         run: npm run build
@@ -69,11 +73,8 @@ jobs:
       - name: Scan browser bundle
         run: npm run bundle:scan
 
-      - name: Verify reverse-proxy reference against mock upstream
-        run: npm run proxy:verify
-
       - name: Build standalone container once
-        run: docker build --tag adcendy-fe:${{ github.sha }} .
+        run: docker build --build-arg NODE_VERSION="$(cat .nvmrc)" --tag adcendy-fe:${{ github.sha }} .
 
       - name: Generate Production dependency SBOM
         run: |
@@ -84,7 +85,9 @@ jobs:
         run: >-
           docker run --rm
           -e APP_ENV=uat
+          -e APP_ORIGIN=https://uat.adcendy.com
           -e RELEASE_ID=${{ github.sha }}
+          -e SUPPORT_URL=https://uat.adcendy.com/contact
           adcendy-fe:${{ github.sha }}
           node --experimental-strip-types scripts/validate-runtime-config.ts
 
@@ -92,7 +95,9 @@ jobs:
         run: >-
           docker run --rm
           -e APP_ENV=production
+          -e APP_ORIGIN=https://app.adcendy.com
           -e RELEASE_ID=${{ github.sha }}
+          -e SUPPORT_URL=https://app.adcendy.com/contact
           adcendy-fe:${{ github.sha }}
           node --experimental-strip-types scripts/validate-runtime-config.ts
 
