@@ -32,7 +32,7 @@ This document describes the three-layer API architecture:
 └──────────────────┬──────────────────────┘
                    │
         ┌──────────┴──────────┐
-        │ NEXT_PUBLIC_API_MODE│
+        │ DATA_SOURCE (runtime)│
         └──────────┬──────────┘
                    │
         ┌──────────┴──────────┐
@@ -91,9 +91,11 @@ const created = await http<Campaign>('/campaigns', {
 
 **Pattern:**
 ```typescript
-// campaignsRepository.ts
-const apiMode = process.env.NEXT_PUBLIC_API_MODE || 'mock';
-const adapter = apiMode === 'mock' ? campaignsMockAdapter : campaignsRealAdapter;
+// campaigns.repo.ts
+import { createRuntimeRepositoryAdapter } from '@/lib/env';
+
+// Resolves mock vs real per call from FEATURE_FLAGS.useMockData / DATA_SOURCE
+const adapter = createRuntimeRepositoryAdapter(campaignsMockAdapter, campaignsRealAdapter);
 
 export const campaignsRepository = {
   async listCampaigns() {
@@ -103,9 +105,12 @@ export const campaignsRepository = {
 };
 ```
 
+Never read `process.env` or `NEXT_PUBLIC_*` in client code; see the
+runtime-config rules in `shared/runtime-config/`.
+
 **Benefits:**
 - Feature code never knows about mock vs real
-- Easy to switch modes via env var
+- Mode is runtime configuration, not baked into the build
 - Consistent API surface across adapters
 - Type-safe with TypeScript interfaces
 
@@ -204,7 +209,7 @@ SWR checks cache (miss first time)
   ↓
 SWR calls campaignsRepository.listCampaigns()
   ↓
-Repository reads NEXT_PUBLIC_API_MODE = 'mock'
+Repository resolves DATA_SOURCE = 'mock' at call time
   ↓
 Repository calls campaignsMockAdapter.listCampaigns()
   ↓
@@ -359,10 +364,5 @@ await campaignsMockAdapter.listCampaigns();
 
 ### Verify mode:
 
-```typescript
-console.log(process.env.NEXT_PUBLIC_API_MODE); // 'mock' or 'real'
-```
-
----
-
-For environment setup, see `/.env.local.example`.
+Enable the `apiLogging` feature flag (local only); each repository logs the
+adapter it resolved.

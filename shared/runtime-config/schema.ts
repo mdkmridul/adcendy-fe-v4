@@ -1,5 +1,4 @@
 import {
-  APP_ORIGINS,
   RUNTIME_CONFIG_READY_EVENT,
   type AppEnvironment,
   type PublicFeatureFlags,
@@ -44,10 +43,9 @@ function assertPublicEnvironmentKeyAllowlist(source: EnvironmentSource): void {
   }
 }
 
-function parseAppEnvironment(
-  value: string | undefined,
-  nodeEnvironment: string | undefined,
-): AppEnvironment {
+// APP_ENV has no default: a missing value must never quietly select local
+// behavior (mock data, debug flags, relaxed URL rules) in a deployed image.
+function parseAppEnvironment(value: string | undefined): AppEnvironment {
   const normalized = value?.trim().toLowerCase();
   if (
     normalized === 'local' ||
@@ -56,8 +54,11 @@ function parseAppEnvironment(
   ) {
     return normalized;
   }
-  if (!normalized && nodeEnvironment !== 'production') return 'local';
-  throw new Error('APP_ENV must be local, uat, or production.');
+  throw new Error(
+    normalized
+      ? 'APP_ENV must be local, uat, or production.'
+      : 'APP_ENV is required and must be local, uat, or production.',
+  );
 }
 
 function parseFeatureFlags(
@@ -164,6 +165,103 @@ function validateHttpsPublicUrl(
   return url.toString();
 }
 
+const SUPPORT_EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+/**
+ * Where users are sent for help: an HTTPS page, or a mailto: address. Deployed
+ * environments must set one, so no page falls back to a hardcoded contact.
+ */
+function validateSupportUrl(
+  value: string | null,
+  appEnvironment: AppEnvironment,
+): string | null {
+  if (!value) {
+    if (appEnvironment !== 'local') {
+      throw new Error('SUPPORT_URL is required in deployed environments.');
+    }
+    return null;
+  }
+  if (value.toLowerCase().startsWith('mailto:')) {
+    const address = value.slice('mailto:'.length);
+    if (!SUPPORT_EMAIL_PATTERN.test(address)) {
+      throw new Error('SUPPORT_URL mailto: must name a single email address with no parameters.');
+    }
+    return `mailto:${address}`;
+  }
+  return validateHttpsPublicUrl('SUPPORT_URL', value, appEnvironment);
+}
+
+/**
+ * A Sentry DSN: https://<public key>@<ingest host>/<project id>. The key is
+ * public by design (it only permits sending events); a secret key segment,
+ * any path beyond the project id, or plain HTTP when deployed is rejected.
+ */
+function validateErrorDsn(value: string | null, appEnvironment: AppEnvironment): string | null {
+  if (!value) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('PUBLIC_ERROR_DSN must be a Sentry DSN URL.');
+  }
+  if (!/^[a-f0-9]{32}$/i.test(url.username) || url.password) {
+    throw new Error('PUBLIC_ERROR_DSN must carry only a Sentry public key, never a secret.');
+  }
+  if (!/^\/\d+$/.test(url.pathname) || url.search || url.hash) {
+    throw new Error('PUBLIC_ERROR_DSN must end in a numeric Sentry project id.');
+  }
+  if (appEnvironment !== 'local' && url.protocol !== 'https:') {
+    throw new Error('PUBLIC_ERROR_DSN must use HTTPS in deployed environments.');
+  }
+  return url.toString();
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname.endsWith('.localhost')
+  );
+}
+
+/**
+ * The origin this deployment serves the app from. It is deployment
+ * configuration, never compiled in: the same image runs anywhere, and the
+ * browser refuses to boot on any other origin.
+ */
+function parseAppOrigin(value: string | null, appEnvironment: AppEnvironment): string {
+  if (!value) {
+    throw new Error('APP_ORIGIN is required: the https origin this deployment is served from.');
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('APP_ORIGIN must be a valid origin such as https://app.example.com.');
+  }
+  if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('APP_ORIGIN must be a bare origin: scheme, host and optional port only.');
+  }
+  const hostname = url.hostname.toLowerCase();
+  if (appEnvironment === 'local') {
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLoopbackHostname(hostname))) {
+      throw new Error('A local APP_ORIGIN must use HTTPS, or HTTP on a loopback host.');
+    }
+    return url.origin;
+  }
+  if (url.protocol !== 'https:') {
+    throw new Error('APP_ORIGIN must use HTTPS in deployed environments.');
+  }
+  if (isLoopbackHostname(hostname) || hostname.endsWith('.local')) {
+    throw new Error('APP_ORIGIN cannot be a local hostname when deployed.');
+  }
+  if (appEnvironment === 'production' && /(^|[.-])(uat|staging|stage|test|dev)([.-]|$)/.test(hostname)) {
+    throw new Error('APP_ORIGIN names a non-Production host in Production.');
+  }
+  return url.origin;
+}
+
 function validateOpaquePublicValue(
   name: string,
   value: string | null,
@@ -211,10 +309,7 @@ export function buildRuntimePublicConfig(
   source: EnvironmentSource,
 ): RuntimePublicConfig {
   assertPublicEnvironmentKeyAllowlist(source);
-  const appEnvironment = parseAppEnvironment(
-    source.APP_ENV,
-    source.NODE_ENV,
-  );
+  const appEnvironment = parseAppEnvironment(source.APP_ENV);
   const releaseId =
     optional(source.RELEASE_ID) ??
     (appEnvironment === 'local' ? 'local-development' : null);
@@ -241,12 +336,9 @@ export function buildRuntimePublicConfig(
 
   return {
     APP_ENV: appEnvironment,
+    APP_ORIGIN: parseAppOrigin(optional(source.APP_ORIGIN), appEnvironment),
     RELEASE_ID: releaseId,
-    PUBLIC_ERROR_DSN: validateHttpsPublicUrl(
-      'PUBLIC_ERROR_DSN',
-      optional(source.PUBLIC_ERROR_DSN),
-      appEnvironment,
-    ),
+    PUBLIC_ERROR_DSN: validateErrorDsn(optional(source.PUBLIC_ERROR_DSN), appEnvironment),
     RAZORPAY_KEY_ID: razorpayKeyId,
     PUBLIC_ANALYTICS_ID: validateAnalyticsDestination(
       optional(source.PUBLIC_ANALYTICS_ID),
@@ -257,11 +349,7 @@ export function buildRuntimePublicConfig(
       appEnvironment,
       source.DATA_SOURCE,
     ),
-    SUPPORT_URL: validateHttpsPublicUrl(
-      'SUPPORT_URL',
-      optional(source.SUPPORT_URL),
-      appEnvironment,
-    ),
+    SUPPORT_URL: validateSupportUrl(optional(source.SUPPORT_URL), appEnvironment),
   };
 }
 
@@ -269,11 +357,9 @@ export function serializeRuntimeConfigScript(
   config: RuntimePublicConfig,
 ): string {
   const serialized = JSON.stringify(config).replaceAll('<', '\\u003c');
-  const allowedOrigins = JSON.stringify(APP_ORIGINS[config.APP_ENV]);
   return [
     `const config=${serialized};`,
-    `const allowedOrigins=${allowedOrigins};`,
-    `if(!allowedOrigins.includes(globalThis.location.origin)){throw new Error("Runtime environment and browser origin do not match.");}`,
+    `if(globalThis.location.origin!==config.APP_ORIGIN){throw new Error("Runtime environment and browser origin do not match.");}`,
     'globalThis.__ADCENDY_RUNTIME_CONFIG__=Object.freeze(config);',
     `globalThis.dispatchEvent(new Event(${JSON.stringify(RUNTIME_CONFIG_READY_EVENT)}));`,
   ].join('');

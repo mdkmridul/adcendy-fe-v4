@@ -9,6 +9,8 @@ export interface PublicFeatureFlags {
 
 export interface RuntimePublicConfig {
   APP_ENV: AppEnvironment;
+  /** The one origin this deployment is served from, supplied by the deployment. */
+  APP_ORIGIN: string;
   RELEASE_ID: string;
   PUBLIC_ERROR_DSN: string | null;
   RAZORPAY_KEY_ID: string | null;
@@ -18,12 +20,6 @@ export interface RuntimePublicConfig {
 }
 
 export const RUNTIME_CONFIG_READY_EVENT = 'adcendy-runtime-config-ready';
-
-export const APP_ORIGINS: Record<AppEnvironment, readonly string[]> = {
-  local: ['https://adcendy.localhost'],
-  uat: ['https://uat.adcendy.com'],
-  production: ['https://app.adcendy.com'],
-};
 
 declare global {
   interface Window {
@@ -40,8 +36,7 @@ export function assertBrowserOrigin(
   config: RuntimePublicConfig,
   actualOrigin: string,
 ): void {
-  const allowedOrigins = APP_ORIGINS[config.APP_ENV];
-  if (!allowedOrigins.includes(actualOrigin)) {
+  if (actualOrigin !== config.APP_ORIGIN) {
     throw new Error(
       `Runtime configuration for ${config.APP_ENV} cannot run on ${actualOrigin}.`,
     );

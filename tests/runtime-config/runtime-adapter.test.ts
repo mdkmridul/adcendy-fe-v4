@@ -21,6 +21,7 @@ const realAdapter: TestAdapter = {
 function runtimeConfig(useMockData: boolean): RuntimePublicConfig {
   return {
     APP_ENV: 'local',
+    APP_ORIGIN: 'https://adcendy.localhost',
     RELEASE_ID: 'runtime-adapter-test',
     PUBLIC_ERROR_DSN: null,
     RAZORPAY_KEY_ID: null,

@@ -9,7 +9,9 @@ import { assertBrowserOrigin } from '../../shared/runtime-config/types.ts';
 const production = {
   NODE_ENV: 'production',
   APP_ENV: 'production',
+  APP_ORIGIN: 'https://app.adcendy.com',
   RELEASE_ID: 'git-65a37c3',
+  SUPPORT_URL: 'https://support.adcendy.com/help',
 };
 
 test('builds an allowlisted Production configuration without an API origin', () => {
@@ -21,6 +23,7 @@ test('builds an allowlisted Production configuration without an API origin', () 
 
   assert.deepEqual(Object.keys(config).sort(), [
     'APP_ENV',
+    'APP_ORIGIN',
     'FEATURE_FLAGS',
     'PUBLIC_ANALYTICS_ID',
     'PUBLIC_ERROR_DSN',
@@ -55,6 +58,40 @@ test('rejects legacy NEXT_PUBLIC and unknown public variables', () => {
   );
 });
 
+test('requires an explicit APP_ENV in every mode', () => {
+  for (const NODE_ENV of ['production', 'development', 'test', undefined]) {
+    for (const APP_ENV of [undefined, '', '   ']) {
+      assert.throws(
+        () => buildRuntimePublicConfig({ NODE_ENV, APP_ENV, RELEASE_ID: 'r1' }),
+        /APP_ENV is required/,
+      );
+    }
+  }
+});
+
+test('SUPPORT_URL is required when deployed and accepts HTTPS or a single mailto address', () => {
+  assert.throws(
+    () => buildRuntimePublicConfig({ APP_ENV: 'uat', APP_ORIGIN: 'https://uat.adcendy.com', RELEASE_ID: 'r1' }),
+    /SUPPORT_URL is required/,
+  );
+  assert.equal(
+    buildRuntimePublicConfig({ APP_ENV: 'local', APP_ORIGIN: 'https://adcendy.localhost', RELEASE_ID: 'r1' }).SUPPORT_URL,
+    null,
+  );
+  assert.equal(
+    buildRuntimePublicConfig({ ...production, SUPPORT_URL: 'mailto:hello@adcendy.com' }).SUPPORT_URL,
+    'mailto:hello@adcendy.com',
+  );
+  for (const SUPPORT_URL of [
+    'mailto:not-an-address',
+    'mailto:a@b.com,c@d.com',
+    'mailto:hello@adcendy.com?subject=x',
+    'http://support.adcendy.com',
+  ]) {
+    assert.throws(() => buildRuntimePublicConfig({ ...production, SUPPORT_URL }), /SUPPORT_URL/, SUPPORT_URL);
+  }
+});
+
 test('ignores blank retired public variables', () => {
   assert.doesNotThrow(() =>
     buildRuntimePublicConfig({
@@ -71,6 +108,7 @@ test('rejects Production, UAT, and localhost mismatches', () => {
       buildRuntimePublicConfig({
         NODE_ENV: 'production',
         APP_ENV: 'uat',
+        APP_ORIGIN: 'https://uat.adcendy.com',
         RELEASE_ID: 'release-1',
         SUPPORT_URL: 'https://app.adcendy.com/help',
       }),
@@ -145,6 +183,7 @@ test('enforces payment environment separation', () => {
       buildRuntimePublicConfig({
         NODE_ENV: 'production',
         APP_ENV: 'uat',
+        APP_ORIGIN: 'https://uat.adcendy.com',
         RELEASE_ID: 'release-1',
         RAZORPAY_KEY_ID: 'rzp_live_example',
       }),
@@ -188,10 +227,40 @@ test('runtime script and browser guard enforce the authoritative host', () => {
   );
 });
 
+test('APP_ORIGIN is required and must be a bare origin fit for its environment', () => {
+  assert.throws(() => buildRuntimePublicConfig({ ...production, APP_ORIGIN: '' }), /APP_ORIGIN is required/);
+  for (const APP_ORIGIN of [
+    'https://app.adcendy.com/app',
+    'https://app.adcendy.com?x=1',
+    'https://user:pass@app.adcendy.com',
+    'http://app.adcendy.com',
+    'https://localhost',
+    'https://uat.adcendy.com',
+    'not a url',
+  ]) {
+    assert.throws(() => buildRuntimePublicConfig({ ...production, APP_ORIGIN }), /APP_ORIGIN/, APP_ORIGIN);
+  }
+  assert.equal(
+    buildRuntimePublicConfig({ ...production, APP_ORIGIN: 'https://app.adcendy.com/' }).APP_ORIGIN,
+    'https://app.adcendy.com',
+  );
+  const local = { APP_ENV: 'local', RELEASE_ID: 'r1' };
+  assert.equal(buildRuntimePublicConfig({ ...local, APP_ORIGIN: 'http://127.0.0.1:34100' }).APP_ORIGIN, 'http://127.0.0.1:34100');
+  assert.throws(() => buildRuntimePublicConfig({ ...local, APP_ORIGIN: 'http://example.com' }), /loopback/);
+});
+
+test('the same image serves any origin the deployment names, and only that one', () => {
+  const config = buildRuntimePublicConfig({ ...production, APP_ORIGIN: 'https://www.adcendy-new.example' });
+  assert.doesNotThrow(() => assertBrowserOrigin(config, 'https://www.adcendy-new.example'));
+  assert.throws(() => assertBrowserOrigin(config, 'https://app.adcendy.com'), /cannot run/);
+  assert.match(serializeRuntimeConfigScript(config), /"APP_ORIGIN":"https:\/\/www\.adcendy-new\.example"/);
+});
+
 test('local runtime accepts only the integrated HTTPS origin', () => {
   const config = buildRuntimePublicConfig({
     NODE_ENV: 'production',
     APP_ENV: 'local',
+    APP_ORIGIN: 'https://adcendy.localhost',
     RELEASE_ID: 'local-integration',
   });
 
