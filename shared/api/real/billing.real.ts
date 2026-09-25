@@ -33,12 +33,15 @@ export const billingRealAdapter = {
   async createOrder(
     sku: string,
     idempotencyKey: string,
+    acceptedLegalDocumentVersionIdsV2: string[],
   ): Promise<BillingOrder> {
     const response = await http<ApiResponse<BillingOrder> | BillingOrder>(
       "/v1/billing/orders",
       {
         method: "POST",
-        body: { sku },
+        // The buyer's tick travels with the order, so the acceptance is
+        // recorded before any payment is started.
+        body: { sku, acceptedLegalDocumentVersionIdsV2 },
         headers: { "Idempotency-Key": idempotencyKey },
       },
     );

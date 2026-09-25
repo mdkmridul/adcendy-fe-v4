@@ -101,3 +101,14 @@ export function separatePilotPackages(
     regular: items.filter((item) => item.pilot !== true),
   };
 }
+
+/**
+ * A price group's heading reads "price", not "pricing". The pilot's name is
+ * the server's ("Founding pricing"), so only its last word is swapped and a
+ * renamed offer carries through.
+ */
+export function priceGroupHeading(label: string): string {
+  return label.replace(/\bpricing\s*$/i, (word) =>
+    word.startsWith("P") ? "Price" : "price",
+  );
+}

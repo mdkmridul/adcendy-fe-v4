@@ -20,11 +20,9 @@ import { queryKeys } from "@/shared/api/queryKeys";
 import { resolveLegalErrorMessage } from "@/shared/legal/legal-error";
 import {
   areAllRequiredDocumentsAccepted,
-  buildCheckoutAcceptPayload,
   buildLegalChecklistItems,
   getCheckoutRequiredDocumentIds,
 } from "@/shared/legal/legal-flow-utils";
-import { CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES } from "@/shared/types/legal";
 import type { BillingBundle, BillingOrder } from "@/shared/types/billing";
 import {
   formatMinorAmount,
@@ -44,6 +42,16 @@ import {
   INDIAN_PAYMENT_REFUND_MESSAGE,
   isIndianPaymentRefund,
 } from "@/shared/payments/pricingPreference";
+import {
+  isOrderAwaitingCapture,
+  nextOrderPollDelay,
+} from "@/shared/payments/order-polling";
+import { getSupportContact } from "@/shared/support/support-contact";
+
+function contactSupportPhrase(): string {
+  const support = getSupportContact();
+  return support ? `contact support at ${support.label}` : "contact support";
+}
 
 /** The struck-through price a discounted bundle is measured against. */
 function PriceBeforeDiscount({ bundle }: { bundle: BillingBundle }) {
@@ -144,14 +152,13 @@ export default function CheckoutPage() {
     enabled: shouldPoll && Boolean(currentOrder),
     refetchInterval: (query) => {
       const order = query.state.data as BillingOrder | undefined;
-      const status = order?.status;
       // A refund can take days to settle; the buyer is told at once, so
       // there is nothing more to wait for.
-      if (isIndianPaymentRefund(order)) return false;
-      return shouldPoll &&
-        (!status || status === "CREATED" || status === "PENDING")
-        ? 2000
-        : false;
+      if (!shouldPoll || isIndianPaymentRefund(order)) return false;
+      if (!isOrderAwaitingCapture(order?.status)) return false;
+      return nextOrderPollDelay(
+        query.state.dataUpdateCount + query.state.errorUpdateCount,
+      );
     },
     refetchOnWindowFocus: true,
   });
@@ -160,6 +167,20 @@ export default function CheckoutPage() {
   // An India-priced order paid from abroad is refunded, and the buyer is
   // told why.
   const refundedForIndianPayment = isIndianPaymentRefund(displayedOrder);
+  // Polling has hit its cap while Razorpay still has not confirmed capture:
+  // the buyer is told the markets will follow, rather than left watching.
+  const orderPollState = currentOrder
+    ? queryClient.getQueryState(queryKeys.billing.order(currentOrder.orderId))
+    : undefined;
+  const captureWaitExhausted =
+    shouldPoll &&
+    !refundedForIndianPayment &&
+    !orderQuery.isFetching &&
+    isOrderAwaitingCapture(displayedOrder?.status) &&
+    orderPollState !== undefined &&
+    nextOrderPollDelay(
+      orderPollState.dataUpdateCount + orderPollState.errorUpdateCount,
+    ) === false;
   // Prices follow the visitor's location alone; there is no switch
   // (backend R-8).
   const bundlesQuery = useQuery({
@@ -186,10 +207,7 @@ export default function CheckoutPage() {
   );
   const checkoutChecklistItems = useMemo(
     () =>
-      buildLegalChecklistItems(
-        activeDocuments,
-        CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES,
-      ),
+      buildLegalChecklistItems(activeDocuments, "CHECKOUT"),
     [activeDocuments],
   );
   const requiredDocumentIds = useMemo(
@@ -227,7 +245,9 @@ export default function CheckoutPage() {
     ? null
     : displayedOrder?.status === "PAID"
       ? `Payment captured. ${marketCountLabel(displayedOrder.credits)} added to your account.`
-      : submitSuccess;
+      : captureWaitExhausted
+        ? `Payment verified. Razorpay has not confirmed capture yet; your markets will be added as soon as it does. Refresh this page later, or ${contactSupportPhrase()} if they do not appear.`
+        : submitSuccess;
   const statusError = refundedForIndianPayment
     ? INDIAN_PAYMENT_REFUND_MESSAGE
     : displayedOrder?.status === "FAILED" ||
@@ -268,7 +288,7 @@ export default function CheckoutPage() {
       setSubmitError(
         errorMessage(
           error,
-          "Payment verification failed. Please contact support before retrying.",
+          `Payment verification failed. Please ${contactSupportPhrase()} before retrying.`,
         ),
       );
     }
@@ -277,10 +297,7 @@ export default function CheckoutPage() {
   const startPaymentMutation = useMutation({
     mutationFn: async () => {
       if (!selectedBundle) throw new Error("Select how many markets.");
-      if (
-        requiredDocumentIds.length !==
-        CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES.length
-      ) {
+      if (requiredDocumentIds.length === 0) {
         throw new Error(
           "Required checkout policies are unavailable. Please refresh.",
         );
@@ -295,22 +312,17 @@ export default function CheckoutPage() {
       }
 
       const Razorpay = ENV.API.isMock ? null : await loadRazorpayCheckout();
+      // The tick travels with the order: the Backend records the acceptance
+      // against it before Razorpay is opened, so a payment can never be taken
+      // on an order whose policies were not accepted.
       const order = await billingRepository.createOrder(
         selectedBundle.sku,
         crypto.randomUUID(),
+        requiredDocumentIds,
       );
       if (!order.providerOrderId)
         throw new Error("Razorpay did not return an order ID.");
       setCurrentOrder(order);
-
-      const payload = buildCheckoutAcceptPayload(
-        requiredDocumentIds,
-        order.orderId,
-      );
-      await legalRepository.acceptDocuments({
-        ...payload,
-        metadata: { flow: "checkout" },
-      });
 
       if (ENV.API.isMock) {
         await completeCheckout(order, {
@@ -388,9 +400,9 @@ export default function CheckoutPage() {
   };
 
   const isBusy = startPaymentMutation.isPending || isCheckoutOpen;
-  const policiesReady =
-    requiredDocumentIds.length ===
-    CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES.length;
+  // The Backend says which policies checkout requires; none listed means
+  // they are not published, and no payment starts without them.
+  const policiesReady = requiredDocumentIds.length > 0;
 
   return (
     <div className="space-y-5 p-6">

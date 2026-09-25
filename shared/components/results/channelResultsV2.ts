@@ -4,9 +4,11 @@
  *
  * Pure: period arithmetic, form-to-payload building, plain-language
  * formatting, and the same per-period metrics the backend derives (so the
- * in-memory mock agrees with the API). Type-only imports, so `node --test`
- * can run it directly.
+ * in-memory mock agrees with the API). Only type imports and relative `.ts`
+ * modules, so `node --test` can run it directly.
  */
+
+import { numberLocaleForCurrency } from '../../format/currency-locale.ts';
 
 import type {
   ChannelResultFiguresV2,
@@ -609,15 +611,11 @@ function isNumberV2(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function localeForCurrencyV2(currency: string | null | undefined): string {
-  return currency === 'INR' ? 'en-IN' : 'en-US';
-}
-
 export function formatMoneyV2(value: number | null | undefined, currency: string): string {
   if (!isNumberV2(value)) return EMPTY_VALUE_V2;
   const fractionDigits = Number.isInteger(value) ? 0 : 2;
   try {
-    return new Intl.NumberFormat(localeForCurrencyV2(currency), {
+    return new Intl.NumberFormat(numberLocaleForCurrency(currency), {
       style: 'currency',
       currency,
       minimumFractionDigits: fractionDigits,
@@ -630,7 +628,7 @@ export function formatMoneyV2(value: number | null | undefined, currency: string
 
 export function formatCountV2(value: number | null | undefined, currency?: string): string {
   if (!isNumberV2(value)) return EMPTY_VALUE_V2;
-  return new Intl.NumberFormat(localeForCurrencyV2(currency), {
+  return new Intl.NumberFormat(numberLocaleForCurrency(currency), {
     maximumFractionDigits: 2,
   }).format(value);
 }

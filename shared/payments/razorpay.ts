@@ -1,4 +1,5 @@
 import type { BillingBundle } from "@/shared/types/billing";
+import { numberLocaleForCurrency } from "../format/currency-locale.ts";
 
 const RAZORPAY_CHECKOUT_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
 
@@ -97,7 +98,7 @@ export function loadRazorpayCheckout(): Promise<RazorpayConstructor> {
 export function formatMinorAmount(
   bundle: Pick<BillingBundle, "amountMinor" | "currency">,
 ): string {
-  return new Intl.NumberFormat("en-IN", {
+  return new Intl.NumberFormat(numberLocaleForCurrency(bundle.currency), {
     style: "currency",
     currency: bundle.currency,
     maximumFractionDigits: 2,

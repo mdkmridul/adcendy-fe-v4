@@ -9,6 +9,7 @@ import {
   marketCountDescription,
   marketCountLabel,
   pilotSeatsLabel,
+  priceGroupHeading,
   separatePilotPackages,
   splitPilotCatalogue,
 } from "../../shared/payments/market-catalogue.ts";
@@ -26,6 +27,7 @@ test("mock checkout keeps the order identity and transitions it to paid", async 
   const order = await billingMockAdapter.createOrder(
     "5 Markets",
     "checkout-test-idempotency",
+    ["doc-terms"],
     "US",
   );
   assert.equal(order.status, "CREATED");
@@ -217,6 +219,14 @@ test("without a pilot offer, pilot packages are not shown at all", async () => {
   assert.ok(regular.every((item) => item.pilot !== true));
 });
 
+test("price group headings say price, keeping the server's name for the pilot", () => {
+  assert.equal(priceGroupHeading("Founding pricing"), "Founding price");
+  assert.equal(priceGroupHeading("Early access Pricing"), "Early access Price");
+  // Only a closing "pricing" changes; anything else is the server's wording.
+  assert.equal(priceGroupHeading("Pricing for founders"), "Pricing for founders");
+  assert.equal(priceGroupHeading("Founding offer"), "Founding offer");
+});
+
 test("frontend CSP permits the Razorpay-hosted Standard Checkout only over HTTPS", async () => {
   const { default: nextConfig } = await import("../../next.config.mjs");
   assert.ok(nextConfig.headers);
@@ -269,4 +279,10 @@ test("without a pilot, every package is a regular one", () => {
     comparisons: [],
     others: items,
   });
+});
+
+test("formats each currency with the digit grouping its buyers expect", () => {
+  assert.equal(formatMinorAmount({ amountMinor: 1_080_000_00, currency: "INR" }), "₹10,80,000.00");
+  assert.equal(formatMinorAmount({ amountMinor: 1_080_000_00, currency: "USD" }), "$1,080,000.00");
+  assert.equal(formatMinorAmount({ amountMinor: 150_000, currency: "GBP" }), "£1,500.00");
 });
