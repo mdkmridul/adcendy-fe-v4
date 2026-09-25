@@ -1,7 +1,7 @@
 {
-  "contractVersion": "1.0.0",
+  "contractVersion": "1.1.0",
   "deploymentModel": "same-origin-reverse-proxy",
-  "backendRevision": "working-tree@79324473cab50871875fc8c7472c440125b277a9",
+  "backendRevision": "working-tree@253f31ed009fc20c0a215719bd50dbbba71781c0",
   "backendOpenApiVersion": "2.3.0",
   "backendOpenApiSha256": "7caaad0010324eaf2dc12dee8c5975c117a852eb07bf0d471bad2dc42158d8fe",
   "externalRoutes": [
@@ -14,6 +14,11 @@
       "path": "/api/v2/*",
       "upstream": "backend",
       "upstreamPath": "unchanged"
+    },
+    {
+      "path": "/monitoring/errors",
+      "upstream": "error-reporting",
+      "upstreamPath": "configured-envelope-endpoint"
     },
     {
       "path": "/*",
@@ -67,22 +72,22 @@
   },
   "environments": {
     "uat": {
-      "publicOrigin": "https://uat.adcendy.com",
-      "forwardedHost": "uat.adcendy.com",
+      "publicOrigin": "APP_ORIGIN (deployment-supplied)",
+      "forwardedHost": "host of APP_ORIGIN",
       "forwardedProto": "https",
       "cors": "disabled"
     },
     "production": {
-      "publicOrigin": "https://app.adcendy.com",
-      "forwardedHost": "app.adcendy.com",
+      "publicOrigin": "APP_ORIGIN (deployment-supplied)",
+      "forwardedHost": "host of APP_ORIGIN",
       "forwardedProto": "https",
       "cors": "disabled"
     },
     "local": {
       "origins": [
-        "https://adcendy.localhost"
+        "APP_ORIGIN (deployment-supplied)"
       ],
-      "authoritativeOrigin": "https://adcendy.localhost",
+      "authoritativeOrigin": "APP_ORIGIN (deployment-supplied)",
       "httpFallback": null,
       "cors": "credentialed-exact-origin"
     }
@@ -100,5 +105,16 @@
   "source": {
     "backendContractPath": "config/deployment/frontend-proxy-contract.v1.json",
     "frontendContractPath": "config/deployment/frontend-proxy-contract.v1.json"
+  },
+  "errorReporting": {
+    "tunnelPath": "/monitoring/errors",
+    "methods": [
+      "POST"
+    ],
+    "upstream": "https://<ingest host>/api/<project id>/envelope/ of the project in PUBLIC_ERROR_DSN",
+    "maxBodyBytes": 1048576,
+    "forwardCookie": false,
+    "forwardAuthorization": false,
+    "clientIpSource": "CF-Connecting-IP"
   }
 }

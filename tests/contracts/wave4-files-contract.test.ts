@@ -12,7 +12,7 @@ const rawContract = read('contracts/backend/files-v1/2.0.0/adcendy-files.openapi
 const openapi = JSON.parse(rawContract);
 
 test('pins the immutable Backend files contract and checksum', () => {
-  assert.equal(manifest.backendRevision, 'working-tree@e8e31b036fcf36ebea9cf1a28b90754cde93e964');
+  assert.equal(manifest.backendRevision, 'working-tree@fcf547e5c658ba297b3004f2ec96ad8c10b41382');
   assert.equal(manifest.openApiVersion, '2.0.0');
   assert.equal(
     createHash('sha256').update(rawContract).digest('hex'),

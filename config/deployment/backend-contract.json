@@ -1,8 +1,8 @@
 {
-  "backendRevision": "working-tree@e8e31b036fcf36ebea9cf1a28b90754cde93e964",
-  "openApiVersion": "2.4.0",
+  "backendRevision": "working-tree@69a3fabe61a64979478971b6c7501622bc381213",
+  "openApiVersion": "2.5.0",
   "openApiFormat": "3.0.3",
-  "openApiSha256": "9ab9056aabeeb4a2223a939f7e63c8a3e3fb54678f76deebb2488d65ed9531a0",
+  "openApiSha256": "47562440e21a0a7d0434ab1b6f03cfc74b0e761368345c90e64c3c193394c6a4",
   "generatedClient": "src/generated/openapi.ts",
-  "generatedClientSha256": "3682b95f9c54e831a83d9f91d4f764e770ddae2fbf3345457d7be5e9f664bb87"
+  "generatedClientSha256": "ac86b2df5ce350f20769a62cc2a9053714a8930d48d3ea7ff363d1c6e6ce3b70"
 }

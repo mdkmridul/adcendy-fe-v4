@@ -16,12 +16,12 @@ test('pins the current Backend working tree and OpenAPI checksum', () => {
   );
   assert.equal(
     backendContract.backendRevision,
-    'working-tree@e8e31b036fcf36ebea9cf1a28b90754cde93e964',
+    'working-tree@69a3fabe61a64979478971b6c7501622bc381213',
   );
-  assert.equal(backendContract.openApiVersion, '2.4.0');
+  assert.equal(backendContract.openApiVersion, '2.5.0');
   assert.equal(
     backendContract.openApiSha256,
-    '9ab9056aabeeb4a2223a939f7e63c8a3e3fb54678f76deebb2488d65ed9531a0',
+    '47562440e21a0a7d0434ab1b6f03cfc74b0e761368345c90e64c3c193394c6a4',
   );
   assert.match(
     read('src/generated/openapi.ts'),
@@ -33,8 +33,12 @@ test('routes both API prefixes unchanged and all other traffic to FE', () => {
   assert.deepEqual(proxyContract.externalRoutes, [
     { path: '/v1/*', upstream: 'backend', upstreamPath: 'unchanged' },
     { path: '/api/v2/*', upstream: 'backend', upstreamPath: 'unchanged' },
+    { path: '/monitoring/errors', upstream: 'error-reporting', upstreamPath: 'configured-envelope-endpoint' },
     { path: '/*', upstream: 'frontend', upstreamPath: 'unchanged' },
   ]);
+  assert.equal(proxyContract.errorReporting.forwardCookie, false);
+  assert.equal(proxyContract.errorReporting.forwardAuthorization, false);
+  assert.deepEqual(proxyContract.errorReporting.methods, ['POST']);
 });
 
 test('requires forwarding, cookie, idempotency, and response preservation', () => {
