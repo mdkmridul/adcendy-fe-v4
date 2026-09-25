@@ -5,6 +5,13 @@ const SENSITIVE_VALUE_PATTERN =
 
 export type AnalyticsPrimitive = string | number | boolean | null;
 
+const SENSITIVE_VALUE_GLOBAL_PATTERN = new RegExp(SENSITIVE_VALUE_PATTERN.source, 'gi');
+
+/** Free text with bearer tokens and signed-URL credentials replaced. */
+export function redactSensitiveText(value: string): string {
+  return value.replace(SENSITIVE_VALUE_GLOBAL_PATTERN, '[redacted]');
+}
+
 export function sanitizeAnalyticsPath(value: string): string {
   try {
     const url = new URL(value, 'https://analytics.invalid');

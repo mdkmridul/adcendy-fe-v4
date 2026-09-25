@@ -8,6 +8,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { initializeAuthSync } from '@/features/auth/auth';
 import { refreshSession } from '@/shared/api/http';
 import { useRuntimeConfigReady } from '@/shared/runtime-config/features';
+import { getBrowserRuntimeConfig } from '@/shared/runtime-config/types';
+import { initErrorReporting } from '@/shared/monitoring/error-reporting';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +40,16 @@ function AuthSessionBootstrap() {
   return null;
 }
 
+/** Error reporting starts once runtime config says where reports go. */
+function ErrorReportingBootstrap() {
+  useEffect(() => {
+    const config = getBrowserRuntimeConfig();
+    if (config) initErrorReporting(config);
+  }, []);
+
+  return null;
+}
+
 function RuntimeConfigGate({ children }: { children: React.ReactNode }) {
   const runtimeConfigReady = useRuntimeConfigReady();
 
@@ -56,6 +68,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <RuntimeConfigGate>
+        <ErrorReportingBootstrap />
         <AuthSessionBootstrap />
         <SWRConfig
           value={{
