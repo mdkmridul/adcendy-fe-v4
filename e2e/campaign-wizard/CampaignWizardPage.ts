@@ -8,7 +8,7 @@ import type { CampaignExecutionReport, CampaignFixture } from './campaign-types'
 const COUNTRY_LABELS: Record<string, string> = {
   IN: 'India',
   US: 'United States',
-  UK: 'United Kingdom',
+  GB: 'United Kingdom',
 };
 
 const marketScopeLabel = (scope: string, countryCode: string) =>

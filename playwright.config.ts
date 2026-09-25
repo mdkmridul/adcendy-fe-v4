@@ -1,6 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-
-const baseURL = 'http://127.0.0.1:34100';
+import { E2E_BASE_URL as baseURL } from './scripts/e2e-server-address.mjs';
 
 export default defineConfig({
   testDir: './tests/e2e',

@@ -3,6 +3,7 @@ import {
   RUNTIME_CONFIG_READY_EVENT,
   type RuntimePublicConfig,
 } from '../../shared/runtime-config/types';
+import { E2E_BASE_URL } from '../../scripts/e2e-server-address.mjs';
 
 const clientUser = {
   id: 'e2e-client-user',
@@ -18,6 +19,7 @@ const authSession = {
 
 const browserRuntimeConfig: RuntimePublicConfig = {
   APP_ENV: 'local',
+  APP_ORIGIN: E2E_BASE_URL,
   RELEASE_ID: 'e2e-local',
   PUBLIC_ERROR_DSN: null,
   RAZORPAY_KEY_ID: null,

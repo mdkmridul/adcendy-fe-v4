@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import { E2E_BASE_URL, E2E_HOST, E2E_PORT } from './e2e-server-address.mjs';
 
 const environment = { ...process.env };
 
@@ -21,6 +22,7 @@ for (const key of retiredPublicKeys) {
 
 Object.assign(environment, {
   APP_ENV: 'local',
+  APP_ORIGIN: E2E_BASE_URL,
   DATA_SOURCE: 'mock',
   RELEASE_ID: 'e2e-local',
 });
@@ -35,8 +37,8 @@ if (productionMode) {
   });
   fs.cpSync('public', '.next/standalone/public', { recursive: true });
   Object.assign(environment, {
-    HOSTNAME: '127.0.0.1',
-    PORT: '34100',
+    HOSTNAME: E2E_HOST,
+    PORT: E2E_PORT,
   });
   argumentsForServer = ['.next/standalone/server.js'];
 } else {
@@ -44,9 +46,9 @@ if (productionMode) {
     'node_modules/next/dist/bin/next',
     'dev',
     '--hostname',
-    '127.0.0.1',
+    E2E_HOST,
     '--port',
-    '34100',
+    E2E_PORT,
   ];
 }
 
