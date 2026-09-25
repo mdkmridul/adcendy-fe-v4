@@ -1,4 +1,4 @@
-import type { StrategyRun, StrategyVersion, SubmitStrategyFeedbackPayload } from '@/shared/types/strategy';
+import type { StrategyRun, StrategyVersion } from '@/shared/types/strategy';
 import type { ID } from '@/shared/types/common';
 
 async function delay(ms: number) {
@@ -242,12 +242,8 @@ export const strategyMockAdapter = {
     return version;
   },
 
-  async submitFeedback(
-    _campaignId: ID,
-    strategyVersionId: ID,
-    payload: SubmitStrategyFeedbackPayload,
-  ): Promise<void> {
+  // The mock records nothing, so it takes none of the arguments.
+  async submitFeedback(): Promise<void> {
     await delay(200);
-    console.log(`[v0] Strategy feedback recorded: version=${strategyVersionId}, rating=${payload.rating}, note=${payload.note || 'none'}`);
   },
 };

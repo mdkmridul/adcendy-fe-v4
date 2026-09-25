@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getToken, setToken, getUser, setUser, clearAuth } from './auth';
-import type { AuthUser, Role } from './types';
+import { getToken, getUser, clearAuth } from './auth';
+import type { AuthUser } from './types';
 import { refreshSession } from '@/shared/api/http';
 import { authRepository } from '@/shared/api/repositories';
 
@@ -49,21 +49,6 @@ export function useAuth() {
     };
   }, []);
 
-  const loginMock = (role: Role) => {
-    const mockToken = `mock.${role}.${Date.now()}`;
-    const mockUser: AuthUser = {
-      id: `user-${Date.now()}`,
-      email: `${role.toLowerCase()}@adcendy.com`,
-      role,
-      createdAt: new Date().toISOString(),
-    };
-
-    setToken(mockToken);
-    setUser(mockUser);
-    setTokenState(mockToken);
-    setUserState(mockUser);
-  };
-
   const logout = async () => {
     try {
       await authRepository.logout();
@@ -81,7 +66,6 @@ export function useAuth() {
     token,
     isAuthenticated: !!token && !!user,
     isLoading,
-    loginMock,
     logout,
   };
 }
