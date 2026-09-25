@@ -9,39 +9,33 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { legalRepository } from '@/shared/api/repositories';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { resolveLegalErrorMessage } from '@/shared/legal/legal-error';
-import { buildConsentLabel, buildConsentToggleState, type ConsentToggleState } from '@/shared/legal/legal-flow-utils';
 import {
-  ACCOUNT_OPTIONAL_CONSENT_TYPES,
-  LEGAL_CONSENT_TYPE_VALUES,
-  WIZARD_REQUIRED_CONSENT_TYPES,
-  type LegalConsentType,
-} from '@/shared/types/legal';
-
-const DEFAULT_CONSENT_STATE: ConsentToggleState = {
-  PRIVACY_PROCESSING: false,
-  AI_PROCESSING: false,
-  BENCHMARK_DATA: false,
-  MARKETING_EMAILS: false,
-  ADS_INTEGRATION: false,
-};
+  buildConsentToggleState,
+  isConsentRequiredAt,
+  type ConsentToggleState,
+} from '@/shared/legal/legal-flow-utils';
+import { useConsentCatalogue } from '@/shared/legal/useLegalCatalogue';
+import type { LegalConsentType } from '@/shared/types/legal';
 
 export default function PrivacyConsentsPage() {
   const queryClient = useQueryClient();
-  const [consentState, setConsentState] = useState<ConsentToggleState>(DEFAULT_CONSENT_STATE);
+  const [consentState, setConsentState] = useState<ConsentToggleState>({});
+  const catalogueQuery = useConsentCatalogue();
+  const catalogue = useMemo(() => catalogueQuery.data ?? [], [catalogueQuery.data]);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { data: consentRecords = [], isLoading, isError } = useQuery({
+  const { data: consentRecords = [], isLoading: isLoadingRecords, isError: isRecordsError } = useQuery({
     queryKey: queryKeys.legal.consentsMe(),
     queryFn: () => legalRepository.getMyConsents(),
     refetchOnWindowFocus: false,
   });
 
+  const isLoading = isLoadingRecords || catalogueQuery.isLoading;
+  const isError = isRecordsError || catalogueQuery.isError;
+
   useEffect(() => {
-    setConsentState({
-      ...DEFAULT_CONSENT_STATE,
-      ...buildConsentToggleState(consentRecords),
-    });
-  }, [consentRecords]);
+    setConsentState(buildConsentToggleState(consentRecords, catalogue));
+  }, [consentRecords, catalogue]);
 
   const consentRecordByType = useMemo(() => {
     return consentRecords.reduce<Record<string, (typeof consentRecords)[number]>>((acc, record) => {
@@ -123,11 +117,11 @@ export default function PrivacyConsentsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {LEGAL_CONSENT_TYPE_VALUES.map((consentType) => {
-                const checked = consentState[consentType];
+              {catalogue.map(({ consentType, label, description, optionalAt }) => {
+                const checked = consentState[consentType] === true;
                 const record = consentRecordByType[consentType];
-                const isOptional = ACCOUNT_OPTIONAL_CONSENT_TYPES.includes(consentType);
-                const isRequired = WIZARD_REQUIRED_CONSENT_TYPES.includes(consentType);
+                const isOptional = optionalAt.includes('ACCOUNT');
+                const isRequired = isConsentRequiredAt(catalogue, consentType, 'WIZARD');
 
                 return (
                   <div
@@ -136,12 +130,13 @@ export default function PrivacyConsentsPage() {
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground/90">{buildConsentLabel(consentType)}</p>
+                        <p className="text-sm font-medium text-foreground/90">{label}</p>
                         <Badge variant={checked ? 'default' : 'outline'}>
                           {checked ? 'GIVEN' : 'WITHDRAWN'}
                         </Badge>
                         {isRequired ? <Badge variant="secondary">Required</Badge> : null}
                       </div>
+                      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
                       <p className="text-xs text-muted-foreground">
                         {record?.updatedAt ? `Updated ${new Date(record.updatedAt).toLocaleString()}` : 'No update recorded yet'}
                       </p>

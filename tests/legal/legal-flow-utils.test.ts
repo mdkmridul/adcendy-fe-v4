@@ -1,172 +1,156 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   areAllRequiredDocumentsAccepted,
   areWizardRequiredConsentsSatisfied,
   buildCheckoutAcceptPayload,
+  buildConsentLabel,
   buildConsentToggleState,
   buildLegalChecklistItems,
   buildSignupAcceptPayload,
   getCheckoutRequiredDocumentIds,
+  getConsentsForContext,
   getSignupRequiredDocumentIds,
-  resolveConsentPolicyVersion,
   resolveConsentAction,
   resolveConsentMutationEndpoint,
 } from '../../shared/legal/legal-flow-utils.ts';
-import type { LegalConsentRecord, LegalDocumentVersion } from '../../shared/types/legal.ts';
-import { CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES, SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES } from '../../shared/types/legal.ts';
+import * as legalFlowUtils from '../../shared/legal/legal-flow-utils.ts';
+import type {
+  LegalAcceptanceSource,
+  LegalConsentCatalogueItem,
+  LegalConsentRecord,
+  LegalDocumentVersion,
+} from '../../shared/types/legal.ts';
+
+// Shaped like GET /api/v2/legal/public/documents/active: the Backend states
+// which flow requires which document.
+function doc(id: string, documentType: string, title: string, requiredAt: LegalAcceptanceSource[]): LegalDocumentVersion {
+  return {
+    id,
+    documentType,
+    title,
+    versionLabel: '2026-01-01',
+    url: `/${id}`,
+    effectiveFrom: '2026-01-01T00:00:00.000Z',
+    publishedAt: '2026-01-01T00:00:00.000Z',
+    contentHash: 'hash',
+    requiredAt,
+  };
+}
 
 const activeDocumentsFixture: LegalDocumentVersion[] = [
-  {
-    id: 'tos-v2',
-    documentType: 'TERMS_OF_SERVICE',
-    title: 'Terms',
-    versionLabel: 'v2',
-    url: 'https://example.com/tos',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    publishedAt: '2026-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'privacy-v2',
-    documentType: 'PRIVACY_POLICY',
-    title: 'Privacy',
-    versionLabel: 'v2',
-    url: 'https://example.com/privacy',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    publishedAt: '2026-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'refund-v2',
-    documentType: 'REFUND_CANCELLATION_POLICY',
-    title: 'Refund',
-    versionLabel: 'v2',
-    url: 'https://example.com/refund',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    publishedAt: '2026-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'disclaimer-v2',
-    documentType: 'DISCLAIMER',
-    title: 'Disclaimer',
-    versionLabel: 'v2',
-    url: 'https://example.com/disclaimer',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    publishedAt: '2026-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'delivery-v2',
-    documentType: 'DIGITAL_DELIVERY_POLICY',
-    title: 'Delivery',
-    versionLabel: 'v2',
-    url: 'https://example.com/delivery',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    publishedAt: '2026-01-01T00:00:00.000Z',
-  },
+  doc('tos-v2', 'TERMS_OF_SERVICE', 'Terms of Service', ['SIGNUP', 'CHECKOUT']),
+  doc('privacy-v2', 'PRIVACY_POLICY', 'Privacy Policy', ['SIGNUP', 'CHECKOUT']),
+  doc('refund-v2', 'REFUND_CANCELLATION_POLICY', 'Refund Policy', ['CHECKOUT']),
+  doc('disclaimer-v2', 'DISCLAIMER', 'Disclaimer', ['CHECKOUT']),
+  doc('delivery-v2', 'DIGITAL_DELIVERY_POLICY', 'Delivery Policy', ['CHECKOUT']),
+  doc('cookies-v1', 'COOKIE_POLICY', 'Cookie Policy', []),
 ];
 
-test('1. active docs fetch + render model builds required signup checklist', () => {
-  const checklist = buildLegalChecklistItems(activeDocumentsFixture, SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES);
-  assert.equal(checklist.length, 2);
-  assert.equal(checklist[0]?.documentType, 'TERMS_OF_SERVICE');
-  assert.equal(checklist[1]?.documentType, 'PRIVACY_POLICY');
+// Shaped like GET /api/v2/legal/public/consents/catalogue.
+const catalogueFixture: LegalConsentCatalogueItem[] = [
+  { consentType: 'PRIVACY_PROCESSING', label: 'Privacy Processing', description: null, requiredAt: ['WIZARD'], optionalAt: [] },
+  { consentType: 'AI_PROCESSING', label: 'AI Processing', description: null, requiredAt: ['WIZARD'], optionalAt: [] },
+  { consentType: 'BENCHMARK_DATA', label: 'Benchmark Data', description: null, requiredAt: [], optionalAt: ['WIZARD', 'ACCOUNT'] },
+  { consentType: 'MARKETING_EMAILS', label: 'Marketing Emails', description: null, requiredAt: [], optionalAt: ['ACCOUNT'] },
+];
+
+test('1. the signup checklist is exactly what the Backend marks required at SIGNUP, labelled by its titles', () => {
+  const checklist = buildLegalChecklistItems(activeDocumentsFixture, 'SIGNUP');
+  assert.deepEqual(checklist.map((item) => item.documentType), ['TERMS_OF_SERVICE', 'PRIVACY_POLICY']);
+  assert.deepEqual(checklist.map((item) => item.label), ['Terms of Service', 'Privacy Policy']);
   assert.ok(checklist.every((item) => item.href));
 });
 
 test('2. signup accept builds correct payload with SIGNUP source', () => {
-  const signupIds = getSignupRequiredDocumentIds(activeDocumentsFixture);
-  const payload = buildSignupAcceptPayload(signupIds);
-  assert.deepEqual(payload, {
-    documentVersionIds: ['tos-v2', 'privacy-v2'],
-    source: 'SIGNUP',
-  });
+  const payload = buildSignupAcceptPayload(getSignupRequiredDocumentIds(activeDocumentsFixture));
+  assert.deepEqual(payload, { documentVersionIds: ['tos-v2', 'privacy-v2'], source: 'SIGNUP' });
 });
 
-test('3. checkout requires all 5 required documents', () => {
+test('3. checkout requires every document the Backend marks required at CHECKOUT', () => {
   const checkoutIds = getCheckoutRequiredDocumentIds(activeDocumentsFixture);
-  assert.equal(checkoutIds.length, CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES.length);
-  assert.equal(
-    areAllRequiredDocumentsAccepted(checkoutIds, ['tos-v2', 'privacy-v2', 'refund-v2', 'disclaimer-v2']),
-    false,
+  assert.deepEqual(checkoutIds, ['tos-v2', 'privacy-v2', 'refund-v2', 'disclaimer-v2', 'delivery-v2']);
+  assert.equal(areAllRequiredDocumentsAccepted(checkoutIds, checkoutIds.slice(0, 4)), false);
+  assert.equal(areAllRequiredDocumentsAccepted(checkoutIds, checkoutIds), true);
+});
+
+test('4. a document the Backend adds to a flow is required with no Frontend change', () => {
+  const withCookies = activeDocumentsFixture.map((document) =>
+    document.documentType === 'COOKIE_POLICY' ? { ...document, requiredAt: ['SIGNUP' as const] } : document,
   );
+  assert.deepEqual(getSignupRequiredDocumentIds(withCookies), ['tos-v2', 'privacy-v2', 'cookies-v1']);
+});
+
+test('5. nothing listed means nothing can be accepted', () => {
+  assert.deepEqual(getCheckoutRequiredDocumentIds([]), []);
+  assert.equal(areAllRequiredDocumentsAccepted([], []), false);
+});
+
+test('6. checkout accept payload includes orderId and CHECKOUT source', () => {
+  const payload = buildCheckoutAcceptPayload(getCheckoutRequiredDocumentIds(activeDocumentsFixture), 'order-123');
+  assert.equal(payload.source, 'CHECKOUT');
+  assert.equal(payload.orderId, 'order-123');
+});
+
+test('7. wizard consents: the catalogue decides which are required', () => {
+  const state = buildConsentToggleState([], catalogueFixture);
+  assert.equal(areWizardRequiredConsentsSatisfied(state, catalogueFixture), false);
+  assert.equal(areWizardRequiredConsentsSatisfied({ ...state, PRIVACY_PROCESSING: true }, catalogueFixture), false);
   assert.equal(
-    areAllRequiredDocumentsAccepted(checkoutIds, checkoutIds),
+    areWizardRequiredConsentsSatisfied({ ...state, PRIVACY_PROCESSING: true, AI_PROCESSING: true }, catalogueFixture),
     true,
   );
 });
 
-test('4. checkout accept payload includes orderId and CHECKOUT source', () => {
-  const checkoutIds = getCheckoutRequiredDocumentIds(activeDocumentsFixture);
-  const payload = buildCheckoutAcceptPayload(checkoutIds, 'order-123');
-  assert.deepEqual(payload, {
-    documentVersionIds: ['tos-v2', 'privacy-v2', 'refund-v2', 'disclaimer-v2', 'delivery-v2'],
-    source: 'CHECKOUT',
-    orderId: 'order-123',
-  });
+test('8. an unloaded catalogue never counts as consent given', () => {
+  assert.equal(areWizardRequiredConsentsSatisfied({ PRIVACY_PROCESSING: true, AI_PROCESSING: true }, []), false);
 });
 
-test('5. wizard requires PRIVACY_PROCESSING and AI_PROCESSING', () => {
-  const state = buildConsentToggleState([]);
-  assert.equal(areWizardRequiredConsentsSatisfied(state), false);
-
-  const privacyOnly = { ...state, PRIVACY_PROCESSING: true };
-  assert.equal(areWizardRequiredConsentsSatisfied(privacyOnly), false);
-
-  const privacyAndAi = { ...state, PRIVACY_PROCESSING: true, AI_PROCESSING: true };
-  assert.equal(areWizardRequiredConsentsSatisfied(privacyAndAi), true);
+test('9. consents per context: required first, then optional, with Backend labels', () => {
+  assert.deepEqual(
+    getConsentsForContext(catalogueFixture, 'WIZARD').map((item) => [item.consentType, item.required]),
+    [['PRIVACY_PROCESSING', true], ['AI_PROCESSING', true], ['BENCHMARK_DATA', false]],
+  );
+  assert.deepEqual(
+    getConsentsForContext(catalogueFixture, 'ACCOUNT').map((item) => item.consentType),
+    ['BENCHMARK_DATA', 'MARKETING_EMAILS'],
+  );
+  assert.equal(buildConsentLabel('AI_PROCESSING', catalogueFixture), 'AI Processing');
 });
 
-test('6. BENCHMARK_DATA remains optional for wizard requirement', () => {
-  const requiredGivenBenchmarkOff = {
-    ...buildConsentToggleState([]),
-    PRIVACY_PROCESSING: true,
-    AI_PROCESSING: true,
-    BENCHMARK_DATA: false,
-  };
-  assert.equal(areWizardRequiredConsentsSatisfied(requiredGivenBenchmarkOff), true);
-});
-
-test('7. consent state hydrates from /consents/me style records', () => {
+test('10. consent state hydrates from /consents/me style records', () => {
   const records: LegalConsentRecord[] = [
-    {
-      consentType: 'PRIVACY_PROCESSING',
-      status: 'GIVEN',
-      source: 'WIZARD',
-      campaignId: 'camp-1',
-      updatedAt: '2026-05-01T00:00:00.000Z',
-      metadata: null,
-    },
-    {
-      consentType: 'BENCHMARK_DATA',
-      status: 'WITHDRAWN',
-      source: 'WIZARD',
-      campaignId: 'camp-1',
-      updatedAt: '2026-05-01T00:00:00.000Z',
-      metadata: null,
-    },
+    { consentType: 'PRIVACY_PROCESSING', status: 'GIVEN', source: 'WIZARD', campaignId: 'camp-1', updatedAt: null, metadata: null },
+    { consentType: 'BENCHMARK_DATA', status: 'WITHDRAWN', source: 'WIZARD', campaignId: 'camp-1', updatedAt: null, metadata: null },
   ];
-
-  const state = buildConsentToggleState(records);
+  const state = buildConsentToggleState(records, catalogueFixture);
   assert.equal(state.PRIVACY_PROCESSING, true);
   assert.equal(state.BENCHMARK_DATA, false);
   assert.equal(state.AI_PROCESSING, false);
 });
 
-test('8. withdraw flow resolves to /consents/withdraw endpoint', () => {
+test('11. withdraw flow resolves to /consents/withdraw endpoint', () => {
   const action = resolveConsentAction(true, false);
   assert.equal(action, 'withdraw');
   assert.equal(resolveConsentMutationEndpoint(action), '/api/v2/legal/consents/withdraw');
 });
 
-test('9. consent mutations use the active privacy policy version', () => {
-  assert.equal(resolveConsentPolicyVersion(activeDocumentsFixture), 'v2');
-  assert.equal(
-    resolveConsentPolicyVersion(
-      activeDocumentsFixture.map((document) =>
-        document.documentType === 'PRIVACY_POLICY'
-          ? { ...document, versionLabel: null }
-          : document,
-      ),
-    ),
-    null,
-  );
+test('12. the server states the consent policy version, not the browser', () => {
+  assert.equal(typeof (legalFlowUtils as Record<string, unknown>).resolveConsentPolicyVersion, 'undefined');
+});
+
+test('13. the Frontend keeps no policy text, required-document list or consent list', () => {
+  const types = readFileSync('shared/types/legal.ts', 'utf8');
+  for (const retired of [
+    'SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES',
+    'CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES',
+    'WIZARD_REQUIRED_CONSENT_TYPES',
+    'LEGAL_DOCUMENT_TYPE_LABELS',
+    'LEGAL_CONSENT_TYPE_LABELS',
+    'LEGAL_DOCUMENT_TYPE_VALUES',
+    'LEGAL_CONSENT_TYPE_VALUES',
+  ]) {
+    assert.doesNotMatch(types, new RegExp(retired), retired);
+  }
 });

@@ -69,11 +69,12 @@ import { CAMPAIGN_PLAN_ROUTE } from '@/shared/payments/campaign-entitlement';
 import { resolveLegalErrorMessage } from '@/shared/legal/legal-error';
 import {
   areWizardRequiredConsentsSatisfied,
-  buildConsentLabel,
   buildConsentToggleState,
+  getConsentsForContext,
   resolveConsentAction,
   type ConsentToggleState,
 } from '@/shared/legal/legal-flow-utils';
+import { useConsentCatalogue } from '@/shared/legal/useLegalCatalogue';
 import {
   economicsStepAnswersSchema,
   goalsStepAnswersSchema,
@@ -90,11 +91,7 @@ import {
   formatBusinessType,
   formatMarketScope,
 } from '@/shared/types/campaign';
-import {
-  WIZARD_OPTIONAL_CONSENT_TYPES,
-  WIZARD_REQUIRED_CONSENT_TYPES,
-  type LegalConsentType,
-} from '@/shared/types/legal';
+import type { LegalConsentType } from '@/shared/types/legal';
 import {
   DIGITAL_PRESENCE_LINK_TYPE_OPTIONS,
   AVG_CUSTOMER_RETENTION_OPTIONS,
@@ -264,18 +261,18 @@ const WIZARD_STEPS: Array<{ step: WizardModalStep; label: string; hint: string }
   { step: 7, label: 'Review', hint: 'Review & Consent' },
 ];
 
-const DEFAULT_WIZARD_CONSENT_STATE: ConsentToggleState = {
-  PRIVACY_PROCESSING: false,
-  AI_PROCESSING: false,
-  BENCHMARK_DATA: false,
-  MARKETING_EMAILS: false,
-  ADS_INTEGRATION: false,
-};
+// Which consents the wizard asks for, and which are required, come from the
+// Backend's consent catalogue. Unset consents read as not given.
+const DEFAULT_WIZARD_CONSENT_STATE: ConsentToggleState = {};
 
-const WIZARD_CONSENT_ORDER: LegalConsentType[] = [
-  ...WIZARD_REQUIRED_CONSENT_TYPES,
-  ...WIZARD_OPTIONAL_CONSENT_TYPES,
-];
+// The wizard's step-7 `dataConsentOptIn` answer records the same choice as
+// this consent, so the two are kept in step.
+const BENCHMARK_CONSENT_TYPE: LegalConsentType = 'BENCHMARK_DATA';
+
+/** "PRIVACY_PROCESSING" -> "wizard-consent-privacy-processing" (the E2E page object's ids). */
+function wizardConsentTestId(consentType: LegalConsentType): string {
+  return `wizard-consent-${consentType.toLowerCase().replace(/_/g, '-')}`;
+}
 
 type WizardStringOption = {
   value: string;
@@ -305,34 +302,17 @@ const STEP1_MARKET_SCOPE_FALLBACK_OPTIONS: WizardStringOption[] = [
 ];
 
 // One strategy covers one country, and research runs for the whole of it.
-// Only these three have a search setup behind them today.
-const WIZARD_COUNTRY_OPTIONS = [
-  { value: 'IN', label: 'India' },
-  { value: 'US', label: 'United States' },
-  { value: 'UK', label: 'United Kingdom' },
-] as const;
+// Which countries can be chosen is the Backend's to say: it serves them as
+// `fieldOptions.targetMarkets` (ISO 3166-1 alpha-2 codes, e.g. GB).
+type WizardCountryOption = { value: string; label: string };
 
-type WizardCountryCode = (typeof WIZARD_COUNTRY_OPTIONS)[number]['value'];
-
-const WIZARD_COUNTRY_ALIASES: Record<string, WizardCountryCode> = {
-  in: 'IN',
-  ind: 'IN',
-  india: 'IN',
-  us: 'US',
-  usa: 'US',
-  'united states': 'US',
-  'united states of america': 'US',
-  uk: 'UK',
-  gb: 'UK',
-  gbr: 'UK',
-  britain: 'UK',
-  'great britain': 'UK',
-  'united kingdom': 'UK',
-};
-
-function toWizardCountryCode(value: string | null | undefined): WizardCountryCode | '' {
+/** The served country a saved value names, matched by code or by name; '' when none. */
+function toWizardCountryCode(value: string | null | undefined, options: WizardCountryOption[]): string {
   const token = (value ?? '').trim().toLowerCase().replace(/\./g, '');
-  return WIZARD_COUNTRY_ALIASES[token] ?? '';
+  if (!token) return '';
+  return (
+    options.find((option) => option.value.toLowerCase() === token || option.label.toLowerCase() === token)?.value ?? ''
+  );
 }
 
 // Where inside the one country this plan is aimed. Regional asks which
@@ -2211,6 +2191,10 @@ export function CampaignWizardModal({
     refetchOnWindowFocus: false,
   });
 
+  const consentCatalogueQuery = useConsentCatalogue();
+  const consentCatalogue = useMemo(() => consentCatalogueQuery.data ?? [], [consentCatalogueQuery.data]);
+  const wizardConsents = useMemo(() => getConsentsForContext(consentCatalogue, 'WIZARD'), [consentCatalogue]);
+
   const { data: consentRecords } = useQuery({
     queryKey: queryKeys.legal.consentsMe(),
     queryFn: () => legalRepository.getMyConsents(),
@@ -2229,6 +2213,11 @@ export function CampaignWizardModal({
   );
   const marketScopeOptions = useMemo(
     () => getStringFieldOptions(wizardOptions, 'marketScope', STEP1_MARKET_SCOPE_FALLBACK_OPTIONS),
+    [wizardOptions],
+  );
+  // No local fallback: a country the Backend does not serve cannot be chosen.
+  const targetMarketOptions = useMemo<WizardCountryOption[]>(
+    () => getStringFieldOptions(wizardOptions, 'targetMarkets', [], { valueFrom: 'value' }),
     [wizardOptions],
   );
   const industryCategoryOptions = useMemo(
@@ -2428,26 +2417,26 @@ export function CampaignWizardModal({
 
     const hydrated = {
       ...DEFAULT_WIZARD_CONSENT_STATE,
-      ...buildConsentToggleState(consentRecords ?? []),
+      ...buildConsentToggleState(consentRecords ?? [], consentCatalogue),
     };
     setWizardConsentState(hydrated);
     consentPersistedStateRef.current = hydrated;
-    step3Form.setValue('dataConsentOptIn', hydrated.BENCHMARK_DATA, {
+    step3Form.setValue('dataConsentOptIn', hydrated[BENCHMARK_CONSENT_TYPE] === true, {
       shouldDirty: false,
       shouldValidate: false,
     });
     step3SnapshotRef.current = {
       ...step3SnapshotRef.current,
-      dataConsentOptIn: hydrated.BENCHMARK_DATA,
+      dataConsentOptIn: hydrated[BENCHMARK_CONSENT_TYPE] === true,
     };
-  }, [consentRecords, open, step3Form]);
+  }, [consentCatalogue, consentRecords, open, step3Form]);
 
   const watchedMarketingTargetType = step1Form.watch('marketingTargetType');
   const watchedSourceType = step1Form.watch('sourceType');
   const watchedTargetMarkets = step1Form.watch('targetMarkets') ?? [];
-  const selectedCountryCode = toWizardCountryCode(watchedTargetMarkets[0]);
+  const selectedCountryCode = toWizardCountryCode(watchedTargetMarkets[0], targetMarketOptions);
   const selectedCountryLabel =
-    WIZARD_COUNTRY_OPTIONS.find((option) => option.value === selectedCountryCode)?.label ?? 'your country';
+    targetMarketOptions.find((option) => option.value === selectedCountryCode)?.label ?? 'your country';
   const watchedOperationalLocations = step1Form.watch('operationalLocations') ?? [];
   const watchedMarketScope = step1Form.watch('marketScope');
   const watchedDifferentiators = step2Form.watch('differentiators') ?? [];
@@ -2517,8 +2506,8 @@ export function CampaignWizardModal({
         ...normalizeListItems(savedData.targetMarkets),
         normalizeString(savedData.marketLocation as string | undefined),
       ]
-        .map((entry) => toWizardCountryCode(entry))
-        .find((code): code is WizardCountryCode => Boolean(code)) ?? '';
+        .map((entry) => toWizardCountryCode(entry, targetMarketOptions))
+        .find((code) => Boolean(code)) ?? '';
 
     const nextValues: Step1FormData = {
       title: normalizeString(savedData.title as string | undefined) || (isFreshAutoCreatedDraft ? '' : campaign?.name) || '',
@@ -2572,6 +2561,7 @@ export function CampaignWizardModal({
     sourceTypeOptions,
     step,
     step1Data,
+    targetMarketOptions,
   ]);
 
   useEffect(() => {
@@ -2937,7 +2927,7 @@ export function CampaignWizardModal({
   };
 
   const syncConsentChange = async (consentType: LegalConsentType, nextChecked: boolean) => {
-    const previousChecked = consentPersistedStateRef.current[consentType];
+    const previousChecked = consentPersistedStateRef.current[consentType] === true;
     const action = resolveConsentAction(previousChecked, nextChecked);
     if (action === 'none') {
       return;
@@ -2981,7 +2971,7 @@ export function CampaignWizardModal({
       ...previousState,
       [consentType]: nextChecked,
     }));
-    if (consentType === 'BENCHMARK_DATA') {
+    if (consentType === BENCHMARK_CONSENT_TYPE) {
       step3Form.setValue('dataConsentOptIn', nextChecked, {
         shouldDirty: true,
         shouldValidate: false,
@@ -2995,9 +2985,9 @@ export function CampaignWizardModal({
   };
 
   const persistPendingConsentChanges = async () => {
-    for (const consentType of WIZARD_CONSENT_ORDER) {
-      const persistedChecked = consentPersistedStateRef.current[consentType];
-      const currentChecked = wizardConsentState[consentType];
+    for (const { consentType } of wizardConsents) {
+      const persistedChecked = consentPersistedStateRef.current[consentType] === true;
+      const currentChecked = wizardConsentState[consentType] === true;
       if (persistedChecked === currentChecked) {
         continue;
       }
@@ -3475,7 +3465,7 @@ export function CampaignWizardModal({
         throw new Error('Campaign not found.');
       }
 
-      if (!areWizardRequiredConsentsSatisfied(wizardConsentState)) {
+      if (!areWizardRequiredConsentsSatisfied(wizardConsentState, consentCatalogue)) {
         throw new Error('STRATEGY_CONSENT_REQUIRED_V2');
       }
 
@@ -3494,7 +3484,7 @@ export function CampaignWizardModal({
         confirmGoals,
         confirmEconomics,
         readyToGenerate,
-        dataConsentOptIn: wizardConsentState.BENCHMARK_DATA,
+        dataConsentOptIn: wizardConsentState[BENCHMARK_CONSENT_TYPE] === true,
       }, idempotencyKey);
     },
     onSuccess: async (result) => {
@@ -3600,7 +3590,8 @@ export function CampaignWizardModal({
       effectivePreviewStep4?.avgCustomerRetention ||
       effectivePreviewStep4?.repeatPurchaseFrequency,
   );
-  const requiredConsentsAccepted = areWizardRequiredConsentsSatisfied(wizardConsentState);
+  const requiredConsentsAccepted = areWizardRequiredConsentsSatisfied(wizardConsentState, consentCatalogue);
+  const requiredConsentLabels = wizardConsents.filter((item) => item.required).map((item) => item.label);
   const allConfirmed =
     confirmFocus &&
     confirmBusiness &&
@@ -4092,7 +4083,7 @@ export function CampaignWizardModal({
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
                       <SelectContent>
-                        {WIZARD_COUNTRY_OPTIONS.map((option) => (
+                        {targetMarketOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -6293,7 +6284,7 @@ export function CampaignWizardModal({
                           <SummaryField label="Focus name" value={effectivePreviewStep1?.focusName} />
                           <SummaryField label="Source type" value={formatSourceType(effectivePreviewStep1?.sourceType)} />
                           <SummaryField label="Source URL" value={effectivePreviewStep1?.primaryUrl || null} />
-                          <SummaryField label="Country" value={WIZARD_COUNTRY_OPTIONS.find((option) => option.value === toWizardCountryCode(effectivePreviewStep1?.targetMarkets?.[0]))?.label ?? formatStringList(effectivePreviewStep1?.targetMarkets)} />
+                          <SummaryField label="Country" value={targetMarketOptions.find((option) => option.value === toWizardCountryCode(effectivePreviewStep1?.targetMarkets?.[0], targetMarketOptions))?.label ?? formatStringList(effectivePreviewStep1?.targetMarkets)} />
                           <SummaryField label="Marketing target location" value={formatMarketScope(effectivePreviewStep1?.marketScope || campaign?.marketScope || null)} />
                           <SummaryField label="Cities or states" value={formatStringList(effectivePreviewStep1?.operationalLocations)} />
                         </ReviewGrid>
@@ -6448,30 +6439,27 @@ export function CampaignWizardModal({
                             onCheckedChange={setReadyToGenerate}
                             label="I have reviewed the setup and am ready to generate strategy"
                           />
-                          <ReviewConfirmCard
-                            id="wizard-consent-privacy-processing"
-                            checked={wizardConsentState.PRIVACY_PROCESSING}
-                            onCheckedChange={(checked) => handleWizardConsentToggle('PRIVACY_PROCESSING', checked)}
-                            label={`${buildConsentLabel('PRIVACY_PROCESSING')} consent (required)`}
-                          />
-                          <ReviewConfirmCard
-                            id="wizard-consent-ai-processing"
-                            checked={wizardConsentState.AI_PROCESSING}
-                            onCheckedChange={(checked) => handleWizardConsentToggle('AI_PROCESSING', checked)}
-                            label={`${buildConsentLabel('AI_PROCESSING')} consent (required)`}
-                          />
-                          <ReviewConfirmCard
-                            id="wizard-consent-benchmark-data"
-                            checked={wizardConsentState.BENCHMARK_DATA}
-                            onCheckedChange={(checked) => handleWizardConsentToggle('BENCHMARK_DATA', checked)}
-                            label={`${buildConsentLabel('BENCHMARK_DATA')} consent (optional)`}
-                          />
+                          {consentCatalogueQuery.isLoading ? (
+                            <p className="text-xs text-muted-foreground">Loading consents...</p>
+                          ) : null}
+                          {consentCatalogueQuery.isError ? (
+                            <p className="text-xs text-destructive">Consents could not be loaded. Please refresh.</p>
+                          ) : null}
+                          {wizardConsents.map((consent) => (
+                            <ReviewConfirmCard
+                              key={consent.consentType}
+                              id={wizardConsentTestId(consent.consentType)}
+                              checked={wizardConsentState[consent.consentType] === true}
+                              onCheckedChange={(checked) => handleWizardConsentToggle(consent.consentType, checked)}
+                              label={`${consent.label} consent (${consent.required ? 'required' : 'optional'})`}
+                            />
+                          ))}
                           {isSyncingConsent ? (
                             <p className="text-xs text-muted-foreground">Saving consent preference...</p>
                           ) : null}
-                          {!requiredConsentsAccepted ? (
+                          {!requiredConsentsAccepted && requiredConsentLabels.length > 0 ? (
                             <p className="text-xs text-destructive">
-                              Privacy Processing and AI Processing consent are required to generate strategy.
+                              {requiredConsentLabels.join(' and ')} consent{requiredConsentLabels.length === 1 ? ' is' : ' are'} required to generate strategy.
                             </p>
                           ) : null}
                         </CardContent>

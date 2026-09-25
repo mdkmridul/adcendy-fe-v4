@@ -22,10 +22,9 @@ import { resolveLegalErrorMessage } from '@/shared/legal/legal-error';
 import {
   areAllRequiredDocumentsAccepted,
   buildLegalChecklistItems,
-  buildSignupAcceptPayload,
   getSignupRequiredDocumentIds,
 } from '@/shared/legal/legal-flow-utils';
-import { SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES, type LegalDocumentVersion } from '@/shared/types/legal';
+import type { LegalDocumentVersion } from '@/shared/types/legal';
 
 type SignupStep = 'credentials' | 'verify-otp' | 'legal';
 
@@ -63,7 +62,7 @@ function SignupContent() {
   const isV2 = variant === 'v2';
 
   const signupLegalChecklistItems = useMemo(
-    () => buildLegalChecklistItems(activeLegalDocuments, SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES),
+    () => buildLegalChecklistItems(activeLegalDocuments, 'SIGNUP'),
     [activeLegalDocuments],
   );
   const signupRequiredDocumentIds = useMemo(
@@ -109,33 +108,18 @@ function SignupContent() {
     if (error) setError(null);
   };
 
+  // The policies are ticked before the account is created, so this step only
+  // collects the credentials and shows them. No code is sent yet: the account
+  // and its acceptances are created together by the verify call.
   const handleStartSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
+    setStep('legal');
 
     try {
-      // Step 1: Start signup and request OTP
-      const result = await authApi.signupStart({
-        email: formData.email,
-        password: formData.password,
-        name: formData.name || undefined,
-      });
-
-      // Store verification state and move to OTP step
-      setVerificationState({
-        verificationId: result.verificationId,
-        expiresAt: result.expiresAt,
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-      });
-      setStep('verify-otp');
-      setIsLoading(false);
-    } catch (err: any) {
-      console.error('Signup start error:', err);
-      setError(err.message || 'Failed to start signup. Please try again.');
-      setIsLoading(false);
+      await loadSignupLegalDocuments();
+    } catch {
+      // loadSignupLegalDocuments has already shown why, with a Retry.
     }
   };
 
@@ -144,10 +128,12 @@ function SignupContent() {
     setError(null);
 
     try {
-      const documents = await legalRepository.getActiveDocuments();
+      const documents = await legalRepository.getActivePublicDocuments();
       const requiredIds = getSignupRequiredDocumentIds(documents);
 
-      if (requiredIds.length !== SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES.length) {
+      // Which policies sign-up requires is the Backend's to say; none means
+      // they are not published yet, and nobody signs up without them.
+      if (requiredIds.length === 0) {
         throw new Error('Required signup policies are currently unavailable. Please try again.');
       }
 
@@ -180,10 +166,13 @@ function SignupContent() {
     setError(null);
 
     try {
-      // Step 2: Verify OTP and complete signup
+      // Step 2: Verify the code and create the account, carrying the policy
+      // versions ticked above. The Backend records them with the account in
+      // one transaction, so neither can exist without the other.
       const result = await authApi.signupVerify({
         verificationId: verificationState.verificationId,
         otp: otpCode,
+        acceptedLegalDocumentVersionIdsV2: signupRequiredDocumentIds,
       });
 
       // The Backend stores the refresh token in its HttpOnly cookie.
@@ -192,14 +181,23 @@ function SignupContent() {
         user: result.user,
       });
 
-      setStep('legal');
-      await loadSignupLegalDocuments();
+      if (planParam) {
+        localStorage.setItem('adcendy_plan', planParam);
+      }
+
       setOtp('');
-      setIsLoading(false);
       verifyingRef.current = false;
+      const redirectUrl = getAuthRedirectUrl(incomingNext);
+      window.dispatchEvent(new Event('auth-change'));
+      router.replace(redirectUrl);
     } catch (err: any) {
       console.error('OTP verification error:', err);
-      setError(err.message || 'Unable to verify OTP. Please try again.');
+      setError(
+        resolveLegalErrorMessage(
+          err,
+          err.message || 'Unable to verify OTP. Please try again.',
+        ),
+      );
       setIsLoading(false);
       setOtp(''); // Clear OTP on error
       verifyingRef.current = false; // Reset on error to allow retry
@@ -257,29 +255,24 @@ function SignupContent() {
     setError(null);
 
     try {
-      const payload = buildSignupAcceptPayload(signupRequiredDocumentIds);
-      await legalRepository.acceptDocuments({
-        ...payload,
-        metadata: {
-          flow: 'signup',
-          plan: planParam ?? undefined,
-        },
+      const result = await authApi.signupStart({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name || undefined,
       });
 
-      if (planParam) {
-        localStorage.setItem('adcendy_plan', planParam);
-      }
-
-      const redirectUrl = getAuthRedirectUrl(incomingNext);
-      window.dispatchEvent(new Event('auth-change'));
-      router.replace(redirectUrl);
-    } catch (err: unknown) {
-      setError(
-        resolveLegalErrorMessage(
-          err,
-          'Could not save policy acceptance. Please try again.',
-        ),
-      );
+      setVerificationState({
+        verificationId: result.verificationId,
+        expiresAt: result.expiresAt,
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+      });
+      setStep('verify-otp');
+      setIsLoading(false);
+    } catch (err: any) {
+      console.error('Signup start error:', err);
+      setError(err.message || 'Failed to start signup. Please try again.');
       setIsLoading(false);
     }
   };
@@ -369,7 +362,7 @@ function SignupContent() {
               </div>
 
               <Button type="submit" className={isV2 ? 'w-full h-11 bg-[#cfa35b] text-[#11181a] hover:bg-[#d8af67] font-medium' : 'w-full'} disabled={isLoading}>
-                {isLoading ? 'Sending OTP...' : 'Continue'}
+                {isLoading ? 'Loading...' : 'Continue'}
               </Button>
             </form>
 
@@ -479,6 +472,15 @@ function SignupContent() {
           </>
         ) : (
           <>
+            <button
+              onClick={handleBackToCredentials}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              disabled={isLoading}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+
             <div className="space-y-2">
               <h2 className={isV2 ? 'text-xl font-semibold text-[rgba(237,232,220,0.92)]' : 'font-space-grotesk text-2xl font-bold'}>
                 Accept Required Policies
@@ -541,12 +543,12 @@ function SignupContent() {
                 disabled={
                   isLoading ||
                   isLoadingLegalDocuments ||
-                  signupRequiredDocumentIds.length !== SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES.length ||
+                  signupRequiredDocumentIds.length === 0 ||
                   !hasAcceptedAllSignupDocuments
                 }
                 onClick={handleSignupLegalContinue}
               >
-                {isLoading ? 'Saving...' : 'Continue'}
+                {isLoading ? 'Sending code...' : 'Accept and continue'}
               </Button>
             </div>
           </>

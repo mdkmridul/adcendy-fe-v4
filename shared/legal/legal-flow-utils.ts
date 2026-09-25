@@ -1,19 +1,18 @@
 import type {
   LegalAcceptDocumentsPayload,
   LegalAcceptanceSource,
+  LegalConsentCatalogueItem,
+  LegalConsentContext,
   LegalConsentRecord,
   LegalConsentType,
   LegalDocumentType,
   LegalDocumentVersion,
 } from '../types/legal.ts';
-import {
-  CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES,
-  LEGAL_CONSENT_TYPE_VALUES,
-  LEGAL_CONSENT_TYPE_LABELS,
-  LEGAL_DOCUMENT_TYPE_LABELS,
-  SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES,
-  WIZARD_REQUIRED_CONSENT_TYPES,
-} from '../types/legal.ts';
+
+/**
+ * Every rule here is read from what the Backend returned: `requiredAt` on
+ * each document, and the consent catalogue. Nothing is decided locally.
+ */
 
 export type ConsentToggleState = Record<LegalConsentType, boolean>;
 
@@ -41,32 +40,37 @@ export function buildDocumentTypeIndex(
   );
 }
 
+/** The active documents the Backend requires at this flow, one per type. */
+export function getRequiredDocuments(
+  documents: LegalDocumentVersion[],
+  source: LegalAcceptanceSource,
+): LegalDocumentVersion[] {
+  return Object.values(buildDocumentTypeIndex(documents)).filter(
+    (document): document is LegalDocumentVersion =>
+      Boolean(document) && document!.requiredAt.includes(source),
+  );
+}
+
 export function buildLegalChecklistItems(
   documents: LegalDocumentVersion[],
-  requiredDocumentTypes: readonly LegalDocumentType[],
+  source: LegalAcceptanceSource,
 ): LegalChecklistItem[] {
-  const requiredSet = new Set(requiredDocumentTypes);
-
-  return documents
-    .filter((document) => requiredSet.has(document.documentType))
-    .map((document) => ({
-      id: document.id,
-      documentType: document.documentType,
-      label: LEGAL_DOCUMENT_TYPE_LABELS[document.documentType] ?? document.title,
-      href: document.url,
-      required: true,
-    }));
+  return getRequiredDocuments(documents, source).map((document) => ({
+    id: document.id,
+    documentType: document.documentType,
+    label: document.title,
+    href: document.url,
+    required: true,
+  }));
 }
 
 export function getRequiredDocumentIds(
   documents: LegalDocumentVersion[],
-  requiredDocumentTypes: readonly LegalDocumentType[],
+  source: LegalAcceptanceSource,
 ): string[] {
-  const byType = buildDocumentTypeIndex(documents);
-
-  return requiredDocumentTypes
-    .map((documentType) => byType[documentType]?.id)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0);
+  return getRequiredDocuments(documents, source)
+    .map((document) => document.id)
+    .filter((id) => id.length > 0);
 }
 
 export function areAllRequiredDocumentsAccepted(
@@ -101,23 +105,43 @@ export function buildCheckoutAcceptPayload(
 
 export function buildConsentToggleState(
   records: LegalConsentRecord[],
+  catalogue: LegalConsentCatalogueItem[],
 ): ConsentToggleState {
-  const baseState = LEGAL_CONSENT_TYPE_VALUES.reduce<Partial<ConsentToggleState>>((acc, consentType) => {
-    acc[consentType] = false;
-    return acc;
-  }, {});
-
-  records.forEach((record) => {
-    baseState[record.consentType] = record.status === 'GIVEN';
-  });
-
-  return baseState as ConsentToggleState;
+  const state: ConsentToggleState = {};
+  for (const item of catalogue) state[item.consentType] = false;
+  for (const record of records) state[record.consentType] = record.status === 'GIVEN';
+  return state;
 }
 
+/** Consents asked for in a context: required ones first, then optional, in catalogue order. */
+export function getConsentsForContext(
+  catalogue: LegalConsentCatalogueItem[],
+  context: LegalConsentContext,
+): Array<LegalConsentCatalogueItem & { required: boolean }> {
+  const required = catalogue
+    .filter((item) => item.requiredAt.includes(context))
+    .map((item) => ({ ...item, required: true }));
+  const optional = catalogue
+    .filter((item) => !item.requiredAt.includes(context) && item.optionalAt.includes(context))
+    .map((item) => ({ ...item, required: false }));
+  return [...required, ...optional];
+}
+
+export function isConsentRequiredAt(
+  catalogue: LegalConsentCatalogueItem[],
+  consentType: LegalConsentType,
+  context: LegalConsentContext,
+): boolean {
+  return catalogue.some((item) => item.consentType === consentType && item.requiredAt.includes(context));
+}
+
+/** False until the catalogue has loaded: an unknown requirement is never assumed met. */
 export function areWizardRequiredConsentsSatisfied(
   state: ConsentToggleState,
+  catalogue: LegalConsentCatalogueItem[],
 ): boolean {
-  return WIZARD_REQUIRED_CONSENT_TYPES.every((consentType) => state[consentType]);
+  const required = catalogue.filter((item) => item.requiredAt.includes('WIZARD'));
+  return catalogue.length > 0 && required.every((item) => state[item.consentType] === true);
 }
 
 export function resolveConsentAction(
@@ -143,29 +167,25 @@ export function resolveConsentMutationEndpoint(action: ConsentAction): string | 
   return null;
 }
 
-export function buildConsentLabel(consentType: LegalConsentType): string {
-  return LEGAL_CONSENT_TYPE_LABELS[consentType];
+export function buildConsentLabel(
+  consentType: LegalConsentType,
+  catalogue: LegalConsentCatalogueItem[],
+): string {
+  return catalogue.find((item) => item.consentType === consentType)?.label ?? consentType;
 }
 
 export function getSignupRequiredDocumentIds(
   documents: LegalDocumentVersion[],
 ): string[] {
-  return getRequiredDocumentIds(documents, SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES);
+  return getRequiredDocumentIds(documents, 'SIGNUP');
 }
 
 export function getCheckoutRequiredDocumentIds(
   documents: LegalDocumentVersion[],
 ): string[] {
-  return getRequiredDocumentIds(documents, CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES);
+  return getRequiredDocumentIds(documents, 'CHECKOUT');
 }
 
-export function resolveConsentPolicyVersion(
-  documents: LegalDocumentVersion[],
-): string | null {
-  const privacyPolicy = buildDocumentTypeIndex(documents).PRIVACY_POLICY;
-  const version = privacyPolicy?.versionLabel?.trim();
-  return version || null;
-}
 
 export function buildConsentMutationSource(
   source: LegalAcceptanceSource,

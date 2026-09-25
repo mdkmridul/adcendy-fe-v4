@@ -3,6 +3,12 @@ import { ApiError } from '../api/errors';
 const LEGAL_ERROR_MESSAGES: Record<string, string> = {
   STRATEGY_CONSENT_REQUIRED_V2:
     'Strategy generation requires Privacy Processing and AI Processing consent.',
+  STRATEGY_CONSENT_STALE_V2:
+    'Our Privacy Policy has changed in a way that affects how your data is processed. Please review it and give consent again to continue.',
+  SIGNUP_POLICIES_NOT_ACCEPTED_V2:
+    'Please accept the Terms of Service and Privacy Policy to create your account.',
+  LEGAL_DOCUMENT_VERSION_UNAVAILABLE_V2:
+    'Our policies are being updated and are briefly unavailable. Please try again shortly.',
   CHECKOUT_POLICIES_NOT_ACCEPTED_V2:
     'Please accept all checkout policies before continuing to payment.',
   UNKNOWN_LEGAL_DOCUMENT_VERSION_V2:

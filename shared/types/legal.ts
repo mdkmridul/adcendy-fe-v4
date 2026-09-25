@@ -1,14 +1,16 @@
 import type { ISODateTime } from './common';
 
-export const LEGAL_DOCUMENT_TYPE_VALUES = [
-  'TERMS_OF_SERVICE',
-  'PRIVACY_POLICY',
-  'REFUND_CANCELLATION_POLICY',
-  'DISCLAIMER',
-  'DIGITAL_DELIVERY_POLICY',
-] as const;
+/**
+ * Policies and consents are the Backend's: which documents exist, their text,
+ * which flow requires which document, which consents exist and which are
+ * required all come from the API. The Frontend only names the flow it is in.
+ */
 
-export type LegalDocumentType = (typeof LEGAL_DOCUMENT_TYPE_VALUES)[number];
+/** A document type named by the Backend, e.g. TERMS_OF_SERVICE. */
+export type LegalDocumentType = string;
+
+/** A consent type named by the Backend, e.g. AI_PROCESSING. */
+export type LegalConsentType = string;
 
 export const LEGAL_ACCEPTANCE_SOURCE_VALUES = [
   'SIGNUP',
@@ -21,15 +23,8 @@ export const LEGAL_ACCEPTANCE_SOURCE_VALUES = [
 
 export type LegalAcceptanceSource = (typeof LEGAL_ACCEPTANCE_SOURCE_VALUES)[number];
 
-export const LEGAL_CONSENT_TYPE_VALUES = [
-  'PRIVACY_PROCESSING',
-  'AI_PROCESSING',
-  'BENCHMARK_DATA',
-  'MARKETING_EMAILS',
-  'ADS_INTEGRATION',
-] as const;
-
-export type LegalConsentType = (typeof LEGAL_CONSENT_TYPE_VALUES)[number];
+/** Where a consent is asked for. */
+export type LegalConsentContext = 'WIZARD' | 'ACCOUNT';
 
 export const LEGAL_CONSENT_STATUS_VALUES = ['GIVEN', 'WITHDRAWN'] as const;
 export type LegalConsentStatus = (typeof LEGAL_CONSENT_STATUS_VALUES)[number];
@@ -39,9 +34,26 @@ export interface LegalDocumentVersion {
   documentType: LegalDocumentType;
   title: string;
   versionLabel: string | null;
+  /** The public page for this policy, e.g. /terms. */
   url: string | null;
   effectiveFrom: ISODateTime | null;
   publishedAt: ISODateTime | null;
+  contentHash: string | null;
+  /** The flows that require accepting this document. */
+  requiredAt: LegalAcceptanceSource[];
+}
+
+export interface LegalDocumentWithContent extends LegalDocumentVersion {
+  /** The published markdown text, exactly as accepted. */
+  content: string;
+}
+
+export interface LegalConsentCatalogueItem {
+  consentType: LegalConsentType;
+  label: string;
+  description: string | null;
+  requiredAt: LegalConsentContext[];
+  optionalAt: LegalConsentContext[];
 }
 
 export interface LegalAcceptDocumentsPayload {
@@ -72,56 +84,4 @@ export interface LegalConsentRecord {
   campaignId: string | null;
   updatedAt: ISODateTime | null;
   metadata: Record<string, unknown> | null;
-}
-
-export const SIGNUP_REQUIRED_LEGAL_DOCUMENT_TYPES: ReadonlyArray<LegalDocumentType> = [
-  'TERMS_OF_SERVICE',
-  'PRIVACY_POLICY',
-];
-
-export const CHECKOUT_REQUIRED_LEGAL_DOCUMENT_TYPES: ReadonlyArray<LegalDocumentType> = [
-  'TERMS_OF_SERVICE',
-  'PRIVACY_POLICY',
-  'REFUND_CANCELLATION_POLICY',
-  'DISCLAIMER',
-  'DIGITAL_DELIVERY_POLICY',
-];
-
-export const WIZARD_REQUIRED_CONSENT_TYPES: ReadonlyArray<LegalConsentType> = [
-  'PRIVACY_PROCESSING',
-  'AI_PROCESSING',
-];
-
-export const WIZARD_OPTIONAL_CONSENT_TYPES: ReadonlyArray<LegalConsentType> = [
-  'BENCHMARK_DATA',
-];
-
-export const ACCOUNT_OPTIONAL_CONSENT_TYPES: ReadonlyArray<LegalConsentType> = [
-  'BENCHMARK_DATA',
-  'MARKETING_EMAILS',
-  'ADS_INTEGRATION',
-];
-
-export const LEGAL_DOCUMENT_TYPE_LABELS: Record<LegalDocumentType, string> = {
-  TERMS_OF_SERVICE: 'Terms of Service',
-  PRIVACY_POLICY: 'Privacy Policy',
-  REFUND_CANCELLATION_POLICY: 'Refund & Cancellation Policy',
-  DISCLAIMER: 'Disclaimer',
-  DIGITAL_DELIVERY_POLICY: 'Digital Delivery Policy',
-};
-
-export const LEGAL_CONSENT_TYPE_LABELS: Record<LegalConsentType, string> = {
-  PRIVACY_PROCESSING: 'Privacy Processing',
-  AI_PROCESSING: 'AI Processing',
-  BENCHMARK_DATA: 'Benchmark Data',
-  MARKETING_EMAILS: 'Marketing Emails',
-  ADS_INTEGRATION: 'Ads Integration',
-};
-
-export function formatLegalDocumentType(value: LegalDocumentType): string {
-  return LEGAL_DOCUMENT_TYPE_LABELS[value];
-}
-
-export function formatLegalConsentType(value: LegalConsentType): string {
-  return LEGAL_CONSENT_TYPE_LABELS[value];
 }

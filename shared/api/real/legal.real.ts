@@ -1,21 +1,21 @@
-import { http } from '../index';
+import { ApiError, http } from '../index';
 import type { ApiResponse } from '../types';
 import {
+  LEGAL_ACCEPTANCE_SOURCE_VALUES,
   LEGAL_CONSENT_STATUS_VALUES,
-  LEGAL_CONSENT_TYPE_VALUES,
-  LEGAL_DOCUMENT_TYPE_VALUES,
-  LEGAL_DOCUMENT_TYPE_LABELS,
   type LegalAcceptDocumentsPayload,
   type LegalAcceptDocumentsResult,
   type LegalAcceptanceSource,
+  type LegalConsentCatalogueItem,
+  type LegalConsentContext,
   type LegalConsentMutationPayload,
   type LegalConsentRecord,
   type LegalConsentStatus,
   type LegalConsentType,
   type LegalDocumentType,
   type LegalDocumentVersion,
+  type LegalDocumentWithContent,
 } from '../../types/legal';
-import { resolveConsentPolicyVersion } from '../../legal/legal-flow-utils';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -57,24 +57,12 @@ function normalizeDocumentType(
   fallback?: string,
 ): LegalDocumentType | null {
   const candidate = normalizeString(value || fallback);
-  if (!candidate) {
-    return null;
-  }
-
-  return LEGAL_DOCUMENT_TYPE_VALUES.includes(candidate as LegalDocumentType)
-    ? (candidate as LegalDocumentType)
-    : null;
+  return /^[A-Z][A-Z0-9_]*$/.test(candidate) ? candidate : null;
 }
 
 function normalizeConsentType(value: unknown): LegalConsentType | null {
   const candidate = normalizeString(value);
-  if (!candidate) {
-    return null;
-  }
-
-  return LEGAL_CONSENT_TYPE_VALUES.includes(candidate as LegalConsentType)
-    ? (candidate as LegalConsentType)
-    : null;
+  return /^[A-Z][A-Z0-9_]*$/.test(candidate) ? candidate : null;
 }
 
 function normalizeConsentStatus(value: unknown): LegalConsentStatus {
@@ -90,8 +78,21 @@ function normalizeSource(value: unknown): LegalAcceptanceSource | null {
     return null;
   }
 
-  const sources: LegalAcceptanceSource[] = ['SIGNUP', 'CHECKOUT', 'WIZARD', 'REPORT_DOWNLOAD', 'ADMIN', 'API'];
-  return sources.includes(candidate as LegalAcceptanceSource) ? (candidate as LegalAcceptanceSource) : null;
+  return (LEGAL_ACCEPTANCE_SOURCE_VALUES as readonly string[]).includes(candidate)
+    ? (candidate as LegalAcceptanceSource)
+    : null;
+}
+
+function normalizeSourceList(value: unknown): LegalAcceptanceSource[] {
+  return Array.isArray(value)
+    ? value.map(normalizeSource).filter((item): item is LegalAcceptanceSource => item !== null)
+    : [];
+}
+
+function normalizeConsentContexts(value: unknown): LegalConsentContext[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is LegalConsentContext => item === 'WIZARD' || item === 'ACCOUNT')
+    : [];
 }
 
 function toDocument(record: Record<string, unknown>, fallbackType?: string): LegalDocumentVersion | null {
@@ -105,10 +106,11 @@ function toDocument(record: Record<string, unknown>, fallbackType?: string): Leg
     return null;
   }
 
-  const title =
-    normalizeNullableString(record.title) ||
-    normalizeNullableString(record.name) ||
-    LEGAL_DOCUMENT_TYPE_LABELS[documentType];
+  // The Backend names every document; a nameless one is not shown.
+  const title = normalizeNullableString(record.title) || normalizeNullableString(record.name);
+  if (!title) {
+    return null;
+  }
 
   return {
     id,
@@ -128,7 +130,42 @@ function toDocument(record: Record<string, unknown>, fallbackType?: string): Leg
       normalizeDate(record.effectiveAt) ||
       normalizeDate(record.effectiveDate),
     publishedAt: normalizeDate(record.publishedAt) || normalizeDate(record.createdAt),
+    contentHash: normalizeNullableString(record.contentHash),
+    requiredAt: normalizeSourceList(record.requiredAt),
   };
+}
+
+function toDocumentWithContent(payload: unknown): LegalDocumentWithContent | null {
+  if (!isRecord(payload)) return null;
+  const document = toDocument(payload);
+  const content = typeof payload.content === 'string' ? payload.content : null;
+  return document && content ? { ...document, content } : null;
+}
+
+function toConsentCatalogueItem(record: Record<string, unknown>): LegalConsentCatalogueItem | null {
+  const consentType = normalizeConsentType(record.consentType ?? record.type);
+  const label = normalizeNullableString(record.label);
+  if (!consentType || !label) return null;
+  return {
+    consentType,
+    label,
+    description: normalizeNullableString(record.description),
+    requiredAt: normalizeConsentContexts(record.requiredAt),
+    optionalAt: normalizeConsentContexts(record.optionalAt),
+  };
+}
+
+function extractConsentCatalogue(payload: unknown): LegalConsentCatalogueItem[] {
+  const items = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.items)
+      ? payload.items
+      : isRecord(payload) && Array.isArray(payload.consents)
+        ? payload.consents
+        : [];
+  return items
+    .map((item) => (isRecord(item) ? toConsentCatalogueItem(item) : null))
+    .filter((item): item is LegalConsentCatalogueItem => item !== null);
 }
 
 function extractDocumentList(payload: unknown): LegalDocumentVersion[] {
@@ -161,6 +198,18 @@ function extractDocumentList(payload: unknown): LegalDocumentVersion[] {
 
 async function fetchActiveDocuments(): Promise<LegalDocumentVersion[]> {
   const response = await http<ApiResponse<unknown> | unknown>('/api/v2/legal/documents/active');
+  return extractDocumentList(unwrapData(response));
+}
+
+/**
+ * The same published policies, read without a session. Sign-up ticks them
+ * before the account exists, so this route carries no credentials.
+ */
+async function fetchActivePublicDocuments(): Promise<LegalDocumentVersion[]> {
+  const response = await http<ApiResponse<unknown> | unknown>(
+    '/api/v2/legal/public/documents/active',
+    { skipAuth: true },
+  );
   return extractDocumentList(unwrapData(response));
 }
 
@@ -257,6 +306,32 @@ export const legalRealAdapter = {
     return fetchActiveDocuments();
   },
 
+  async getActivePublicDocuments(): Promise<LegalDocumentVersion[]> {
+    return fetchActivePublicDocuments();
+  },
+
+  /** The active policy published at a public path, with its text; null when none is. */
+  async getPublicDocumentByPath(path: string): Promise<LegalDocumentWithContent | null> {
+    try {
+      const response = await http<ApiResponse<unknown> | unknown>(
+        `/api/v2/legal/public/documents/by-path?path=${encodeURIComponent(path)}`,
+        { skipAuth: true },
+      );
+      return toDocumentWithContent(unwrapData(response));
+    } catch (error) {
+      if (error instanceof ApiError && error.kind === 'NotFound') return null;
+      throw error;
+    }
+  },
+
+  async getConsentCatalogue(): Promise<LegalConsentCatalogueItem[]> {
+    const response = await http<ApiResponse<unknown> | unknown>(
+      '/api/v2/legal/public/consents/catalogue',
+      { skipAuth: true },
+    );
+    return extractConsentCatalogue(unwrapData(response));
+  },
+
   async acceptDocuments(payload: LegalAcceptDocumentsPayload): Promise<LegalAcceptDocumentsResult> {
     const response = await http<ApiResponse<unknown> | unknown>('/api/v2/legal/documents/accept', {
       method: 'POST',
@@ -266,16 +341,11 @@ export const legalRealAdapter = {
   },
 
   async giveConsent(payload: LegalConsentMutationPayload): Promise<LegalConsentRecord> {
-    const version = resolveConsentPolicyVersion(await fetchActiveDocuments());
-    if (!version) {
-      throw new Error('ACTIVE_PRIVACY_POLICY_VERSION_MISSING');
-    }
+    // The privacy policy version is the server's to state: it stamps the one
+    // live at that moment, so the record cannot be shaped by the browser.
     const response = await http<ApiResponse<unknown> | unknown>('/api/v2/legal/consents/give', {
       method: 'POST',
-      body: {
-        ...payload,
-        version,
-      },
+      body: payload,
     });
     return mapMutationResult(unwrapData(response), payload, 'GIVEN');
   },

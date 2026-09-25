@@ -169,6 +169,9 @@ export const queryKeys = {
     all: ['legal'] as const,
     activeDocuments: () => [...queryKeys.legal.all, 'activeDocuments'] as const,
     consentsMe: () => [...queryKeys.legal.all, 'consentsMe'] as const,
+    publicDocuments: () => [...queryKeys.legal.all, 'publicDocuments'] as const,
+    documentByPath: (path: string) => [...queryKeys.legal.all, 'documentByPath', path] as const,
+    consentCatalogue: () => [...queryKeys.legal.all, 'consentCatalogue'] as const,
   },
   wizard: {
     all: ['wizard'] as const,

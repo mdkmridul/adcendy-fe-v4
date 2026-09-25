@@ -1,70 +1,90 @@
 import { ApiError } from '../errors';
-import {
-  LEGAL_CONSENT_TYPE_VALUES,
-  type LegalAcceptDocumentsPayload,
-  type LegalAcceptDocumentsResult,
-  type LegalConsentMutationPayload,
-  type LegalConsentRecord,
-  type LegalConsentType,
-  type LegalDocumentVersion,
+import type {
+  LegalAcceptDocumentsPayload,
+  LegalAcceptDocumentsResult,
+  LegalConsentCatalogueItem,
+  LegalConsentMutationPayload,
+  LegalConsentRecord,
+  LegalConsentType,
+  LegalDocumentVersion,
+  LegalDocumentWithContent,
 } from '../../types/legal';
 
 async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Local mock fixtures shaped like the Backend's public legal responses.
 const mockActiveDocuments: LegalDocumentVersion[] = [
   {
     id: 'legal-terms-v2',
     documentType: 'TERMS_OF_SERVICE',
     title: 'Terms of Service',
-    versionLabel: 'v2',
-    url: '/legal/terms-of-service',
+    versionLabel: '2026-01-01',
+    url: '/terms',
     effectiveFrom: '2026-01-01T00:00:00.000Z',
     publishedAt: '2026-01-01T00:00:00.000Z',
+    contentHash: null,
+    requiredAt: ['SIGNUP', 'CHECKOUT'],
   },
   {
     id: 'legal-privacy-v2',
     documentType: 'PRIVACY_POLICY',
     title: 'Privacy Policy',
-    versionLabel: 'v2',
-    url: '/legal/privacy-policy',
+    versionLabel: '2026-01-01',
+    url: '/privacy-policy',
     effectiveFrom: '2026-01-01T00:00:00.000Z',
     publishedAt: '2026-01-01T00:00:00.000Z',
+    contentHash: null,
+    requiredAt: ['SIGNUP', 'CHECKOUT'],
   },
   {
     id: 'legal-refund-v2',
     documentType: 'REFUND_CANCELLATION_POLICY',
     title: 'Refund & Cancellation Policy',
-    versionLabel: 'v2',
-    url: '/legal/refund-cancellation-policy',
+    versionLabel: '2026-01-01',
+    url: '/refund-policy',
     effectiveFrom: '2026-01-01T00:00:00.000Z',
     publishedAt: '2026-01-01T00:00:00.000Z',
+    contentHash: null,
+    requiredAt: ['CHECKOUT'],
   },
   {
     id: 'legal-disclaimer-v2',
     documentType: 'DISCLAIMER',
     title: 'Disclaimer',
-    versionLabel: 'v2',
-    url: '/legal/disclaimer',
+    versionLabel: '2026-01-01',
+    url: '/disclaimer',
     effectiveFrom: '2026-01-01T00:00:00.000Z',
     publishedAt: '2026-01-01T00:00:00.000Z',
+    contentHash: null,
+    requiredAt: ['CHECKOUT'],
   },
   {
     id: 'legal-delivery-v2',
     documentType: 'DIGITAL_DELIVERY_POLICY',
     title: 'Digital Delivery Policy',
-    versionLabel: 'v2',
-    url: '/legal/digital-delivery-policy',
+    versionLabel: '2026-01-01',
+    url: '/delivery-policy',
     effectiveFrom: '2026-01-01T00:00:00.000Z',
     publishedAt: '2026-01-01T00:00:00.000Z',
+    contentHash: null,
+    requiredAt: ['CHECKOUT'],
   },
+];
+
+const mockConsentCatalogue: LegalConsentCatalogueItem[] = [
+  { consentType: 'PRIVACY_PROCESSING', label: 'Privacy Processing', description: null, requiredAt: ['WIZARD'], optionalAt: [] },
+  { consentType: 'AI_PROCESSING', label: 'AI Processing', description: null, requiredAt: ['WIZARD'], optionalAt: [] },
+  { consentType: 'BENCHMARK_DATA', label: 'Benchmark Data', description: null, requiredAt: [], optionalAt: ['WIZARD', 'ACCOUNT'] },
+  { consentType: 'MARKETING_EMAILS', label: 'Marketing Emails', description: null, requiredAt: [], optionalAt: ['ACCOUNT'] },
+  { consentType: 'ADS_INTEGRATION', label: 'Ads Integration', description: null, requiredAt: [], optionalAt: ['ACCOUNT'] },
 ];
 
 const consentState = new Map<LegalConsentType, LegalConsentRecord>();
 
 function ensureConsentState() {
-  for (const consentType of LEGAL_CONSENT_TYPE_VALUES) {
+  for (const { consentType } of mockConsentCatalogue) {
     if (!consentState.has(consentType)) {
       consentState.set(consentType, {
         consentType,
@@ -114,6 +134,27 @@ export const legalMockAdapter = {
     return mockActiveDocuments;
   },
 
+  async getActivePublicDocuments(): Promise<LegalDocumentVersion[]> {
+    await delay(80);
+    return mockActiveDocuments;
+  },
+
+  async getPublicDocumentByPath(path: string): Promise<LegalDocumentWithContent | null> {
+    await delay(80);
+    const document = mockActiveDocuments.find((item) => item.url === path);
+    return document
+      ? { ...document, content: `*Effective date: 1 January 2026*
+
+Mock ${document.title} text. The real text is served by the Backend.
+` }
+      : null;
+  },
+
+  async getConsentCatalogue(): Promise<LegalConsentCatalogueItem[]> {
+    await delay(60);
+    return mockConsentCatalogue;
+  },
+
   async acceptDocuments(payload: LegalAcceptDocumentsPayload): Promise<LegalAcceptDocumentsResult> {
     await delay(100);
     validateDocumentVersionIds(payload.documentVersionIds);
@@ -139,6 +180,6 @@ export const legalMockAdapter = {
   async getMyConsents(): Promise<LegalConsentRecord[]> {
     await delay(80);
     ensureConsentState();
-    return LEGAL_CONSENT_TYPE_VALUES.map((consentType) => consentState.get(consentType) as LegalConsentRecord);
+    return mockConsentCatalogue.map(({ consentType }) => consentState.get(consentType) as LegalConsentRecord);
   },
 };
