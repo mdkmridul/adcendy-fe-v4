@@ -28,6 +28,12 @@ const mockWizardOptions: WizardOptionsResponseV2 = {
     { stepNumber: 7, stepKey: 'step7_review_consent_generate', label: 'Review', helperText: 'Review and consent', examples: [] },
   ],
   fieldOptions: {
+    // Shaped like the Backend's served market list (ISO 3166-1 alpha-2).
+    targetMarkets: [
+      { value: 'IN', label: 'India' },
+      { value: 'US', label: 'United States' },
+      { value: 'GB', label: 'United Kingdom' },
+    ],
     marketingTargetType: [
       { value: 'whole_business', label: 'Whole business' },
       { value: 'product_or_service', label: 'Product or service' },
