@@ -12,6 +12,10 @@ permissions:
 jobs:
   verify-and-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Publishing the release image on main; read-only elsewhere.
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -117,6 +121,33 @@ jobs:
             config/deployment/files-contract.json
             config/deployment/frontend-proxy-contract.v1.json
           retention-days: 30
+
+      # A release is an image digest, not a branch name. Only main publishes,
+      # and only after every check above has passed, so a digest that exists is
+      # a digest that was verified. It is the image validated above, pushed as
+      # is; deploys name its digest and nothing on the server ever builds.
+      - name: Publish the release image
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          REGISTRY: ghcr.io
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          # GHCR rejects uppercase paths, and the owner is Erraiway-Technologies.
+          image="$REGISTRY/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/adcendy-fe"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          docker tag adcendy-fe:${{ github.sha }} "$image:sha-${{ github.sha }}"
+          docker push "$image:sha-${{ github.sha }}"
+          digest="$(docker inspect --format='{{index .RepoDigests 0}}' "$image:sha-${{ github.sha }}")"
+          echo "Released: $digest"
+          {
+            echo "## Release image"
+            echo
+            echo "Deploy this digest, and nothing else:"
+            echo
+            echo '```'
+            echo "FRONTEND_IMAGE=$digest"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload browser test report on failure
         if: failure()
