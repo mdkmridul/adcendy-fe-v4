@@ -30,6 +30,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/validate-runtime-config.ts ./scripts/validate-runtime-config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/shared/runtime-config ./shared/runtime-config
 
+# Next creates .next/cache on demand (the /_next/image route does so even with
+# images unoptimized). Deployments run this image as the host's service account
+# rather than nextjs, and that uid cannot create a directory under .next, so
+# the cache directory exists up front and any uid may write to it.
+RUN mkdir -p .next/cache \
+    && chown nextjs:nodejs .next/cache \
+    && chmod 1777 .next/cache
+
 USER nextjs
 EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
